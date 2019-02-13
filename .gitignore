@@ -1,0 +1,6 @@
+coverage.txt
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
