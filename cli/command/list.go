@@ -1,4 +1,4 @@
-package cli
+package command
 
 import (
 	"github.com/urfave/cli"
@@ -6,7 +6,6 @@ import (
 
 var ListCommand = cli.Command{
 	Name:    "list",
-	Aliases: []string{"l"},
 	Usage:   "list all containers",
 	Action: func(c *cli.Context) error {
 		return nil

@@ -1,12 +1,13 @@
-package cli
+package command
 
-import "github.com/urfave/cli"
+import (
+	"github.com/urfave/cli"
+)
 
 var CreateCommand = cli.Command{
 	Name:    "create",
-	Aliases: []string{"c"},
 	Usage:   "create a containers",
-	Action: func(c *cli.Context) error {
+	Action: func(ctx *cli.Context) error {
 		return nil
 	},
 }

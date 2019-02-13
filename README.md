@@ -8,7 +8,7 @@
 
 [https://github.com/songxinjianqwe/rune](https://github.com/songxinjianqwe/rune)
 
-## Architecture
+## Project Structure
 rune containers a cli and a library, whick provider atomic operations of container
 
 ## Install
