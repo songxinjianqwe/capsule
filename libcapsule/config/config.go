@@ -23,45 +23,6 @@ type IDMap struct {
 	Size        int `json:"size"`
 }
 
-// Action is taken upon rule match in Seccomp
-type Action int
-
-const (
-	Kill Action = iota + 1
-	Errno
-	Trap
-	Allow
-	Trace
-)
-
-// Operator is a comparison operator to be used when matching syscall arguments in Seccomp
-type Operator int
-
-const (
-	EqualTo Operator = iota + 1
-	NotEqualTo
-	GreaterThan
-	GreaterThanOrEqualTo
-	LessThan
-	LessThanOrEqualTo
-	MaskEqualTo
-)
-
-// Arg is a rule to match a specific syscall argument in Seccomp
-type Arg struct {
-	Index    uint     `json:"index"`
-	Value    uint64   `json:"value"`
-	ValueTwo uint64   `json:"value_two"`
-	Op       Operator `json:"op"`
-}
-
-// Syscall is a rule to match a syscall in Seccomp
-type Syscall struct {
-	Name   string `json:"name"`
-	Action Action `json:"action"`
-	Args   []*Arg `json:"args"`
-}
-
 // which are common across platforms, and those which are platform specific.
 // Config defines configuration options for executing a process inside a contained environment.
 type Config struct {
@@ -101,7 +62,7 @@ type Config struct {
 
 	// Capabilities specify the capabilities to keep when executing the process inside the container
 	// All capabilities not specified will be dropped from the processes capability mask
-	Capabilities *Capabilities `json:"capabilities"`
+	Capabilities *specs.LinuxCapabilities `json:"capabilities"`
 
 	// Networks specifies the container's network setup to be created
 	Networks []*Network `json:"networks"`
@@ -146,19 +107,6 @@ type Config struct {
 	Hooks *Hooks
 	// Labels are user defined metadata that is stored in the config and populated on the state
 	Labels []string `json:"labels"`
-}
-
-type Capabilities struct {
-	// Bounding is the set of capabilities checked by the kernel.
-	Bounding []string
-	// Effective is the set of capabilities checked by the kernel.
-	Effective []string
-	// Inheritable is the capabilities preserved across execve.
-	Inheritable []string
-	// Permitted is the limiting superset for effective capabilities.
-	Permitted []string
-	// Ambient is the ambient set of capabilities that are kept.
-	Ambient []string
 }
 
 type Hooks struct {
