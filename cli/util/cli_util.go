@@ -30,7 +30,6 @@ func CheckArgs(context *cli.Context, expected, checkType int) error {
 			err = fmt.Errorf("%s: %q requires a maximum of %d argument(s)", os.Args[0], cmdName, expected)
 		}
 	}
-
 	if err != nil {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(context, cmdName)

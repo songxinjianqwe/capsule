@@ -1,5 +1,15 @@
 package config
 
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
+	"os/exec"
+	"time"
+)
+
 type Rlimit struct {
 	Type int    `json:"type"`
 	Hard uint64 `json:"hard"`
@@ -103,10 +113,6 @@ type Config struct {
 	// placed into to limit the resources the container has available
 	Cgroups *Cgroup `json:"cgroups"`
 
-	// AppArmorProfile specifies the profile to apply to the process running in the container and is
-	// change at the time the process is execed
-	AppArmorProfile string `json:"apparmor_profile,omitempty"`
-
 	// ProcessLabel specifies the label to apply to the process running in the container.  It is
 	// commonly used by selinux
 	ProcessLabel string `json:"process_label,omitempty"`
@@ -114,13 +120,6 @@ type Config struct {
 	// Rlimits specifies the resource limits, such as max open files, to set in the container
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
 	Rlimits []Rlimit `json:"rlimits,omitempty"`
-
-	// OomScoreAdj specifies the adjustment to be made by the kernel when calculating oom scores
-	// for a process. Valid values are between the range [-1000, '1000'], where processes with
-	// higher scores are preferred for being killed. If it is unset then we don't touch the current
-	// value.
-	// More information about kernel oom score calculation here: https://lwn.net/Articles/317814/
-	OomScoreAdj *int `json:"oom_score_adj,omitempty"`
 
 	// UidMappings is an array of User ID mappings for User Namespaces
 	UidMappings []IDMap `json:"uid_mappings"`
@@ -142,7 +141,9 @@ type Config struct {
 
 	// Version is the version of opencontainer specification that is supported.
 	Version string `json:"version"`
-
+	// Hooks are a collection of actions to perform at various container lifecycle events.
+	// CommandHooks are serialized to JSON, but other hooks are not.
+	Hooks *Hooks
 	// Labels are user defined metadata that is stored in the config and populated on the state
 	Labels []string `json:"labels"`
 }
@@ -158,4 +159,142 @@ type Capabilities struct {
 	Permitted []string
 	// Ambient is the ambient set of capabilities that are kept.
 	Ambient []string
+}
+
+type Hooks struct {
+	// Prestart commands are executed after the container namespaces are created,
+	// but before the user supplied command is executed from init.
+	Prestart []Hook
+
+	// Poststart commands are executed after the container init process starts.
+	Poststart []Hook
+
+	// Poststop commands are executed after the container init process exits.
+	Poststop []Hook
+}
+
+func (hooks *Hooks) UnmarshalJSON(b []byte) error {
+	var state struct {
+		Prestart  []CommandHook
+		Poststart []CommandHook
+		Poststop  []CommandHook
+	}
+
+	if err := json.Unmarshal(b, &state); err != nil {
+		return err
+	}
+
+	deserialize := func(shooks []CommandHook) (hooks []Hook) {
+		for _, shook := range shooks {
+			hooks = append(hooks, shook)
+		}
+
+		return hooks
+	}
+
+	hooks.Prestart = deserialize(state.Prestart)
+	hooks.Poststart = deserialize(state.Poststart)
+	hooks.Poststop = deserialize(state.Poststop)
+	return nil
+}
+
+func (hooks Hooks) MarshalJSON() ([]byte, error) {
+	serialize := func(hooks []Hook) (serializableHooks []CommandHook) {
+		for _, hook := range hooks {
+			switch chook := hook.(type) {
+			case CommandHook:
+				serializableHooks = append(serializableHooks, chook)
+			default:
+				logrus.Warnf("cannot serialize hook of type %T, skipping", hook)
+			}
+		}
+
+		return serializableHooks
+	}
+
+	return json.Marshal(map[string]interface{}{
+		"prestart":  serialize(hooks.Prestart),
+		"poststart": serialize(hooks.Poststart),
+		"poststop":  serialize(hooks.Poststop),
+	})
+}
+
+type Hook interface {
+	// Run executes the hook with the provided state.
+	Run(*specs.State) error
+}
+
+// NewFunctionHook will call the provided function when the hook is run.
+func NewFunctionHook(f func(*specs.State) error) FuncHook {
+	return FuncHook{
+		run: f,
+	}
+}
+
+type FuncHook struct {
+	run func(*specs.State) error
+}
+
+func (f FuncHook) Run(s *specs.State) error {
+	return f.run(s)
+}
+
+type Command struct {
+	Path    string         `json:"path"`
+	Args    []string       `json:"args"`
+	Env     []string       `json:"env"`
+	Dir     string         `json:"dir"`
+	Timeout *time.Duration `json:"timeout"`
+}
+
+// NewCommandHook will execute the provided command when the hook is run.
+func NewCommandHook(cmd Command) CommandHook {
+	return CommandHook{
+		Command: cmd,
+	}
+}
+
+type CommandHook struct {
+	Command
+}
+
+func (c Command) Run(s *specs.State) error {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Cmd{
+		Path:   c.Path,
+		Args:   c.Args,
+		Env:    c.Env,
+		Stdin:  bytes.NewReader(b),
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	errC := make(chan error, 1)
+	go func() {
+		err := cmd.Wait()
+		if err != nil {
+			err = fmt.Errorf("error running hook: %v, stdout: %s, stderr: %s", err, stdout.String(), stderr.String())
+		}
+		errC <- err
+	}()
+	var timerCh <-chan time.Time
+	if c.Timeout != nil {
+		timer := time.NewTimer(*c.Timeout)
+		defer timer.Stop()
+		timerCh = timer.C
+	}
+	select {
+	case err := <-errC:
+		return err
+	case <-timerCh:
+		cmd.Process.Kill()
+		cmd.Wait()
+		return fmt.Errorf("hook ran past specified timeout of %.1fs", c.Timeout.Seconds())
+	}
 }
