@@ -31,7 +31,7 @@ type Factory interface {
 	// System util
 	Load(id string) (Container, error)
 
-	// StartInitialization is an internal API to libcontainer used during the reexec of the
+	// StartInitialization is an internal API to libcapsule used during the reexec of the
 	// container.
 	//
 	// Errors:

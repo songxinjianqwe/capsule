@@ -3,6 +3,7 @@ package libcapsule
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/process"
 	"os"
 	"time"
 )
@@ -69,15 +70,9 @@ type State struct {
 	// NamespacePaths are filepaths to the container's namespaces. Key is the namespace type
 	// with the value as the path.
 	NamespacePaths map[config.NamespaceType]string `json:"namespace_paths"`
-
-	// Container's standard descriptors (std{in,out,err}), needed for checkpoint and restore
-	ExternalDescriptors []string `json:"external_descriptors,omitempty"`
-
-	// Intel RDT "resource control" filesystem path
-	IntelRdtPath string `json:"intel_rdt_path"`
 }
 
-// Container is a libcontainer container object.
+// Container is a libcapsule container object.
 // Each container is thread-safe within the same process. Since a container can
 // be destroyed by a separate process, any function may return that the container
 // was not found.
@@ -133,7 +128,7 @@ type Container interface {
 	// ConfigInvalid - config is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
-	Start(process *Process) (err error)
+	Start(process *process.Process) (err error)
 
 	// Run immediately starts the process inside the container.  Returns util if process
 	// fails to start.  It does not block waiting for the exec fifo  after start returns but
@@ -144,7 +139,7 @@ type Container interface {
 	// ConfigInvalid - config is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
-	Run(process *Process) (err error)
+	Run(process *process.Process) (err error)
 
 	// Destroys the container, if its in a valid state, after killing any
 	// remaining running processes.

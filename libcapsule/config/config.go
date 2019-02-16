@@ -1,17 +1,5 @@
 package config
 
-import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"os/exec"
-	"time"
-
-	"github.com/opencontainers/runtime-spec/specs-go"
-
-	"github.com/sirupsen/logrus"
-)
-
 type Rlimit struct {
 	Type int    `json:"type"`
 	Hard uint64 `json:"hard"`
@@ -23,16 +11,6 @@ type IDMap struct {
 	ContainerID int `json:"container_id"`
 	HostID      int `json:"host_id"`
 	Size        int `json:"size"`
-}
-
-// Seccomp represents syscall restrictions
-// By default, only the native architecture of the kernel is allowed to be used
-// for syscalls. Additional architectures can be added by specifying them in
-// Architectures.
-type Seccomp struct {
-	DefaultAction Action     `json:"default_action"`
-	Architectures []string   `json:"architectures"`
-	Syscalls      []*Syscall `json:"syscalls"`
 }
 
 // Action is taken upon rule match in Seccomp
@@ -74,9 +52,7 @@ type Syscall struct {
 	Args   []*Arg `json:"args"`
 }
 
-// TODO Windows. Many of these fields should be factored out into those parts
 // which are common across platforms, and those which are platform specific.
-
 // Config defines configuration options for executing a process inside a contained environment.
 type Config struct {
 	// NoPivotRoot will use MS_MOVE and a chroot to jail the process into the container's rootfs
@@ -164,53 +140,11 @@ type Config struct {
 	// sysctl -w my.property.name value in Linux.
 	Sysctl map[string]string `json:"sysctl"`
 
-	// Seccomp allows actions to be taken whenever a syscall is made within the container.
-	// A number of rules are given, each having an action to be taken if a syscall matches it.
-	// A default action to be taken if no rules match is also given.
-	Seccomp *Seccomp `json:"seccomp"`
-
-	// NoNewPrivileges controls whether processes in the container can gain additional privileges.
-	NoNewPrivileges bool `json:"no_new_privileges,omitempty"`
-
-	// Hooks are a collection of actions to perform at various container lifecycle events.
-	// CommandHooks are serialized to JSON, but other hooks are not.
-	Hooks *Hooks
-
 	// Version is the version of opencontainer specification that is supported.
 	Version string `json:"version"`
 
 	// Labels are user defined metadata that is stored in the config and populated on the state
 	Labels []string `json:"labels"`
-
-	// NoNewKeyring will not allocated a new session keyring for the container.  It will use the
-	// callers keyring in this case.
-	NoNewKeyring bool `json:"no_new_keyring"`
-
-	// IntelRdt specifies settings for Intel RDT group that the container is placed into
-	// to limit the resources (e.g., L3 cache, memory bandwidth) the container has available
-	IntelRdt *IntelRdt `json:"intel_rdt,omitempty"`
-
-	// RootlessEUID is set when the runc was launched with non-zero EUID.
-	// Note that RootlessEUID is set to false when launched with EUID=0 in userns.
-	// When RootlessEUID is set, runc creates a new userns for the container.
-	// (config.json needs to contain userns settings)
-	RootlessEUID bool `json:"rootless_euid,omitempty"`
-
-	// RootlessCgroups is set when unlikely to have the full access to cgroups.
-	// When RootlessCgroups is set, cgroups errors are ignored.
-	RootlessCgroups bool `json:"rootless_cgroups,omitempty"`
-}
-
-type Hooks struct {
-	// Prestart commands are executed after the container namespaces are created,
-	// but before the user supplied command is executed from init.
-	Prestart []Hook
-
-	// Poststart commands are executed after the container init process starts.
-	Poststart []Hook
-
-	// Poststop commands are executed after the container init process exits.
-	Poststop []Hook
 }
 
 type Capabilities struct {
@@ -224,130 +158,4 @@ type Capabilities struct {
 	Permitted []string
 	// Ambient is the ambient set of capabilities that are kept.
 	Ambient []string
-}
-
-func (hooks *Hooks) UnmarshalJSON(b []byte) error {
-	var state struct {
-		Prestart  []CommandHook
-		Poststart []CommandHook
-		Poststop  []CommandHook
-	}
-
-	if err := json.Unmarshal(b, &state); err != nil {
-		return err
-	}
-
-	deserialize := func(shooks []CommandHook) (hooks []Hook) {
-		for _, shook := range shooks {
-			hooks = append(hooks, shook)
-		}
-
-		return hooks
-	}
-
-	hooks.Prestart = deserialize(state.Prestart)
-	hooks.Poststart = deserialize(state.Poststart)
-	hooks.Poststop = deserialize(state.Poststop)
-	return nil
-}
-
-func (hooks Hooks) MarshalJSON() ([]byte, error) {
-	serialize := func(hooks []Hook) (serializableHooks []CommandHook) {
-		for _, hook := range hooks {
-			switch chook := hook.(type) {
-			case CommandHook:
-				serializableHooks = append(serializableHooks, chook)
-			default:
-				logrus.Warnf("cannot serialize hook of type %T, skipping", hook)
-			}
-		}
-
-		return serializableHooks
-	}
-
-	return json.Marshal(map[string]interface{}{
-		"prestart":  serialize(hooks.Prestart),
-		"poststart": serialize(hooks.Poststart),
-		"poststop":  serialize(hooks.Poststop),
-	})
-}
-
-type Hook interface {
-	// Run executes the hook with the provided state.
-	Run(*specs.State) error
-}
-
-// NewFunctionHook will call the provided function when the hook is run.
-func NewFunctionHook(f func(*specs.State) error) FuncHook {
-	return FuncHook{
-		run: f,
-	}
-}
-
-type FuncHook struct {
-	run func(*specs.State) error
-}
-
-func (f FuncHook) Run(s *specs.State) error {
-	return f.run(s)
-}
-
-type Command struct {
-	Path    string         `json:"path"`
-	Args    []string       `json:"args"`
-	Env     []string       `json:"env"`
-	Dir     string         `json:"dir"`
-	Timeout *time.Duration `json:"timeout"`
-}
-
-// NewCommandHook will execute the provided command when the hook is run.
-func NewCommandHook(cmd Command) CommandHook {
-	return CommandHook{
-		Command: cmd,
-	}
-}
-
-type CommandHook struct {
-	Command
-}
-
-func (c Command) Run(s *specs.State) error {
-	b, err := json.Marshal(s)
-	if err != nil {
-		return err
-	}
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Cmd{
-		Path:   c.Path,
-		Args:   c.Args,
-		Env:    c.Env,
-		Stdin:  bytes.NewReader(b),
-		Stdout: &stdout,
-		Stderr: &stderr,
-	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	errC := make(chan error, 1)
-	go func() {
-		err := cmd.Wait()
-		if err != nil {
-			err = fmt.Errorf("error running hook: %v, stdout: %s, stderr: %s", err, stdout.String(), stderr.String())
-		}
-		errC <- err
-	}()
-	var timerCh <-chan time.Time
-	if c.Timeout != nil {
-		timer := time.NewTimer(*c.Timeout)
-		defer timer.Stop()
-		timerCh = timer.C
-	}
-	select {
-	case err := <-errC:
-		return err
-	case <-timerCh:
-		cmd.Process.Kill()
-		cmd.Wait()
-		return fmt.Errorf("hook ran past specified timeout of %.1fs", c.Timeout.Seconds())
-	}
 }
