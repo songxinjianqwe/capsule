@@ -1,8 +1,9 @@
 package libcapsule
 
 import (
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/process"
 	"os"
 )
 
@@ -25,7 +26,7 @@ func (c *LinuxContainer) OCIState() (*specs.State, error) {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) Config() configs.Config {
+func (c *LinuxContainer) Config() config.Config {
 	panic("implement me")
 }
 
@@ -33,15 +34,15 @@ func (c *LinuxContainer) Processes() ([]int, error) {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) Set(config configs.Config) error {
+func (c *LinuxContainer) Set(config config.Config) error {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) Start(process *Process) (err error) {
+func (c *LinuxContainer) Start(process *process.Process) (err error) {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) Run(process *Process) (err error) {
+func (c *LinuxContainer) Run(process *process.Process) (err error) {
 	panic("implement me")
 }
 

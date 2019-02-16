@@ -1,6 +1,8 @@
 package libcapsule
 
-import "github.com/opencontainers/runc/libcontainer/configs"
+import (
+	"github.com/songxinjianqwe/rune/libcapsule/config"
+)
 
 type Factory interface {
 	// Creates a new container with the given id and starts the initial process inside it.
@@ -16,24 +18,24 @@ type Factory interface {
 	// IdInUse - id is already in use by a container
 	// InvalidIdFormat - id has incorrect format
 	// ConfigInvalid - config is invalid
-	// Systemerror - System error
+	// Systemerror - System util
 	//
-	// On error, any partially created container parts are cleaned up (the operation is atomic).
-	Create(id string, config *configs.Config) (Container, error)
+	// On util, any partially created container parts are cleaned up (the operation is atomic).
+	Create(id string, config *config.Config) (Container, error)
 
 	// Load takes an ID for an existing container and returns the container information
 	// from the state.  This presents a read only view of the container.
 	//
 	// errors:
 	// Path does not exist
-	// System error
+	// System util
 	Load(id string) (Container, error)
 
 	// StartInitialization is an internal API to libcontainer used during the reexec of the
 	// container.
 	//
 	// Errors:
-	// Pipe connection error
-	// System error
+	// Pipe connection util
+	// System util
 	StartInitialization() error
 }

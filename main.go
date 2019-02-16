@@ -4,13 +4,13 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	runeCli "github.com/songxinjianqwe/rune/cli/command"
-	"github.com/songxinjianqwe/rune/constant"
+	"github.com/songxinjianqwe/rune/cli/constant"
 	"github.com/urfave/cli"
 	"os"
 )
 
 /**
-	CLI入口
+CLI入口
 */
 func main() {
 	app := cli.NewApp()

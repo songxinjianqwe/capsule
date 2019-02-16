@@ -2,8 +2,8 @@ package command
 
 import (
 	"encoding/json"
+	"github.com/songxinjianqwe/rune/cli/constant"
 	"github.com/songxinjianqwe/rune/cli/util"
-	"github.com/songxinjianqwe/rune/constant"
 	"github.com/songxinjianqwe/rune/libcapsule/spec"
 	"github.com/urfave/cli"
 	"io/ioutil"

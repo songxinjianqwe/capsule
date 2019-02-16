@@ -1,8 +1,9 @@
-package libcapsule
+package process
 
 import (
 	"fmt"
-	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"io"
 	"math"
 	"os"
@@ -32,7 +33,7 @@ type Process struct {
 	// Stdout is a pointer to a writer which receives the standard output stream.
 	Stdout io.Writer
 
-	// Stderr is a pointer to a writer which receives the standard error stream.
+	// Stderr is a pointer to a writer which receives the standard util stream.
 	Stderr io.Writer
 
 	// ExtraFiles specifies additional open files to be inherited by the container
@@ -44,7 +45,7 @@ type Process struct {
 
 	// Capabilities specify the capabilities to keep when executing the process inside the container
 	// All capabilities not specified will be dropped from the processes capability mask
-	Capabilities *configs.Capabilities
+	Capabilities *config.Capabilities
 
 	// AppArmorProfile specifies the profile to apply to the process and is
 	// changed at the time the process is execed
@@ -58,7 +59,7 @@ type Process struct {
 
 	// Rlimits specifies the resource limits, such as max open files, to set in the container
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
-	Rlimits []configs.Rlimit
+	Rlimits []config.Rlimit
 
 	// ConsoleSocket provides the masterfd console.
 	ConsoleSocket *os.File
@@ -79,7 +80,7 @@ type processOperations interface {
 // Wait releases any resources associated with the Process
 func (p Process) Wait() (*os.ProcessState, error) {
 	if p.ops == nil {
-		return nil, newGenericError(fmt.Errorf("invalid process"), NoProcessOps)
+		return nil, util.NewGenericError(fmt.Errorf("invalid process"), util.NoProcessOps)
 	}
 	return p.ops.wait()
 }
@@ -89,7 +90,7 @@ func (p Process) Pid() (int, error) {
 	// math.MinInt32 is returned here, because it's invalid value
 	// for the kill() system call.
 	if p.ops == nil {
-		return math.MinInt32, newGenericError(fmt.Errorf("invalid process"), NoProcessOps)
+		return math.MinInt32, util.NewGenericError(fmt.Errorf("invalid process"), util.NoProcessOps)
 	}
 	return p.ops.pid(), nil
 }
@@ -97,7 +98,7 @@ func (p Process) Pid() (int, error) {
 // Signal sends a signal to the Process.
 func (p Process) Signal(sig os.Signal) error {
 	if p.ops == nil {
-		return newGenericError(fmt.Errorf("invalid process"), NoProcessOps)
+		return util.NewGenericError(fmt.Errorf("invalid process"), util.NoProcessOps)
 	}
 	return p.ops.signal(sig)
 }

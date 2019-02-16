@@ -1,11 +1,11 @@
-package libcapsule
+package util
 
-import "io"
+import "time"
 
-// ErrorCode is the API error code type.
+// ErrorCode is the API util code type.
 type ErrorCode int
 
-// API error codes.
+// API util codes.
 const (
 	// Factory errors
 	IdInUse ErrorCode = iota
@@ -38,7 +38,7 @@ func (c ErrorCode) String() string {
 	case ConfigInvalid:
 		return "Invalid configuration"
 	case SystemError:
-		return "System error"
+		return "System util"
 	case ContainerNotExists:
 		return "Container does not exist"
 	case ContainerNotStopped:
@@ -52,19 +52,43 @@ func (c ErrorCode) String() string {
 	case NoProcessOps:
 		return "No process operations"
 	default:
-		return "Unknown error"
+		return "Unknown util"
 	}
 }
 
-// Error is the API error type.
+// Error is the API util type.
 type Error interface {
 	error
-
-	// Returns an error if it failed to write the detail of the Error to w.
-	// The detail of the Error may include the error message and a
-	// representation of the stack trace.
-	Detail(w io.Writer) error
-
-	// Returns the error code for this error.
+	// Returns the util code for this util.
 	Code() ErrorCode
+}
+
+func NewGenericError(err error, c ErrorCode) Error {
+	if le, ok := err.(Error); ok {
+		return le
+	}
+	genericError := &GenericError{
+		Timestamp: time.Now(),
+		Cause:     err,
+		ErrorCode: c,
+	}
+	if err != nil {
+		genericError.Message = err.Error()
+	}
+	return genericError
+}
+
+type GenericError struct {
+	Timestamp time.Time
+	ErrorCode ErrorCode
+	Cause     error `json:"-"`
+	Message   string
+}
+
+func (e *GenericError) Error() string {
+	return e.Message
+}
+
+func (e *GenericError) Code() ErrorCode {
+	return e.ErrorCode
 }
