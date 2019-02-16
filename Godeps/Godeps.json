@@ -9,6 +9,11 @@
 			"Rev": "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
 		},
 		{
+			"ImportPath": "github.com/opencontainers/runtime-spec/specs-go",
+			"Comment": "v1.0.1-57-g1722abf",
+			"Rev": "1722abf79c2f8f2675f47367f827c6491472cf27"
+		},
+		{
 			"ImportPath": "github.com/sirupsen/logrus",
 			"Comment": "v1.3.0-13-gcdb2f38",
 			"Rev": "cdb2f3857cfba7388d28dfe38316b0a39e694215"
