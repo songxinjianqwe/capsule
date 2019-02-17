@@ -4,7 +4,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/config"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
+	"github.com/songxinjianqwe/rune/libcapsule/util/system"
 	"golang.org/x/sys/unix"
 	"os"
 	"syscall"
@@ -80,7 +80,7 @@ func signalAllProcesses(m cgroups.CgroupManager, s os.Signal) error {
 		logrus.Warn(err)
 	}
 
-	subreaper, err := util.GetSubreaper()
+	subreaper, err := system.GetSubreaper()
 	if err != nil {
 		// The error here means that PR_GET_CHILD_SUBREAPER is not
 		// supported because this code might run on a kernel older

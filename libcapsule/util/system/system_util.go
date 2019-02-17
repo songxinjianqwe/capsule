@@ -1,4 +1,4 @@
-package util
+package system
 
 import (
 	"golang.org/x/sys/unix"

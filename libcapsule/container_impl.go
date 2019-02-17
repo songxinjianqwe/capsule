@@ -1,19 +1,15 @@
 package libcapsule
 
 import (
-	"bytes"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/config"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
-	"io/ioutil"
+	"github.com/songxinjianqwe/rune/libcapsule/util/proc"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 )
-
-const ()
 
 type LinuxContainer struct {
 	id                   string
@@ -34,7 +30,9 @@ func (c *LinuxContainer) ID() string {
 }
 
 func (c *LinuxContainer) Status() (Status, error) {
-	panic("implement me")
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.currentStatus()
 }
 
 func (c *LinuxContainer) State() (*State, error) {
@@ -43,42 +41,14 @@ func (c *LinuxContainer) State() (*State, error) {
 	return c.currentState()
 }
 
-func (c *LinuxContainer) currentState() (*State, error) {
-	panic("implement me")
-}
-
 func (c *LinuxContainer) OCIState() (*specs.State, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.currentOCIState()
 }
 
-func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
-	panic("implement me")
-}
-
-func (c *LinuxContainer) runStatus() (Status, error) {
-	if c.initProcess == nil {
-		return Stopped, nil
-	}
-	pid := c.initProcess.pid()
-	stat, err := util.Stat(pid)
-	if err != nil {
-		return Stopped, nil
-	}
-	if stat.StartTime != c.initProcessStartTime || stat.State == util.Zombie || stat.State == util.Dead {
-		return Stopped, nil
-	}
-	// We'll create exec fifo and blocking on it after container is created,
-	// and delete it after start container.
-	if _, err := os.Stat(filepath.Join(c.root, execFifoFilename)); err == nil {
-		return Created, nil
-	}
-	return Running, nil
-}
-
 func (c *LinuxContainer) Config() config.Config {
-	panic("implement me")
+	return c.config
 }
 
 func (c *LinuxContainer) Processes() ([]int, error) {
@@ -105,21 +75,36 @@ func (c *LinuxContainer) Exec() error {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) isPaused() (bool, error) {
-	fcg := c.cgroupManager.GetPaths()["freezer"]
-	if fcg == "" {
-		// A container doesn't have a freezer cgroup
-		return false, nil
+// ************************************************************************************************
+// private
+// ************************************************************************************************
+
+func (c *LinuxContainer) currentState() (*State, error) {
+	panic("implement me")
+}
+
+func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
+	panic("implement me")
+}
+
+func (c *LinuxContainer) currentStatus() (Status, error) {
+	if c.initProcess == nil {
+		return Stopped, nil
 	}
-	data, err := ioutil.ReadFile(filepath.Join(fcg, "freezer.state"))
+	pid := c.initProcess.pid()
+	stat, err := proc.Stat(pid)
 	if err != nil {
-		// If freezer cgroup is not mounted, the container would just be not paused.
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, util.NewGenericError(err, util.SystemError)
+		return Stopped, nil
 	}
-	return bytes.Equal(bytes.TrimSpace(data), []byte("FROZEN")), nil
+	if stat.StartTime != c.initProcessStartTime || stat.State == proc.Zombie || stat.State == proc.Dead {
+		return Stopped, nil
+	}
+	// We'll create exec fifo and blocking on it after container is created,
+	// and delete it after start container.
+	if _, err := os.Stat(filepath.Join(c.root, execFifoFilename)); err == nil {
+		return Created, nil
+	}
+	return Running, nil
 }
 
 // refreshState needs to be called to verify that the current state on the
@@ -127,14 +112,7 @@ func (c *LinuxContainer) isPaused() (bool, error) {
 // out of process we need to verify the container's status based on runtime
 // information and not rely on our in process info.
 func (c *LinuxContainer) refreshState() error {
-	paused, err := c.isPaused()
-	if err != nil {
-		return err
-	}
-	if paused {
-		return c.state.transition(&pausedState{c: c})
-	}
-	t, err := c.runStatus()
+	t, err := c.currentStatus()
 	if err != nil {
 		return err
 	}

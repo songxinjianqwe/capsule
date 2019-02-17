@@ -103,7 +103,7 @@ func (r *runningState) status() Status {
 func (r *runningState) transition(s containerState) error {
 	switch s.(type) {
 	case *stoppedState:
-		t, err := r.c.runStatus()
+		t, err := r.c.currentStatus()
 		if err != nil {
 			return err
 		}
@@ -122,7 +122,7 @@ func (r *runningState) transition(s containerState) error {
 }
 
 func (r *runningState) destroy() error {
-	t, err := r.c.runStatus()
+	t, err := r.c.currentStatus()
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (p *pausedState) transition(s containerState) error {
 }
 
 func (p *pausedState) destroy() error {
-	t, err := p.c.runStatus()
+	t, err := p.c.currentStatus()
 	if err != nil {
 		return err
 	}

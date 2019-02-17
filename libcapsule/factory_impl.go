@@ -55,7 +55,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *config.Config) (
 		initArgs:      factory.InitArgs,
 	}
 	container.state = &stoppedState{c: &container}
-	return container, nil
+	return &container, nil
 }
 
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
