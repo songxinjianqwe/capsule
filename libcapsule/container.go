@@ -3,7 +3,6 @@ package libcapsule
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/config"
-	"github.com/songxinjianqwe/rune/libcapsule/process"
 	"os"
 	"time"
 )
@@ -59,10 +58,6 @@ type State struct {
 	Config config.Config `json:"config"`
 	// Platform specific fields below here
 
-	// Specified if the container was started under the rootless mode.
-	// Set to true if BaseState.Config.RootlessEUID && BaseState.Config.RootlessCgroups
-	Rootless bool `json:"rootless"`
-
 	// Path to all the cgroups setup for a container. Key is cgroup subsystem name
 	// with the value as the path.
 	CgroupPaths map[string]string `json:"cgroup_paths"`
@@ -77,24 +72,17 @@ type State struct {
 // be destroyed by a separate process, any function may return that the container
 // was not found.
 type Container interface {
-	// Returns the ID of the container
 	ID() string
 
-	// Returns the current status of the container.
-	//
 	// errors:
 	// ContainerNotExists - Container no longer exists,
 	// Systemerror - System util.
 	Status() (Status, error)
 
-	// State returns the current container's state information.
-	//
 	// errors:
 	// SystemError - System util.
 	State() (*State, error)
 
-	// OCIState returns the current container's state information.
-	//
 	// errors:
 	// SystemError - System util.
 	OCIState() (*specs.State, error)
@@ -102,8 +90,7 @@ type Container interface {
 	// Returns the current config of the container.
 	Config() config.Config
 
-	// Returns the PIDs inside this container. The PIDs are in the namespace of the calling process.
-	//
+	// 返回容器内的PIDs，存放在namespace中
 	// errors:
 	// ContainerNotExists - Container no longer exists,
 	// Systemerror - System util.
@@ -112,61 +99,35 @@ type Container interface {
 	// the Container state is PAUSED in which case every PID in the slice is valid.
 	Processes() ([]int, error)
 
-	// Set resources of container as configured
-	//
-	// We can use this to change resources when containers are running.
-	//
-	// errors:
-	// SystemError - System util.
-	Set(config config.Config) error
-
-	// Start a process inside the container. Returns util if process fails to
-	// start. You can track process lifecycle with passed Process structure.
-	//
+	// 阻塞式
 	// errors:
 	// ContainerNotExists - Container no longer exists,
 	// ConfigInvalid - config is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
-	Start(process *process.Process) (err error)
+	Start(process *Process) (err error)
 
-	// Run immediately starts the process inside the container.  Returns util if process
-	// fails to start.  It does not block waiting for the exec fifo  after start returns but
-	// opens the fifo after start returns.
-	//
+	// 非阻塞式
 	// errors:
 	// ContainerNotExists - Container no longer exists,
 	// ConfigInvalid - config is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
-	Run(process *process.Process) (err error)
+	Run(process *Process) (err error)
 
-	// Destroys the container, if its in a valid state, after killing any
-	// remaining running processes.
-	//
-	// Any event registrations are removed before the container is destroyed.
-	// No util is returned if the container is already destroyed.
-	//
-	// Running containers must first be stopped using Signal(..).
-	// Paused containers must first be resumed using Resume(..).
-	//
+	// 在杀掉所有运行进程后，销毁容器
 	// errors:
 	// ContainerNotStopped - Container is still running,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
 	Destroy() error
 
-	// Signal sends the provided signal code to the container's initial process.
-	//
-	// If all is specified the signal is sent to all processes in the container
-	// including the initial process.
-	//
+	// 向容器init进程发送信号
 	// errors:
 	// SystemError - System util.
 	Signal(s os.Signal, all bool) error
 
-	// Exec signals the container to exec the users process at the end of the init.
-	//
+	// 让容器执行最终命令
 	// errors:
 	// SystemError - System util.
 	Exec() error

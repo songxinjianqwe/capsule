@@ -1,7 +1,8 @@
-package process
+package libcapsule
 
 import (
 	"fmt"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/config"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"io"
@@ -45,11 +46,7 @@ type Process struct {
 
 	// Capabilities specify the capabilities to keep when executing the process inside the container
 	// All capabilities not specified will be dropped from the processes capability mask
-	Capabilities *config.Capabilities
-
-	// AppArmorProfile specifies the profile to apply to the process and is
-	// changed at the time the process is execed
-	AppArmorProfile string
+	Capabilities *specs.LinuxCapabilities
 
 	// Label specifies the label to apply to the process.  It is commonly used by selinux
 	Label string
@@ -108,4 +105,27 @@ type IO struct {
 	Stdin  io.WriteCloser
 	Stdout io.ReadCloser
 	Stderr io.ReadCloser
+}
+
+type parentProcess interface {
+	// pid returns the pid for the running process.
+	pid() int
+
+	// start starts the process execution.
+	start() error
+
+	// send a SIGKILL to the process and wait for the exit.
+	terminate() error
+
+	// wait waits on the process returning the process state.
+	wait() (*os.ProcessState, error)
+
+	// startTime returns the process start time.
+	startTime() (uint64, error)
+
+	signal(os.Signal) error
+
+	externalDescriptors() []string
+
+	setExternalDescriptors(fds []string)
 }

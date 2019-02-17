@@ -26,23 +26,12 @@ type IDMap struct {
 // which are common across platforms, and those which are platform specific.
 // Config defines configuration options for executing a process inside a contained environment.
 type Config struct {
-	// NoPivotRoot will use MS_MOVE and a chroot to jail the process into the container's rootfs
-	// This is a common option when the container is running in ramdisk
-	NoPivotRoot bool `json:"no_pivot_root"`
-
-	// ParentDeathSignal specifies the signal that is sent to the container's process in the case
-	// that the parent process dies.
-	ParentDeathSignal int `json:"parent_death_signal"`
-
 	// Path to a directory containing the container's root filesystem.
 	Rootfs string `json:"rootfs"`
 
 	// Readonlyfs will remount the container's rootfs as readonly where only externally mounted
 	// bind mounts are writtable.
 	Readonlyfs bool `json:"readonlyfs"`
-
-	// Specifies the mount propagation flags to be applied to /.
-	RootPropagation int `json:"rootPropagation"`
 
 	// Mounts specify additional source and destination paths that will be mounted inside the container's
 	// rootfs and mount namespace if specified
@@ -81,12 +70,6 @@ type Config struct {
 	// Rlimits specifies the resource limits, such as max open files, to set in the container
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
 	Rlimits []Rlimit `json:"rlimits,omitempty"`
-
-	// UidMappings is an array of User ID mappings for User Namespaces
-	UidMappings []IDMap `json:"uid_mappings"`
-
-	// GidMappings is an array of Group ID mappings for User Namespaces
-	GidMappings []IDMap `json:"gid_mappings"`
 
 	// MaskPaths specifies paths within the container's rootfs to mask over with a bind
 	// mount pointing to /dev/null as to prevent reads of the file.
