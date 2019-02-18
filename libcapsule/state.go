@@ -9,26 +9,26 @@ import (
 	"os"
 )
 
-func newStateTransitionError(from, to containerState) error {
+func newStateTransitionError(from, to ContainerState) error {
 	return &stateTransitionError{
 		From: from.status().String(),
 		To:   to.status().String(),
 	}
 }
 
-// stateTransitionError is returned when an invalid state transition happens from one
-// state to another.
+// stateTransitionError is returned when an invalid containerState transition happens from one
+// containerState to another.
 type stateTransitionError struct {
 	From string
 	To   string
 }
 
 func (s *stateTransitionError) Error() string {
-	return fmt.Sprintf("invalid state transition from %s to %s", s.From, s.To)
+	return fmt.Sprintf("invalid containerState transition from %s to %s", s.From, s.To)
 }
 
-type containerState interface {
-	transition(containerState) error
+type ContainerState interface {
+	transition(ContainerState) error
 	destroy() error
 	status() Status
 }
@@ -44,29 +44,11 @@ func destroy(c *LinuxContainer) error {
 		err = rerr
 	}
 	c.initProcess = nil
-	if herr := runPoststopHooks(c); err == nil {
-		err = herr
-	}
-	c.state = &stoppedState{c: c}
+	c.containerState = &stoppedState{c: c}
 	return err
 }
 
-func runPoststopHooks(c *LinuxContainer) error {
-	if c.config.Hooks != nil {
-		s, err := c.currentOCIState()
-		if err != nil {
-			return err
-		}
-		for _, hook := range c.config.Hooks.Poststop {
-			if err := hook.Run(s); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// stoppedState represents a container is a stopped/destroyed state.
+// stoppedState represents a container is a stopped/destroyed containerState.
 type stoppedState struct {
 	c *LinuxContainer
 }
@@ -75,10 +57,10 @@ func (b *stoppedState) status() Status {
 	return Stopped
 }
 
-func (b *stoppedState) transition(s containerState) error {
+func (b *stoppedState) transition(s ContainerState) error {
 	switch s.(type) {
 	case *runningState:
-		b.c.state = s
+		b.c.containerState = s
 		return nil
 	case *stoppedState:
 		return nil
@@ -99,7 +81,7 @@ func (r *runningState) status() Status {
 	return Running
 }
 
-func (r *runningState) transition(s containerState) error {
+func (r *runningState) transition(s ContainerState) error {
 	switch s.(type) {
 	case *stoppedState:
 		t, err := r.c.currentStatus()
@@ -109,7 +91,7 @@ func (r *runningState) transition(s containerState) error {
 		if t == Running {
 			return util.NewGenericError(fmt.Errorf("container still running"), util.ContainerNotStopped)
 		}
-		r.c.state = s
+		r.c.containerState = s
 		return nil
 	case *runningState:
 		return nil
@@ -136,10 +118,10 @@ func (i *createdState) status() Status {
 	return Created
 }
 
-func (i *createdState) transition(s containerState) error {
+func (i *createdState) transition(s ContainerState) error {
 	switch s.(type) {
 	case *runningState, *stoppedState:
-		i.c.state = s
+		i.c.containerState = s
 		return nil
 	case *createdState:
 		return nil

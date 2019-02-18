@@ -12,7 +12,7 @@ type ParentProcess interface {
 	// send a SIGKILL to the process and wait for the exit.
 	terminate() error
 
-	// wait waits on the process returning the process state.
+	// wait waits on the process returning the process containerState.
 	wait() (*os.ProcessState, error)
 
 	// startTime returns the process start time.

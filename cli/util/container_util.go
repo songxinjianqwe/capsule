@@ -31,7 +31,7 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, 
 		return -1, err
 	}
 	// 将specs.Process转为libcapsule.Process
-	process, err := newProcess(*spec.Process, true)
+	process, err := newProcess(*spec.Process)
 	if err != nil {
 		return -1, err
 	}
@@ -101,7 +101,7 @@ func LoadFactory() (libcapsule.Factory, error) {
 /*
 	将specs.Process转为libcapsule.Process
 */
-func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
+func newProcess(p specs.Process) (*libcapsule.Process, error) {
 	lp := &libcapsule.Process{
 		Args:            p.Args,
 		Env:             p.Env,
@@ -109,7 +109,6 @@ func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
 		Cwd:             p.Cwd,
 		Label:           p.SelinuxLabel,
 		NoNewPrivileges: &p.NoNewPrivileges,
-		Init:            init,
 	}
 
 	if p.ConsoleSize != nil {

@@ -30,10 +30,4 @@ type Mount struct {
 
 	// Extensions are additional flags that are specific to runc.
 	Extensions int `json:"extensions"`
-
-	// Optional Command to be run before Source is mounted.
-	PremountCmds []Command `json:"premount_cmds"`
-
-	// Optional Command to be run after Source is mounted.
-	PostmountCmds []Command `json:"postmount_cmds"`
 }

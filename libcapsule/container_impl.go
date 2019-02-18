@@ -5,6 +5,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"github.com/songxinjianqwe/rune/libcapsule/util/proc"
 	"golang.org/x/sys/unix"
 	"os"
@@ -13,17 +14,19 @@ import (
 	"time"
 )
 
+const (
+	InitPipeEnv = "_LIBCAPSULE_INITPIPE"
+)
+
 type LinuxContainer struct {
 	id                   string
 	root                 string
 	config               config.Config
 	cgroupManager        cgroups.CgroupManager
-	initPath             string
-	initArgs             []string
 	initProcess          ParentProcess
 	initProcessStartTime uint64
-	state                containerState
-	created              time.Time
+	containerState       ContainerState
+	createdTime          time.Time
 	mutex                sync.Mutex
 }
 
@@ -96,11 +99,30 @@ func (c *LinuxContainer) Exec() error {
 // ************************************************************************************************
 // private
 // ************************************************************************************************
-func (c *LinuxContainer) start(process *Process) (err error) {
+func (c *LinuxContainer) start(process *Process) error {
 	if err := c.createExecFifo(); err != nil {
 		return err
 	}
-	panic("implement me")
+	// 1、创建parent process
+	parent, err := NewParentProcess(c, process)
+	if err != nil {
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating new parent process")
+	}
+	c.initProcess = parent
+	// 2、启动parent process
+	if err := parent.start(); err != nil {
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "starting container process")
+	}
+	// 3、更新容器状态
+	c.createdTime = time.Now().UTC()
+	c.containerState = &createdState{
+		c: c,
+	}
+	state, err := c.updateState(parent)
+	if err != nil {
+		return err
+	}
+	c.initProcessStartTime = state.InitProcessStartTime
 	c.deleteExecFifo()
 	return nil
 }
@@ -134,8 +156,8 @@ func (c *LinuxContainer) currentStatus() (Status, error) {
 	if stat.StartTime != c.initProcessStartTime || stat.State == proc.Zombie || stat.State == proc.Dead {
 		return Stopped, nil
 	}
-	// 在容器创建前，会先创建execfifo管道；在容器创建后，会删除该管道
-	if _, err := os.Stat(filepath.Join(c.root, execFifoFilename)); err == nil {
+	// 在容器创建前，会先创建exec管道；在容器创建后，会删除该管道
+	if _, err := os.Stat(filepath.Join(c.root, ExecFifoFilename)); err == nil {
 		return Created, nil
 	}
 	return Running, nil
@@ -147,7 +169,7 @@ io.Pipe是内存管道，无法通过内存管道来感知容器状态
 因为管道存在，则说明容器是处于created之后，running之前的状态
 */
 func (c *LinuxContainer) createExecFifo() error {
-	fifoName := filepath.Join(c.root, execFifoFilename)
+	fifoName := filepath.Join(c.root, ExecFifoFilename)
 
 	if _, err := os.Stat(fifoName); err == nil {
 		return fmt.Errorf("exec fifo %s already exists", fifoName)
@@ -164,13 +186,13 @@ func (c *LinuxContainer) createExecFifo() error {
 在start后，删除exec.fifo管道
 */
 func (c *LinuxContainer) deleteExecFifo() error {
-	fifoName := filepath.Join(c.root, execFifoFilename)
+	fifoName := filepath.Join(c.root, ExecFifoFilename)
 	return os.Remove(fifoName)
 }
 
 /**
-创建一个parent process，用于与容器init进程通信
+更新容器状态文件state.json
 */
-func (c *LinuxContainer) newParentProcess() (ParentProcess, error) {
+func (c *LinuxContainer) updateState(process ParentProcess) (State, error) {
 	panic("implement me")
 }

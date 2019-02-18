@@ -15,14 +15,14 @@ const (
 	Created Status = iota
 	// Running is the status that denotes the container exists and is running.
 	Running
-	// Stopped is the status that denotes the container does not have a created or running process.
+	// Stopped is the status that denotes the container does not have a createdTime or running process.
 	Stopped
 )
 
 func (s Status) String() string {
 	switch s {
 	case Created:
-		return "created"
+		return "createdTime"
 	case Running:
 		return "running"
 	case Stopped:
@@ -32,7 +32,7 @@ func (s Status) String() string {
 	}
 }
 
-// State represents a running container's state
+// State represents a running container's containerState
 type State struct {
 	// ID is the container ID.
 	ID string `json:"id"`
@@ -44,7 +44,7 @@ type State struct {
 	InitProcessStartTime uint64 `json:"init_process_start"`
 
 	// Created is the unix timestamp for the creation time of the container in UTC
-	Created time.Time `json:"created"`
+	Created time.Time `json:"createdTime"`
 
 	// Config is the container's configuration.
 	Config config.Config `json:"config"`
@@ -88,7 +88,7 @@ type Container interface {
 	// Systemerror - System util.
 	//
 	// Some of the returned PIDs may no longer refer to processes in the Container, unless
-	// the Container state is PAUSED in which case every PID in the slice is valid.
+	// the Container containerState is PAUSED in which case every PID in the slice is valid.
 	Processes() ([]int, error)
 
 	// 阻塞式

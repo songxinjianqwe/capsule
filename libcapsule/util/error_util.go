@@ -1,6 +1,9 @@
 package util
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // ErrorCode is the API util code type.
 type ErrorCode int
@@ -74,6 +77,21 @@ func NewGenericError(err error, c ErrorCode) Error {
 	}
 	if err != nil {
 		genericError.Message = err.Error()
+	}
+	return genericError
+}
+
+func NewGenericErrorWithInfo(err error, c ErrorCode, context string) Error {
+	if le, ok := err.(Error); ok {
+		return le
+	}
+	genericError := &GenericError{
+		Timestamp: time.Now(),
+		Cause:     err,
+		ErrorCode: c,
+	}
+	if err != nil {
+		genericError.Message = fmt.Sprintf("[CONTEXT: %s]%s", context, err.Error())
 	}
 	return genericError
 }

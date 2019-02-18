@@ -1,25 +1,27 @@
 package libcapsule
 
 import (
-	"github.com/songxinjianqwe/rune/cli/constant"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/config"
 	"github.com/songxinjianqwe/rune/libcapsule/config/validate"
-	"os"
 )
 
 const (
-	stateFilename = "state.json"
+	// 容器状态文件的文件名
+	StateFilename = "containerState.json"
 	// 用于parent进程与init进程的start/run切换
-	execFifoFilename = "exec.fifo"
+	ExecFifoFilename = "exec.fifo"
+	// 重新执行本应用的command，相当于 重新执行./rune
+	ContainerInitPath = "/proc/self/exe"
+	// 运行容器init进程的命令
+	ContainerInitArgs = "init"
+	// 运行时文件的存放目录
+	RuntimeRoot = "/run/rune"
 )
 
 func NewFactory() (Factory, error) {
 	factory := LinuxContainerFactory{
-		Root:     constant.RuntimeRoot,
-		InitPath: "/proc/self/exe",
-		// 第一个元素是真正命令，比如create,run等；第二个元素是用来调用init进程的
-		InitArgs:  []string{os.Args[0], "init"},
+		Root:      RuntimeRoot,
 		Validator: validate.New(),
 		// TODO
 		NewCgroupsManager: nil,
@@ -28,16 +30,8 @@ func NewFactory() (Factory, error) {
 }
 
 type LinuxContainerFactory struct {
-	// Root directory for the factory to store state.
+	// Root directory for the factory to store containerState.
 	Root string
-
-	// InitPath is the path for calling the init responsibilities for spawning
-	// a container.
-	InitPath string
-
-	// InitArgs are arguments for calling the init responsibilities for spawning
-	// a container.
-	InitArgs []string
 
 	// Validator provides validation to container configurations.
 	Validator validate.Validator
@@ -52,12 +46,8 @@ func (factory *LinuxContainerFactory) Create(id string, config *config.Config) (
 		root:          factory.Root,
 		config:        *config,
 		cgroupManager: factory.NewCgroupsManager(config.Cgroups, nil),
-		// /proc/self/exe
-		initPath: factory.InitPath,
-		// os.Args[0], init
-		initArgs: factory.InitArgs,
 	}
-	container.state = &stoppedState{c: &container}
+	container.containerState = &stoppedState{c: &container}
 	return &container, nil
 }
 
