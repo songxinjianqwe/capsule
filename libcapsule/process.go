@@ -61,13 +61,10 @@ type Process struct {
 	// ConsoleSocket provides the masterfd console.
 	ConsoleSocket *os.File
 
-	// Init specifies whether the process is the first process in the container.
-	Init bool
-
-	ops processOperations
+	ops ProcessOperations
 }
 
-type processOperations interface {
+type ProcessOperations interface {
 	wait() (*os.ProcessState, error)
 	signal(sig os.Signal) error
 	pid() int
@@ -98,34 +95,4 @@ func (p Process) Signal(sig os.Signal) error {
 		return util.NewGenericError(fmt.Errorf("invalid process"), util.NoProcessOps)
 	}
 	return p.ops.signal(sig)
-}
-
-// IO holds the process's STDIO
-type IO struct {
-	Stdin  io.WriteCloser
-	Stdout io.ReadCloser
-	Stderr io.ReadCloser
-}
-
-type parentProcess interface {
-	// pid returns the pid for the running process.
-	pid() int
-
-	// start starts the process execution.
-	start() error
-
-	// send a SIGKILL to the process and wait for the exit.
-	terminate() error
-
-	// wait waits on the process returning the process state.
-	wait() (*os.ProcessState, error)
-
-	// startTime returns the process start time.
-	startTime() (uint64, error)
-
-	signal(os.Signal) error
-
-	externalDescriptors() []string
-
-	setExternalDescriptors(fds []string)
 }

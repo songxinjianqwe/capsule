@@ -1,7 +1,10 @@
 package command
 
 import (
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/songxinjianqwe/rune/cli/util"
+	"github.com/songxinjianqwe/rune/libcapsule"
 	"github.com/urfave/cli"
 )
 
@@ -12,6 +15,23 @@ var StartCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
-		return nil
+		container, err := util.GetContainer(ctx.Args().First())
+		if err != nil {
+			return err
+		}
+		status, err := container.Status()
+		if err != nil {
+			return err
+		}
+		switch status {
+		case libcapsule.Created:
+			return container.Exec()
+		case libcapsule.Stopped:
+			return errors.New("cannot start a container that has stopped")
+		case libcapsule.Running:
+			return errors.New("cannot start an already running container")
+		default:
+			return fmt.Errorf("cannot start a container in the %s state\n", status)
+		}
 	},
 }

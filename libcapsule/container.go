@@ -15,10 +15,6 @@ const (
 	Created Status = iota
 	// Running is the status that denotes the container exists and is running.
 	Running
-	// Pausing is the status that denotes the container exists, it is in the process of being paused.
-	Pausing
-	// Paused is the status that denotes the container exists, but all its processes are paused.
-	Paused
 	// Stopped is the status that denotes the container does not have a created or running process.
 	Stopped
 )
@@ -29,10 +25,6 @@ func (s Status) String() string {
 		return "created"
 	case Running:
 		return "running"
-	case Pausing:
-		return "pausing"
-	case Paused:
-		return "paused"
 	case Stopped:
 		return "stopped"
 	default:

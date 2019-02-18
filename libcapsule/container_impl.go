@@ -1,10 +1,12 @@
 package libcapsule
 
 import (
+	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/config"
 	"github.com/songxinjianqwe/rune/libcapsule/util/proc"
+	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"sync"
@@ -18,12 +20,16 @@ type LinuxContainer struct {
 	cgroupManager        cgroups.CgroupManager
 	initPath             string
 	initArgs             []string
-	initProcess          parentProcess
+	initProcess          ParentProcess
 	initProcessStartTime uint64
 	state                containerState
 	created              time.Time
 	mutex                sync.Mutex
 }
+
+// ************************************************************************************************
+// public
+// ************************************************************************************************
 
 func (c *LinuxContainer) ID() string {
 	return c.id
@@ -55,12 +61,22 @@ func (c *LinuxContainer) Processes() ([]int, error) {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) Start(process *Process) (err error) {
-	panic("implement me")
+func (c *LinuxContainer) Start(process *Process) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.start(process)
 }
 
-func (c *LinuxContainer) Run(process *Process) (err error) {
-	panic("implement me")
+func (c *LinuxContainer) Run(process *Process) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if err := c.start(process); err != nil {
+		return err
+	}
+	if err := c.exec(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *LinuxContainer) Destroy() error {
@@ -72,12 +88,26 @@ func (c *LinuxContainer) Signal(s os.Signal, all bool) error {
 }
 
 func (c *LinuxContainer) Exec() error {
-	panic("implement me")
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.exec()
 }
 
 // ************************************************************************************************
 // private
 // ************************************************************************************************
+func (c *LinuxContainer) start(process *Process) (err error) {
+	if err := c.createExecFifo(); err != nil {
+		return err
+	}
+	panic("implement me")
+	c.deleteExecFifo()
+	return nil
+}
+
+func (c *LinuxContainer) exec() error {
+	panic("implement me")
+}
 
 func (c *LinuxContainer) currentState() (*State, error) {
 	panic("implement me")
@@ -87,6 +117,11 @@ func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
 	panic("implement me")
 }
 
+/**
+1、如果容器init进程不存在，或者进程已经死亡或成为僵尸进程，则均为 【Stopped】
+2、如果exec.fifo文件存在，则为 【Created】
+3、其他情况为 【Running】
+*/
 func (c *LinuxContainer) currentStatus() (Status, error) {
 	if c.initProcess == nil {
 		return Stopped, nil
@@ -99,28 +134,43 @@ func (c *LinuxContainer) currentStatus() (Status, error) {
 	if stat.StartTime != c.initProcessStartTime || stat.State == proc.Zombie || stat.State == proc.Dead {
 		return Stopped, nil
 	}
-	// We'll create exec fifo and blocking on it after container is created,
-	// and delete it after start container.
+	// 在容器创建前，会先创建execfifo管道；在容器创建后，会删除该管道
 	if _, err := os.Stat(filepath.Join(c.root, execFifoFilename)); err == nil {
 		return Created, nil
 	}
 	return Running, nil
 }
 
-// refreshState needs to be called to verify that the current state on the
-// container is what is true.  Because consumers of libcontainer can use it
-// out of process we need to verify the container's status based on runtime
-// information and not rely on our in process info.
-func (c *LinuxContainer) refreshState() error {
-	t, err := c.currentStatus()
-	if err != nil {
+/**
+在start前，创建exec.fifo管道
+io.Pipe是内存管道，无法通过内存管道来感知容器状态
+因为管道存在，则说明容器是处于created之后，running之前的状态
+*/
+func (c *LinuxContainer) createExecFifo() error {
+	fifoName := filepath.Join(c.root, execFifoFilename)
+
+	if _, err := os.Stat(fifoName); err == nil {
+		return fmt.Errorf("exec fifo %s already exists", fifoName)
+	}
+	// 读是4，写是2，执行是1
+	// 自己可以读写，同组可以写，其他组可以写
+	if err := unix.Mkfifo(fifoName, 0622); err != nil {
 		return err
 	}
-	switch t {
-	case Created:
-		return c.state.transition(&createdState{c: c})
-	case Running:
-		return c.state.transition(&runningState{c: c})
-	}
-	return c.state.transition(&stoppedState{c: c})
+	return nil
+}
+
+/**
+在start后，删除exec.fifo管道
+*/
+func (c *LinuxContainer) deleteExecFifo() error {
+	fifoName := filepath.Join(c.root, execFifoFilename)
+	return os.Remove(fifoName)
+}
+
+/**
+创建一个parent process，用于与容器init进程通信
+*/
+func (c *LinuxContainer) newParentProcess() (ParentProcess, error) {
+	panic("implement me")
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"golang.org/x/sys/unix"
 	"os"
-	"path/filepath"
 )
 
 func newStateTransitionError(from, to containerState) error {
@@ -78,7 +77,7 @@ func (b *stoppedState) status() Status {
 
 func (b *stoppedState) transition(s containerState) error {
 	switch s.(type) {
-	case *runningState, *restoredState:
+	case *runningState:
 		b.c.state = s
 		return nil
 	case *stoppedState:
@@ -112,9 +111,6 @@ func (r *runningState) transition(s containerState) error {
 		}
 		r.c.state = s
 		return nil
-	case *pausedState:
-		r.c.state = s
-		return nil
 	case *runningState:
 		return nil
 	}
@@ -142,7 +138,7 @@ func (i *createdState) status() Status {
 
 func (i *createdState) transition(s containerState) error {
 	switch s.(type) {
-	case *runningState, *pausedState, *stoppedState:
+	case *runningState, *stoppedState:
 		i.c.state = s
 		return nil
 	case *createdState:
@@ -154,90 +150,4 @@ func (i *createdState) transition(s containerState) error {
 func (i *createdState) destroy() error {
 	i.c.initProcess.signal(unix.SIGKILL)
 	return destroy(i.c)
-}
-
-// pausedState represents a container that is currently pause.  It cannot be destroyed in a
-// paused state and must transition back to running first.
-type pausedState struct {
-	c *LinuxContainer
-}
-
-func (p *pausedState) status() Status {
-	return Paused
-}
-
-func (p *pausedState) transition(s containerState) error {
-	switch s.(type) {
-	case *runningState, *stoppedState:
-		p.c.state = s
-		return nil
-	case *pausedState:
-		return nil
-	}
-	return newStateTransitionError(p, s)
-}
-
-func (p *pausedState) destroy() error {
-	t, err := p.c.currentStatus()
-	if err != nil {
-		return err
-	}
-	if t != Running && t != Created {
-		if err := p.c.cgroupManager.Freeze(config.Thawed); err != nil {
-			return err
-		}
-		return destroy(p.c)
-	}
-	return util.NewGenericError(fmt.Errorf("container is paused"), util.ContainerPaused)
-}
-
-// restoredState is the same as the running state but also has associated checkpoint
-// information that maybe need destroyed when the container is stopped and destroy is called.
-type restoredState struct {
-	imageDir string
-	c        *LinuxContainer
-}
-
-func (r *restoredState) status() Status {
-	return Running
-}
-
-func (r *restoredState) transition(s containerState) error {
-	switch s.(type) {
-	case *stoppedState, *runningState:
-		return nil
-	}
-	return newStateTransitionError(r, s)
-}
-
-func (r *restoredState) destroy() error {
-	if _, err := os.Stat(filepath.Join(r.c.root, "checkpoint")); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-	}
-	return destroy(r.c)
-}
-
-// loadedState is used whenever a container is restored, loaded, or setting additional
-// processes inside and it should not be destroyed when it is exiting.
-type loadedState struct {
-	c *LinuxContainer
-	s Status
-}
-
-func (n *loadedState) status() Status {
-	return n.s
-}
-
-func (n *loadedState) transition(s containerState) error {
-	n.c.state = s
-	return nil
-}
-
-func (n *loadedState) destroy() error {
-	if err := n.c.refreshState(); err != nil {
-		return err
-	}
-	return n.c.state.destroy()
 }

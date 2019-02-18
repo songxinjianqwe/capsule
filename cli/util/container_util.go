@@ -21,8 +21,11 @@ const (
 
 /**
 创建或启动容器
+create
+or
+create and run
 */
-func StartContainer(id string, spec *specs.Spec, action ContainerAction) (int, error) {
+func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, error) {
 	container, err := CreateContainer(id, spec)
 	if err != nil {
 		return -1, err
@@ -39,12 +42,23 @@ func StartContainer(id string, spec *specs.Spec, action ContainerAction) (int, e
 			return -1, err
 		}
 	case ContainerActRun:
+		// c.run == c.start + c.exec
 		err := container.Run(process)
 		if err != nil {
 			return -1, err
 		}
 	}
 	return 0, nil
+}
+func GetContainer(id string) (libcapsule.Container, error) {
+	if id == "" {
+		return nil, errEmptyID
+	}
+	factory, err := LoadFactory()
+	if err != nil {
+		return nil, err
+	}
+	return factory.Load(id)
 }
 
 /**

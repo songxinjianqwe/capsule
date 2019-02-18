@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	stateFilename    = "state.json"
+	stateFilename = "state.json"
+	// 用于parent进程与init进程的start/run切换
 	execFifoFilename = "exec.fifo"
 )
 
@@ -51,8 +52,10 @@ func (factory *LinuxContainerFactory) Create(id string, config *config.Config) (
 		root:          factory.Root,
 		config:        *config,
 		cgroupManager: factory.NewCgroupsManager(config.Cgroups, nil),
-		initPath:      factory.InitPath,
-		initArgs:      factory.InitArgs,
+		// /proc/self/exe
+		initPath: factory.InitPath,
+		// os.Args[0], init
+		initArgs: factory.InitArgs,
 	}
 	container.state = &stoppedState{c: &container}
 	return &container, nil
