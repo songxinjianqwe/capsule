@@ -2,8 +2,6 @@ package configc
 
 import (
 	"fmt"
-	"os"
-	"sync"
 	"syscall"
 )
 
@@ -31,18 +29,13 @@ type Namespaces []Namespace
 func (namespaces Namespaces) CloneFlags() uintptr {
 	var flags uintptr = 1
 	for _, ns := range namespaces {
-		flags |= NsFlag(ns.Type)
+		flags |= ns.Type.NsFlag()
 	}
 	return flags
 }
 
-var (
-	nsLock              sync.Mutex
-	supportedNamespaces = make(map[NamespaceType]bool)
-)
-
 // NsName converts the namespace type to its filename
-func NsName(ns NamespaceType) string {
+func (ns NamespaceType) NsName() string {
 	switch ns {
 	case NEWNET:
 		return "net"
@@ -61,7 +54,7 @@ func NsName(ns NamespaceType) string {
 }
 
 // NsName converts the namespace type to its filename
-func NsFlag(ns NamespaceType) uintptr {
+func (ns NamespaceType) NsFlag() uintptr {
 	switch ns {
 	case NEWNET:
 		return syscall.CLONE_NEWNET
@@ -79,27 +72,6 @@ func NsFlag(ns NamespaceType) uintptr {
 	return 0
 }
 
-// IsNamespaceSupported returns whether a namespace is available or
-// not
-func IsNamespaceSupported(ns NamespaceType) bool {
-	nsLock.Lock()
-	defer nsLock.Unlock()
-	supported, ok := supportedNamespaces[ns]
-	if ok {
-		return supported
-	}
-	nsFile := NsName(ns)
-	// if the namespace type is unknown, just return false
-	if nsFile == "" {
-		return false
-	}
-	_, err := os.Stat(fmt.Sprintf("/proc/self/ns/%s", nsFile))
-	// a namespace is supported if it exists and we have permissions to read it
-	supported = err == nil
-	supportedNamespaces[ns] = supported
-	return supported
-}
-
 func NamespaceTypes() []NamespaceType {
 	return []NamespaceType{
 		NEWUSER, // Keep user NS always first, don't move it.
@@ -108,49 +80,9 @@ func NamespaceTypes() []NamespaceType {
 		NEWNET,
 		NEWPID,
 		NEWNS,
-		NEWCGROUP,
 	}
 }
 
 func (n *Namespace) GetPath(pid int) string {
-	return fmt.Sprintf("/proc/%d/ns/%s", pid, NsName(n.Type))
-}
-
-func (n *Namespaces) Remove(t NamespaceType) bool {
-	i := n.index(t)
-	if i == -1 {
-		return false
-	}
-	*n = append((*n)[:i], (*n)[i+1:]...)
-	return true
-}
-
-func (n *Namespaces) Add(t NamespaceType, path string) {
-	i := n.index(t)
-	if i == -1 {
-		*n = append(*n, Namespace{Type: t, Path: path})
-		return
-	}
-	(*n)[i].Path = path
-}
-
-func (n *Namespaces) index(t NamespaceType) int {
-	for i, ns := range *n {
-		if ns.Type == t {
-			return i
-		}
-	}
-	return -1
-}
-
-func (n *Namespaces) Contains(t NamespaceType) bool {
-	return n.index(t) != -1
-}
-
-func (n *Namespaces) PathOf(t NamespaceType) string {
-	i := n.index(t)
-	if i == -1 {
-		return ""
-	}
-	return (*n)[i].Path
+	return fmt.Sprintf("/proc/%d/ns/%s", pid, n.Type.NsName())
 }

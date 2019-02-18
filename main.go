@@ -19,7 +19,15 @@ func main() {
 	app.Usage = constant.Usage
 	app.Commands = []cli.Command{
 		runeCli.CreateCommand,
+		runeCli.StartCommand,
+		runeCli.RunCommand,
 		runeCli.ListCommand,
+		runeCli.DeleteCommand,
+		runeCli.ExecCommand,
+		runeCli.InitCommand,
+		runeCli.KillCommand,
+		runeCli.PsCommand,
+		runeCli.StateCommand,
 		runeCli.SpecCommand,
 	}
 	app.Before = func(c *cli.Context) error {

@@ -1,8 +1,10 @@
 package libcapsule
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
@@ -19,15 +21,14 @@ const (
 )
 
 type LinuxContainer struct {
-	id                   string
-	root                 string
-	config               configc.Config
-	cgroupManager        cgroups.CgroupManager
-	initProcess          ParentProcess
-	initProcessStartTime uint64
-	containerState       ContainerState
-	createdTime          time.Time
-	mutex                sync.Mutex
+	id             string
+	root           string
+	config         configc.Config
+	cgroupManager  cgroups.CgroupManager
+	initProcess    ProcessWrapper
+	containerState ContainerState
+	createdTime    time.Time
+	mutex          sync.Mutex
 }
 
 // ************************************************************************************************
@@ -100,30 +101,35 @@ func (c *LinuxContainer) Exec() error {
 // private
 // ************************************************************************************************
 func (c *LinuxContainer) start(process *Process) error {
+	// 容器启动会涉及两个管道，一个是用来传输配置信息的，一个是用来控制exec是否执行的
+	// 1、创建exec管道文件
 	if err := c.createExecFifo(); err != nil {
 		return err
 	}
-	// 1、创建parent process
+	// 2、创建parent process
 	parent, err := NewParentProcess(c, process)
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating new parent process")
 	}
 	c.initProcess = parent
-	// 2、启动parent process
+	// 3、启动parent process
 	if err := parent.start(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "starting container process")
 	}
-	// 3、更新容器状态
+	// 4、更新容器状态
 	c.createdTime = time.Now().UTC()
-	c.containerState = &createdState{
+	c.containerState = &CreatedState{
 		c: c,
 	}
-	state, err := c.updateState(parent)
+	_, err = c.updateState()
 	if err != nil {
 		return err
 	}
-	c.initProcessStartTime = state.InitProcessStartTime
-	c.deleteExecFifo()
+	// 5、删除管道文件
+	err = c.deleteExecFifo()
+	if err != nil {
+		logrus.Errorf("delete exec fifo failed: %s", err.Error())
+	}
 	return nil
 }
 
@@ -132,11 +138,78 @@ func (c *LinuxContainer) exec() error {
 }
 
 func (c *LinuxContainer) currentState() (*State, error) {
-	panic("implement me")
+	var (
+		initProcessPid       = -1
+		initProcessStartTime uint64
+	)
+	if c.initProcess != nil {
+		initProcessPid = c.initProcess.pid()
+		initProcessStartTime, _ = c.initProcess.startTime()
+	}
+	state := &State{
+		ID:                   c.ID(),
+		Config:               c.config,
+		InitProcessPid:       initProcessPid,
+		InitProcessStartTime: initProcessStartTime,
+		Created:              c.createdTime,
+		CgroupPaths:          c.cgroupManager.GetPaths(),
+		NamespacePaths:       make(map[configc.NamespaceType]string),
+	}
+	if initProcessPid > 0 {
+		for _, ns := range c.config.Namespaces {
+			state.NamespacePaths[ns.Type] = ns.GetPath(initProcessPid)
+		}
+	}
+	return state, nil
 }
 
 func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
-	panic("implement me")
+	bundle, annotations := util.Annotations(c.config.Labels)
+	state := &specs.State{
+		Version:     specs.Version,
+		ID:          c.ID(),
+		Bundle:      bundle,
+		Annotations: annotations,
+	}
+	status, err := c.currentStatus()
+	if err != nil {
+		return nil, err
+	}
+	state.Status = status.String()
+	if status != Stopped {
+		if c.initProcess != nil {
+			state.Pid = c.initProcess.pid()
+		}
+	}
+	return state, err
+}
+
+func (c *LinuxContainer) currentStatus() (Status, error) {
+	if err := c.refreshState(); err != nil {
+		return -1, err
+	}
+	return c.containerState.status(), nil
+}
+
+/**
+因为外部用户来使用libcapsule时会随意修改容器内存中的状态，所以这个containerState并不可信，我们需要自己去检测一个真正的容器状态，
+并进行数据纠错
+*/
+func (c *LinuxContainer) refreshState() error {
+	status, err := c.detectRealStatus()
+	if err != nil {
+		return err
+	}
+	switch status {
+	case Created:
+		return c.containerState.transition(&CreatedState{c: c})
+	case Running:
+		return c.containerState.transition(&RunningState{c: c})
+	case Stopped:
+		return c.containerState.transition(&StoppedState{c: c})
+	default:
+		return util.NewGenericError(fmt.Errorf("检测到未知容器状态:%d", status), util.SystemError)
+	}
 }
 
 /**
@@ -144,16 +217,17 @@ func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
 2、如果exec.fifo文件存在，则为 【Created】
 3、其他情况为 【Running】
 */
-func (c *LinuxContainer) currentStatus() (Status, error) {
+func (c *LinuxContainer) detectRealStatus() (Status, error) {
 	if c.initProcess == nil {
 		return Stopped, nil
 	}
 	pid := c.initProcess.pid()
-	stat, err := proc.Stat(pid)
+	processState, err := proc.Stat(pid)
 	if err != nil {
 		return Stopped, nil
 	}
-	if stat.StartTime != c.initProcessStartTime || stat.State == proc.Zombie || stat.State == proc.Dead {
+	initProcessStartTime, _ := c.initProcess.startTime()
+	if processState.StartTime != initProcessStartTime || processState.State == proc.Zombie || processState.State == proc.Dead {
 		return Stopped, nil
 	}
 	// 在容器创建前，会先创建exec管道；在容器创建后，会删除该管道
@@ -193,6 +267,31 @@ func (c *LinuxContainer) deleteExecFifo() error {
 /**
 更新容器状态文件state.json
 */
-func (c *LinuxContainer) updateState(process ParentProcess) (State, error) {
-	panic("implement me")
+func (c *LinuxContainer) updateState() (state *State, err error) {
+	state, err = c.currentState()
+	if err != nil {
+		return nil, err
+	}
+	err = c.saveState(state)
+	if err != nil {
+		return nil, err
+	}
+	return state, nil
+}
+
+/**
+将state JSON对象写入到文件中
+*/
+func (c *LinuxContainer) saveState(state *State) error {
+	file, err := os.Create(filepath.Join(RuntimeRoot, StateFilename))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	bytes, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	_, err = file.WriteString(string(bytes))
+	return err
 }

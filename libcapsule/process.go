@@ -1,12 +1,9 @@
 package libcapsule
 
 import (
-	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"io"
-	"math"
 	"os"
 )
 
@@ -60,39 +57,4 @@ type Process struct {
 
 	// ConsoleSocket provides the masterfd console.
 	ConsoleSocket *os.File
-
-	ops ProcessOperations
-}
-
-type ProcessOperations interface {
-	wait() (*os.ProcessState, error)
-	signal(sig os.Signal) error
-	pid() int
-}
-
-// Wait waits for the process to exit.
-// Wait releases any resources associated with the Process
-func (p Process) Wait() (*os.ProcessState, error) {
-	if p.ops == nil {
-		return nil, util.NewGenericError(fmt.Errorf("invalid process"), util.NoProcessOps)
-	}
-	return p.ops.wait()
-}
-
-// Pid returns the process ID
-func (p Process) Pid() (int, error) {
-	// math.MinInt32 is returned here, because it's invalid value
-	// for the kill() system call.
-	if p.ops == nil {
-		return math.MinInt32, util.NewGenericError(fmt.Errorf("invalid process"), util.NoProcessOps)
-	}
-	return p.ops.pid(), nil
-}
-
-// Signal sends a signal to the Process.
-func (p Process) Signal(sig os.Signal) error {
-	if p.ops == nil {
-		return util.NewGenericError(fmt.Errorf("invalid process"), util.NoProcessOps)
-	}
-	return p.ops.signal(sig)
 }

@@ -44,46 +44,50 @@ func destroy(c *LinuxContainer) error {
 		err = rerr
 	}
 	c.initProcess = nil
-	c.containerState = &stoppedState{c: c}
+	c.containerState = &StoppedState{c: c}
 	return err
 }
 
-// stoppedState represents a container is a stopped/destroyed containerState.
-type stoppedState struct {
+// ******************************************************************************************
+// 【StoppedState】 represents a container is a stopped/destroyed containerState.
+// ******************************************************************************************
+type StoppedState struct {
 	c *LinuxContainer
 }
 
-func (b *stoppedState) status() Status {
+func (b *StoppedState) status() Status {
 	return Stopped
 }
 
-func (b *stoppedState) transition(s ContainerState) error {
+func (b *StoppedState) transition(s ContainerState) error {
 	switch s.(type) {
-	case *runningState:
+	case *RunningState:
 		b.c.containerState = s
 		return nil
-	case *stoppedState:
+	case *StoppedState:
 		return nil
 	}
 	return newStateTransitionError(b, s)
 }
 
-func (b *stoppedState) destroy() error {
+func (b *StoppedState) destroy() error {
 	return destroy(b.c)
 }
 
-// runningState represents a container that is currently running.
-type runningState struct {
+// ******************************************************************************************
+// 【RunningState】 represents a container that is currently running.
+// ******************************************************************************************
+type RunningState struct {
 	c *LinuxContainer
 }
 
-func (r *runningState) status() Status {
+func (r *RunningState) status() Status {
 	return Running
 }
 
-func (r *runningState) transition(s ContainerState) error {
+func (r *RunningState) transition(s ContainerState) error {
 	switch s.(type) {
-	case *stoppedState:
+	case *StoppedState:
 		t, err := r.c.currentStatus()
 		if err != nil {
 			return err
@@ -93,13 +97,13 @@ func (r *runningState) transition(s ContainerState) error {
 		}
 		r.c.containerState = s
 		return nil
-	case *runningState:
+	case *RunningState:
 		return nil
 	}
 	return newStateTransitionError(r, s)
 }
 
-func (r *runningState) destroy() error {
+func (r *RunningState) destroy() error {
 	t, err := r.c.currentStatus()
 	if err != nil {
 		return err
@@ -110,26 +114,29 @@ func (r *runningState) destroy() error {
 	return destroy(r.c)
 }
 
-type createdState struct {
+// ******************************************************************************************
+// 【CreatedState】
+// ******************************************************************************************
+type CreatedState struct {
 	c *LinuxContainer
 }
 
-func (i *createdState) status() Status {
+func (i *CreatedState) status() Status {
 	return Created
 }
 
-func (i *createdState) transition(s ContainerState) error {
+func (i *CreatedState) transition(s ContainerState) error {
 	switch s.(type) {
-	case *runningState, *stoppedState:
+	case *RunningState, *StoppedState:
 		i.c.containerState = s
 		return nil
-	case *createdState:
+	case *CreatedState:
 		return nil
 	}
 	return newStateTransitionError(i, s)
 }
 
-func (i *createdState) destroy() error {
+func (i *CreatedState) destroy() error {
 	i.c.initProcess.signal(unix.SIGKILL)
 	return destroy(i.c)
 }

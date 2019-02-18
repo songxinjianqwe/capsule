@@ -17,7 +17,7 @@ const DefaultStdFdCount = 3
 /**
 创建一个ParentProcess实例，用于启动容器Init进程，并和容器Init进程通信
 */
-func NewParentProcess(container *LinuxContainer, process *Process) (ParentProcess, error) {
+func NewParentProcess(container *LinuxContainer, process *Process) (ProcessWrapper, error) {
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		return nil, err

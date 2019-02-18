@@ -41,14 +41,14 @@ type LinuxContainerFactory struct {
 }
 
 func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) (Container, error) {
-	container := LinuxContainer{
+	container := &LinuxContainer{
 		id:            id,
 		root:          factory.Root,
 		config:        *config,
 		cgroupManager: factory.NewCgroupsManager(config.Cgroups, nil),
 	}
-	container.containerState = &stoppedState{c: &container}
-	return &container, nil
+	container.containerState = &StoppedState{c: container}
+	return container, nil
 }
 
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {

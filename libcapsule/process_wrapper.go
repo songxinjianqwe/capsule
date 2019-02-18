@@ -2,7 +2,7 @@ package libcapsule
 
 import "os"
 
-type ParentProcess interface {
+type ProcessWrapper interface {
 	// pid returns the pid for the running process.
 	pid() int
 

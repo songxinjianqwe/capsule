@@ -8,7 +8,6 @@ import (
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
 	"path/filepath"
-	"strconv"
 )
 
 var errEmptyID = errors.New("container id cannot be empty")
@@ -130,11 +129,8 @@ func newProcess(p specs.Process) (*libcapsule.Process, error) {
 		lp.Capabilities.Permitted = p.Capabilities.Permitted
 		lp.Capabilities.Ambient = p.Capabilities.Ambient
 	}
-	for _, gid := range p.User.AdditionalGids {
-		lp.AdditionalGroups = append(lp.AdditionalGroups, strconv.FormatUint(uint64(gid), 10))
-	}
-	for _, rlimit := range p.Rlimits {
-		rl, err := createLibCapsuleRlimit(rlimit)
+	for _, posixRlimit := range p.Rlimits {
+		rl, err := createResourcelimit(posixRlimit)
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +139,7 @@ func newProcess(p specs.Process) (*libcapsule.Process, error) {
 	return lp, nil
 }
 
-func createLibCapsuleRlimit(rlimit specs.POSIXRlimit) (configc.Rlimit, error) {
+func createResourcelimit(rlimit specs.POSIXRlimit) (configc.Rlimit, error) {
 	rl, err := strToRlimit(rlimit.Type)
 	if err != nil {
 		return configc.Rlimit{}, err

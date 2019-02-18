@@ -146,7 +146,7 @@ type CreateOpts struct {
 /*
 将specs.Spec转为libcapsule.Config
 */
-func CreateContainerConfig(cgroupName string, spec *specs.Spec) (*configc.Config, error) {
+func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error) {
 	// runc's cwd will always be the bundle path
 	rcwd, err := os.Getwd()
 	if err != nil {
@@ -180,7 +180,7 @@ func CreateContainerConfig(cgroupName string, spec *specs.Spec) (*configc.Config
 	if err := createDevices(spec, config); err != nil {
 		return nil, err
 	}
-	c, err := createCgroupConfig(cgroupName, spec)
+	c, err := createCgroupConfig(id, spec)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func createCgroupConfig(cgroupName string, spec *specs.Spec) (*configc.Cgroup, e
 	c.Path = myCgroupPath
 
 	// In rootless containers, any attempt to make cgroup changes is likely to fail.
-	// libcontainer will validate this but ignores the error.
+	// libcapsule will validate this but ignores the error.
 	if spec.Linux != nil {
 		r := spec.Linux.Resources
 		if r == nil {

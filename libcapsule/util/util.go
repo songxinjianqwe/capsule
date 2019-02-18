@@ -3,6 +3,7 @@ package util
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // CleanPath makes a path safe for use with filepath.Join. This is done by not
@@ -32,4 +33,23 @@ func CleanPath(path string) string {
 
 	// Clean the path again for good measure.
 	return filepath.Clean(path)
+}
+
+// Annotations returns the bundle path and user defined annotations from the
+// libcapsule state.  We need to remove the bundle because that is a label
+// added by libcapsule.
+func Annotations(labels []string) (bundle string, userAnnotations map[string]string) {
+	userAnnotations = make(map[string]string)
+	for _, l := range labels {
+		parts := strings.SplitN(l, "=", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		if parts[0] == "bundle" {
+			bundle = parts[1]
+		} else {
+			userAnnotations[parts[0]] = parts[1]
+		}
+	}
+	return
 }
