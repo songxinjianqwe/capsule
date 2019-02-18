@@ -2,8 +2,8 @@ package libcapsule
 
 import (
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
-	"github.com/songxinjianqwe/rune/libcapsule/config"
-	"github.com/songxinjianqwe/rune/libcapsule/config/validate"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"github.com/songxinjianqwe/rune/libcapsule/configc/validate"
 )
 
 const (
@@ -37,10 +37,10 @@ type LinuxContainerFactory struct {
 	Validator validate.Validator
 
 	// NewCgroupsManager returns an initialized cgroups manager for a single container.
-	NewCgroupsManager func(config *config.Cgroup, paths map[string]string) cgroups.CgroupManager
+	NewCgroupsManager func(config *configc.Cgroup, paths map[string]string) cgroups.CgroupManager
 }
 
-func (factory *LinuxContainerFactory) Create(id string, config *config.Config) (Container, error) {
+func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) (Container, error) {
 	container := LinuxContainer{
 		id:            id,
 		root:          factory.Root,

@@ -2,7 +2,7 @@ package libcapsule
 
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"os"
 	"time"
 )
@@ -47,7 +47,7 @@ type State struct {
 	Created time.Time `json:"createdTime"`
 
 	// Config is the container's configuration.
-	Config config.Config `json:"config"`
+	Config configc.Config `json:"configc"`
 	// Platform specific fields below here
 
 	// Path to all the cgroups setup for a container. Key is cgroup subsystem name
@@ -56,7 +56,7 @@ type State struct {
 
 	// NamespacePaths are filepaths to the container's namespaces. Key is the namespace type
 	// with the value as the path.
-	NamespacePaths map[config.NamespaceType]string `json:"namespace_paths"`
+	NamespacePaths map[configc.NamespaceType]string `json:"namespace_paths"`
 }
 
 // Container is a libcapsule container object.
@@ -79,8 +79,8 @@ type Container interface {
 	// SystemError - System util.
 	OCIState() (*specs.State, error)
 
-	// Returns the current config of the container.
-	Config() config.Config
+	// Returns the current configc of the container.
+	Config() configc.Config
 
 	// 返回容器内的PIDs，存放在namespace中
 	// errors:
@@ -94,7 +94,7 @@ type Container interface {
 	// 阻塞式
 	// errors:
 	// ContainerNotExists - Container no longer exists,
-	// ConfigInvalid - config is invalid,
+	// ConfigInvalid - configc is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
 	Start(process *Process) (err error)
@@ -102,7 +102,7 @@ type Container interface {
 	// 非阻塞式
 	// errors:
 	// ContainerNotExists - Container no longer exists,
-	// ConfigInvalid - config is invalid,
+	// ConfigInvalid - configc is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
 	Run(process *Process) (err error)

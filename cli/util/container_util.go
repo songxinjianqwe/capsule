@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule"
-	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
 	"path/filepath"
 	"strconv"
 )
@@ -50,6 +51,10 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, 
 	}
 	return 0, nil
 }
+
+/**
+根据id读取一个Container
+*/
 func GetContainer(id string) (libcapsule.Container, error) {
 	if id == "" {
 		return nil, errEmptyID
@@ -73,14 +78,15 @@ func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) 
 	if !filepath.IsAbs(rootfsPath) {
 		rootfsPath = filepath.Join(spec.Process.Cwd, rootfsPath)
 	}
-	config := config.Config{
-		Rootfs: rootfsPath,
+	config, err := specutil.CreateContainerConfig(id, spec)
+	if err != nil {
+		return nil, err
 	}
 	factory, err := LoadFactory()
 	if err != nil {
 		return nil, err
 	}
-	container, err := factory.Create(id, &config)
+	container, err := factory.Create(id, config)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +94,7 @@ func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) 
 }
 
 /*
-	创建容器工厂
+创建容器工厂
 */
 func LoadFactory() (libcapsule.Factory, error) {
 	factory, err := libcapsule.NewFactory()
@@ -99,7 +105,7 @@ func LoadFactory() (libcapsule.Factory, error) {
 }
 
 /*
-	将specs.Process转为libcapsule.Process
+将specs.Process转为libcapsule.Process
 */
 func newProcess(p specs.Process) (*libcapsule.Process, error) {
 	lp := &libcapsule.Process{
@@ -137,12 +143,12 @@ func newProcess(p specs.Process) (*libcapsule.Process, error) {
 	return lp, nil
 }
 
-func createLibCapsuleRlimit(rlimit specs.POSIXRlimit) (config.Rlimit, error) {
+func createLibCapsuleRlimit(rlimit specs.POSIXRlimit) (configc.Rlimit, error) {
 	rl, err := strToRlimit(rlimit.Type)
 	if err != nil {
-		return config.Rlimit{}, err
+		return configc.Rlimit{}, err
 	}
-	return config.Rlimit{
+	return configc.Rlimit{
 		Type: rl,
 		Hard: rlimit.Hard,
 		Soft: rlimit.Soft,

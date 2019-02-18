@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 /**
@@ -21,7 +22,9 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 	if err != nil {
 		return nil, err
 	}
-	initProcessCmd, err := buildInitProcessCommand(container.config.Rootfs, process, reader)
+	initProcessCmd, err := buildInitProcessCommand(container.config.Rootfs,
+		container.config.Namespaces.CloneFlags(),
+		process, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -36,13 +39,17 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 }
 
 /**
-
- */
-func buildInitProcessCommand(cmdDir string, process *Process, childPipe *os.File) (*exec.Cmd, error) {
+构造一个init进程的command对象
+*/
+func buildInitProcessCommand(cmdDir string, cloneFlags uintptr, process *Process, childPipe *os.File) (*exec.Cmd, error) {
 	cmd := exec.Command(ContainerInitPath, ContainerInitArgs)
 	cmd.Stdin = process.Stdin
 	cmd.Stdout = process.Stdout
 	cmd.Stderr = process.Stderr
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: cloneFlags,
+	}
 	cmd.Dir = cmdDir
 	cmd.ExtraFiles = append(cmd.ExtraFiles, childPipe)
 	cmd.Env = append(cmd.Env,

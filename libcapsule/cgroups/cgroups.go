@@ -1,7 +1,7 @@
 package cgroups
 
 import (
-	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 )
 
 type CgroupManager interface {
@@ -18,7 +18,7 @@ type CgroupManager interface {
 	GetStats() (*Stats, error)
 
 	// Toggles the freezer cgroup according with specified state
-	Freeze(state config.FreezerState) error
+	Freeze(state configc.FreezerState) error
 
 	// Destroys the cgroup set
 	Destroy() error
@@ -34,5 +34,5 @@ type CgroupManager interface {
 	GetPaths() map[string]string
 
 	// Sets the cgroup as configured.
-	Set(container *config.Config) error
+	Set(container *configc.Config) error
 }

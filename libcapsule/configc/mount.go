@@ -1,4 +1,4 @@
-package config
+package configc
 
 const (
 	// EXT_COPYUP is a directive to copy up the contents of a directory when

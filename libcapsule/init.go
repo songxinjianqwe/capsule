@@ -3,7 +3,7 @@ package libcapsule
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
-	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util/system"
 	"golang.org/x/sys/unix"
 	"os"
@@ -57,12 +57,12 @@ func isNoChildren(err error) bool {
 // exit status and only if it is will a wait be performed.
 func signalAllProcesses(m cgroups.CgroupManager, s os.Signal) error {
 	var procs []*os.Process
-	if err := m.Freeze(config.Frozen); err != nil {
+	if err := m.Freeze(configc.Frozen); err != nil {
 		logrus.Warn(err)
 	}
 	pids, err := m.GetAllPids()
 	if err != nil {
-		m.Freeze(config.Thawed)
+		m.Freeze(configc.Thawed)
 		return err
 	}
 	for _, pid := range pids {
@@ -76,7 +76,7 @@ func signalAllProcesses(m cgroups.CgroupManager, s os.Signal) error {
 			logrus.Warn(err)
 		}
 	}
-	if err := m.Freeze(config.Thawed); err != nil {
+	if err := m.Freeze(configc.Thawed); err != nil {
 		logrus.Warn(err)
 	}
 

@@ -6,7 +6,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/cli/constant"
 	"github.com/songxinjianqwe/rune/cli/util"
-	"github.com/songxinjianqwe/rune/libcapsule/spec"
+	"github.com/songxinjianqwe/rune/libcapsule/util/spec"
 	"github.com/urfave/cli"
 	"io/ioutil"
 	"os"

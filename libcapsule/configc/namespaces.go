@@ -1,14 +1,13 @@
-package config
+package configc
 
 import (
 	"fmt"
 	"os"
 	"sync"
+	"syscall"
 )
 
 type NamespaceType string
-
-type Namespaces []Namespace
 
 const (
 	NEWNET    NamespaceType = "NEWNET"
@@ -19,6 +18,23 @@ const (
 	NEWUSER   NamespaceType = "NEWUSER"
 	NEWCGROUP NamespaceType = "NEWCGROUP"
 )
+
+// Namespace defines configuration for each namespace.  It specifies an
+// alternate path that is able to be joined via setns.
+type Namespace struct {
+	Type NamespaceType `json:"type"`
+	Path string        `json:"path"`
+}
+
+type Namespaces []Namespace
+
+func (namespaces Namespaces) CloneFlags() uintptr {
+	var flags uintptr = 1
+	for _, ns := range namespaces {
+		flags |= NsFlag(ns.Type)
+	}
+	return flags
+}
 
 var (
 	nsLock              sync.Mutex
@@ -40,10 +56,27 @@ func NsName(ns NamespaceType) string {
 		return "user"
 	case NEWUTS:
 		return "uts"
-	case NEWCGROUP:
-		return "cgroup"
 	}
 	return ""
+}
+
+// NsName converts the namespace type to its filename
+func NsFlag(ns NamespaceType) uintptr {
+	switch ns {
+	case NEWNET:
+		return syscall.CLONE_NEWNET
+	case NEWNS:
+		return syscall.CLONE_NEWNS
+	case NEWPID:
+		return syscall.CLONE_NEWPID
+	case NEWIPC:
+		return syscall.CLONE_NEWIPC
+	case NEWUSER:
+		return syscall.CLONE_NEWUSER
+	case NEWUTS:
+		return syscall.CLONE_NEWUTS
+	}
+	return 0
 }
 
 // IsNamespaceSupported returns whether a namespace is available or
@@ -77,13 +110,6 @@ func NamespaceTypes() []NamespaceType {
 		NEWNS,
 		NEWCGROUP,
 	}
-}
-
-// Namespace defines configuration for each namespace.  It specifies an
-// alternate path that is able to be joined via setns.
-type Namespace struct {
-	Type NamespaceType `json:"type"`
-	Path string        `json:"path"`
 }
 
 func (n *Namespace) GetPath(pid int) string {

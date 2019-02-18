@@ -1,11 +1,11 @@
 package validate
 
 import (
-	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 )
 
 type Validator interface {
-	Validate(*config.Config) error
+	Validate(*configc.Config) error
 }
 
 func New() Validator {
@@ -15,6 +15,6 @@ func New() Validator {
 type ConfigValidator struct {
 }
 
-func (v *ConfigValidator) Validate(config *config.Config) error {
+func (v *ConfigValidator) Validate(config *configc.Config) error {
 	return nil
 }

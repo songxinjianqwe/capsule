@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
-	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"github.com/songxinjianqwe/rune/libcapsule/util/proc"
 	"golang.org/x/sys/unix"
@@ -21,7 +21,7 @@ const (
 type LinuxContainer struct {
 	id                   string
 	root                 string
-	config               config.Config
+	config               configc.Config
 	cgroupManager        cgroups.CgroupManager
 	initProcess          ParentProcess
 	initProcessStartTime uint64
@@ -56,7 +56,7 @@ func (c *LinuxContainer) OCIState() (*specs.State, error) {
 	return c.currentOCIState()
 }
 
-func (c *LinuxContainer) Config() config.Config {
+func (c *LinuxContainer) Config() configc.Config {
 	return c.config
 }
 

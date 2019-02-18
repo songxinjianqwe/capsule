@@ -3,7 +3,7 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"golang.org/x/sys/unix"
 	"os"
@@ -34,7 +34,7 @@ type ContainerState interface {
 }
 
 func destroy(c *LinuxContainer) error {
-	if !c.config.Namespaces.Contains(config.NEWPID) {
+	if !c.config.Namespaces.Contains(configc.NEWPID) {
 		if err := signalAllProcesses(c.cgroupManager, unix.SIGKILL); err != nil {
 			logrus.Warn(err)
 		}

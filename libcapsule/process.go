@@ -3,7 +3,7 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/songxinjianqwe/rune/libcapsule/config"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"io"
 	"math"
@@ -56,7 +56,7 @@ type Process struct {
 
 	// Rlimits specifies the resource limits, such as max open files, to set in the container
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
-	Rlimits []config.Rlimit
+	Rlimits []configc.Rlimit
 
 	// ConsoleSocket provides the masterfd console.
 	ConsoleSocket *os.File
