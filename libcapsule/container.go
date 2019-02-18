@@ -47,7 +47,7 @@ type State struct {
 	Created time.Time `json:"createdTime"`
 
 	// Config is the container's configuration.
-	Config configc.Config `json:"configc"`
+	Config configc.Config `json:"config"`
 	// Platform specific fields below here
 
 	// Path to all the cgroups setup for a container. Key is cgroup subsystem name

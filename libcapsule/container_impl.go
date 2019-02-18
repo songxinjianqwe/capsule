@@ -20,7 +20,7 @@ const (
 	InitPipeEnv = "_LIBCAPSULE_INITPIPE"
 )
 
-type LinuxContainer struct {
+type LinuxContainerImpl struct {
 	id             string
 	root           string
 	config         configc.Config
@@ -35,43 +35,43 @@ type LinuxContainer struct {
 // public
 // ************************************************************************************************
 
-func (c *LinuxContainer) ID() string {
+func (c *LinuxContainerImpl) ID() string {
 	return c.id
 }
 
-func (c *LinuxContainer) Status() (Status, error) {
+func (c *LinuxContainerImpl) Status() (Status, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.currentStatus()
 }
 
-func (c *LinuxContainer) State() (*State, error) {
+func (c *LinuxContainerImpl) State() (*State, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.currentState()
 }
 
-func (c *LinuxContainer) OCIState() (*specs.State, error) {
+func (c *LinuxContainerImpl) OCIState() (*specs.State, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.currentOCIState()
 }
 
-func (c *LinuxContainer) Config() configc.Config {
+func (c *LinuxContainerImpl) Config() configc.Config {
 	return c.config
 }
 
-func (c *LinuxContainer) Processes() ([]int, error) {
+func (c *LinuxContainerImpl) Processes() ([]int, error) {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) Start(process *Process) error {
+func (c *LinuxContainerImpl) Start(process *Process) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.start(process)
 }
 
-func (c *LinuxContainer) Run(process *Process) error {
+func (c *LinuxContainerImpl) Run(process *Process) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if err := c.start(process); err != nil {
@@ -83,15 +83,15 @@ func (c *LinuxContainer) Run(process *Process) error {
 	return nil
 }
 
-func (c *LinuxContainer) Destroy() error {
+func (c *LinuxContainerImpl) Destroy() error {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) Signal(s os.Signal, all bool) error {
+func (c *LinuxContainerImpl) Signal(s os.Signal, all bool) error {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) Exec() error {
+func (c *LinuxContainerImpl) Exec() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.exec()
@@ -100,7 +100,7 @@ func (c *LinuxContainer) Exec() error {
 // ************************************************************************************************
 // private
 // ************************************************************************************************
-func (c *LinuxContainer) start(process *Process) error {
+func (c *LinuxContainerImpl) start(process *Process) error {
 	// 容器启动会涉及两个管道，一个是用来传输配置信息的，一个是用来控制exec是否执行的
 	// 1、创建exec管道文件
 	if err := c.createExecFifo(); err != nil {
@@ -125,7 +125,7 @@ func (c *LinuxContainer) start(process *Process) error {
 	if err != nil {
 		return err
 	}
-	// 5、删除管道文件
+	// 5、删除exec管道文件
 	err = c.deleteExecFifo()
 	if err != nil {
 		logrus.Errorf("delete exec fifo failed: %s", err.Error())
@@ -133,11 +133,11 @@ func (c *LinuxContainer) start(process *Process) error {
 	return nil
 }
 
-func (c *LinuxContainer) exec() error {
+func (c *LinuxContainerImpl) exec() error {
 	panic("implement me")
 }
 
-func (c *LinuxContainer) currentState() (*State, error) {
+func (c *LinuxContainerImpl) currentState() (*State, error) {
 	var (
 		initProcessPid       = -1
 		initProcessStartTime uint64
@@ -163,7 +163,7 @@ func (c *LinuxContainer) currentState() (*State, error) {
 	return state, nil
 }
 
-func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
+func (c *LinuxContainerImpl) currentOCIState() (*specs.State, error) {
 	bundle, annotations := util.Annotations(c.config.Labels)
 	state := &specs.State{
 		Version:     specs.Version,
@@ -184,7 +184,7 @@ func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
 	return state, err
 }
 
-func (c *LinuxContainer) currentStatus() (Status, error) {
+func (c *LinuxContainerImpl) currentStatus() (Status, error) {
 	if err := c.refreshState(); err != nil {
 		return -1, err
 	}
@@ -195,7 +195,7 @@ func (c *LinuxContainer) currentStatus() (Status, error) {
 因为外部用户来使用libcapsule时会随意修改容器内存中的状态，所以这个containerState并不可信，我们需要自己去检测一个真正的容器状态，
 并进行数据纠错
 */
-func (c *LinuxContainer) refreshState() error {
+func (c *LinuxContainerImpl) refreshState() error {
 	status, err := c.detectRealStatus()
 	if err != nil {
 		return err
@@ -217,7 +217,7 @@ func (c *LinuxContainer) refreshState() error {
 2、如果exec.fifo文件存在，则为 【Created】
 3、其他情况为 【Running】
 */
-func (c *LinuxContainer) detectRealStatus() (Status, error) {
+func (c *LinuxContainerImpl) detectRealStatus() (Status, error) {
 	if c.initProcess == nil {
 		return Stopped, nil
 	}
@@ -242,7 +242,7 @@ func (c *LinuxContainer) detectRealStatus() (Status, error) {
 io.Pipe是内存管道，无法通过内存管道来感知容器状态
 因为管道存在，则说明容器是处于created之后，running之前的状态
 */
-func (c *LinuxContainer) createExecFifo() error {
+func (c *LinuxContainerImpl) createExecFifo() error {
 	fifoName := filepath.Join(c.root, ExecFifoFilename)
 
 	if _, err := os.Stat(fifoName); err == nil {
@@ -259,7 +259,7 @@ func (c *LinuxContainer) createExecFifo() error {
 /**
 在start后，删除exec.fifo管道
 */
-func (c *LinuxContainer) deleteExecFifo() error {
+func (c *LinuxContainerImpl) deleteExecFifo() error {
 	fifoName := filepath.Join(c.root, ExecFifoFilename)
 	return os.Remove(fifoName)
 }
@@ -267,7 +267,7 @@ func (c *LinuxContainer) deleteExecFifo() error {
 /**
 更新容器状态文件state.json
 */
-func (c *LinuxContainer) updateState() (state *State, err error) {
+func (c *LinuxContainerImpl) updateState() (state *State, err error) {
 	state, err = c.currentState()
 	if err != nil {
 		return nil, err
@@ -282,7 +282,7 @@ func (c *LinuxContainer) updateState() (state *State, err error) {
 /**
 将state JSON对象写入到文件中
 */
-func (c *LinuxContainer) saveState(state *State) error {
+func (c *LinuxContainerImpl) saveState(state *State) error {
 	file, err := os.Create(filepath.Join(RuntimeRoot, StateFilename))
 	if err != nil {
 		return err

@@ -26,14 +26,6 @@ type Namespace struct {
 
 type Namespaces []Namespace
 
-func (namespaces Namespaces) CloneFlags() uintptr {
-	var flags uintptr = 1
-	for _, ns := range namespaces {
-		flags |= ns.Type.NsFlag()
-	}
-	return flags
-}
-
 // NsName converts the namespace type to its filename
 func (ns NamespaceType) NsName() string {
 	switch ns {
@@ -83,6 +75,53 @@ func NamespaceTypes() []NamespaceType {
 	}
 }
 
+func (n Namespaces) CloneFlags() uintptr {
+	var flags uintptr = 1
+	for _, ns := range n {
+		flags |= ns.Type.NsFlag()
+	}
+	return flags
+}
+
 func (n *Namespace) GetPath(pid int) string {
 	return fmt.Sprintf("/proc/%d/ns/%s", pid, n.Type.NsName())
+}
+
+func (n *Namespaces) Remove(t NamespaceType) bool {
+	i := n.index(t)
+	if i == -1 {
+		return false
+	}
+	*n = append((*n)[:i], (*n)[i+1:]...)
+	return true
+}
+
+func (n *Namespaces) Add(t NamespaceType, path string) {
+	i := n.index(t)
+	if i == -1 {
+		*n = append(*n, Namespace{Type: t, Path: path})
+		return
+	}
+	(*n)[i].Path = path
+}
+
+func (n *Namespaces) index(t NamespaceType) int {
+	for i, ns := range *n {
+		if ns.Type == t {
+			return i
+		}
+	}
+	return -1
+}
+
+func (n *Namespaces) Contains(t NamespaceType) bool {
+	return n.index(t) != -1
+}
+
+func (n *Namespaces) PathOf(t NamespaceType) string {
+	i := n.index(t)
+	if i == -1 {
+		return ""
+	}
+	return (*n)[i].Path
 }

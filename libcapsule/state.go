@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
+	"github.com/songxinjianqwe/rune/libcapsule/util/system"
 	"golang.org/x/sys/unix"
 	"os"
 )
@@ -33,9 +34,9 @@ type ContainerState interface {
 	status() Status
 }
 
-func destroy(c *LinuxContainer) error {
+func destroy(c *LinuxContainerImpl) error {
 	if !c.config.Namespaces.Contains(configc.NEWPID) {
-		if err := signalAllProcesses(c.cgroupManager, unix.SIGKILL); err != nil {
+		if err := system.SignalAllProcesses(c.cgroupManager, unix.SIGKILL); err != nil {
 			logrus.Warn(err)
 		}
 	}
@@ -52,7 +53,7 @@ func destroy(c *LinuxContainer) error {
 // 【StoppedState】 represents a container is a stopped/destroyed containerState.
 // ******************************************************************************************
 type StoppedState struct {
-	c *LinuxContainer
+	c *LinuxContainerImpl
 }
 
 func (b *StoppedState) status() Status {
@@ -78,7 +79,7 @@ func (b *StoppedState) destroy() error {
 // 【RunningState】 represents a container that is currently running.
 // ******************************************************************************************
 type RunningState struct {
-	c *LinuxContainer
+	c *LinuxContainerImpl
 }
 
 func (r *RunningState) status() Status {
@@ -118,7 +119,7 @@ func (r *RunningState) destroy() error {
 // 【CreatedState】
 // ******************************************************************************************
 type CreatedState struct {
-	c *LinuxContainer
+	c *LinuxContainerImpl
 }
 
 func (i *CreatedState) status() Status {

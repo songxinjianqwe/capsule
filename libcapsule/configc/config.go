@@ -79,6 +79,6 @@ type Config struct {
 
 	// Version is the version of opencontainer specification that is supported.
 	Version string `json:"version"`
-	// Labels are user defined metadata that is stored in the configc and populated on the state
+	// Labels are user defined metadata that is stored in the config and populated on the state
 	Labels []string `json:"labels"`
 }

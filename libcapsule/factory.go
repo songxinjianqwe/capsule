@@ -9,7 +9,7 @@ type Factory interface {
 	// errors:
 	// IdInUse - id is already in use by a container
 	// InvalidIdFormat - id has incorrect format
-	// ConfigInvalid - configc is invalid
+	// ConfigInvalid - config is invalid
 	// Systemerror - System util
 	//
 	// On util, any partially createdTime container parts are cleaned up (the operation is atomic).
