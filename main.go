@@ -4,9 +4,17 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	runeCli "github.com/songxinjianqwe/rune/cli/command"
-	"github.com/songxinjianqwe/rune/cli/constant"
 	"github.com/urfave/cli"
 	"os"
+)
+
+const (
+	AppName    = "rune"
+	AppVersion = "0.0.1"
+	Usage      = `Open Container Initiative runtime
+rune is a command line client for running applications packaged according to
+the Open Container Initiative (OCI) format and is a compliant implementation of the
+Open Container Initiative specification.`
 )
 
 /**
@@ -14,9 +22,9 @@ CLI入口
 */
 func main() {
 	app := cli.NewApp()
-	app.Name = constant.AppName
-	app.Version = constant.AppVersion
-	app.Usage = constant.Usage
+	app.Name = AppName
+	app.Version = AppVersion
+	app.Usage = Usage
 	app.Commands = []cli.Command{
 		runeCli.CreateCommand,
 		runeCli.StartCommand,

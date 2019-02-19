@@ -11,6 +11,108 @@ import (
 	"strings"
 )
 
+/*
+将specs.Spec转为libcapsule.Config
+*/
+func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error) {
+	// runc's cwd will always be the bundle path
+	rcwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	// 拿到当前路径，即bundle path
+	cwd, err := filepath.Abs(rcwd)
+	if err != nil {
+		return nil, err
+	}
+	if spec.Root == nil {
+		return nil, fmt.Errorf("root must be specified")
+	}
+	// rootfs path要么是绝对路径，要么是cwd+rootfs转为绝对路径
+	rootfsPath := spec.Root.Path
+	if !filepath.IsAbs(rootfsPath) {
+		rootfsPath = filepath.Join(cwd, rootfsPath)
+	}
+	// 将annotations转为labels
+	var labels []string
+	for k, v := range spec.Annotations {
+		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
+	}
+	config := &configc.Config{
+		Rootfs:     rootfsPath,
+		Readonlyfs: spec.Root.Readonly,
+		Hostname:   spec.Hostname,
+		Labels:     append(labels, fmt.Sprintf("bundle=%s", cwd)),
+	}
+	// 转换挂载
+	for _, m := range spec.Mounts {
+		config.Mounts = append(config.Mounts, createMount(cwd, m))
+	}
+	// 转换设备
+	if err := createDevices(spec, config); err != nil {
+		return nil, err
+	}
+	// 转换cgroups
+	cgroupConfig, err := createCgroupConfig(id, spec)
+	if err != nil {
+		return nil, err
+	}
+	config.Cgroups = cgroupConfig
+	// Linux特有配置
+	exists := false
+	if spec.Linux != nil {
+		if config.RootPropagation, exists = mountPropagationMapping[spec.Linux.RootfsPropagation]; !exists {
+			return nil, fmt.Errorf("rootfsPropagation=%v is not supported", spec.Linux.RootfsPropagation)
+		}
+		// 转换namespaces
+		for _, ns := range spec.Linux.Namespaces {
+			t, exists := namespaceMapping[ns.Type]
+			if !exists {
+				return nil, fmt.Errorf("namespace %q does not exist", ns)
+			}
+			if config.Namespaces.Contains(t) {
+				return nil, fmt.Errorf("malformed spec file: duplicated ns %q", ns)
+			}
+			config.Namespaces.Add(t, ns.Path)
+		}
+		if config.Namespaces.Contains(configc.NEWNET) && config.Namespaces.PathOf(configc.NEWNET) == "" {
+			config.Networks = []*configc.Network{
+				{
+					Type: "loopback",
+				},
+			}
+		}
+		config.MaskPaths = spec.Linux.MaskedPaths
+		config.ReadonlyPaths = spec.Linux.ReadonlyPaths
+		config.Sysctl = spec.Linux.Sysctl
+	}
+	if spec.Process != nil {
+		if spec.Process.Capabilities != nil {
+			config.Capabilities = &specs.LinuxCapabilities{
+				Bounding:    spec.Process.Capabilities.Bounding,
+				Effective:   spec.Process.Capabilities.Effective,
+				Permitted:   spec.Process.Capabilities.Permitted,
+				Inheritable: spec.Process.Capabilities.Inheritable,
+				Ambient:     spec.Process.Capabilities.Ambient,
+			}
+		}
+	}
+	config.Version = specs.Version
+	return config, nil
+}
+
+func CreateResourcelimit(rlimit specs.POSIXRlimit) (configc.Rlimit, error) {
+	rl, err := strToRlimit(rlimit.Type)
+	if err != nil {
+		return configc.Rlimit{}, err
+	}
+	return configc.Rlimit{
+		Type: rl,
+		Hard: rlimit.Hard,
+		Soft: rlimit.Soft,
+	}, nil
+}
+
 const wildcard = -1
 
 var namespaceMapping = map[specs.LinuxNamespaceType]configc.NamespaceType{
@@ -135,111 +237,22 @@ var allowedDevices = []*configc.Device{
 	},
 }
 
-type CreateOpts struct {
-	CgroupName       string
-	UseSystemdCgroup bool
-	NoPivotRoot      bool
-	NoNewKeyring     bool
-	Spec             *specs.Spec
-}
-
-/*
-将specs.Spec转为libcapsule.Config
-*/
-func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error) {
-	// runc's cwd will always be the bundle path
-	rcwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	cwd, err := filepath.Abs(rcwd)
-	if err != nil {
-		return nil, err
-	}
-	if spec.Root == nil {
-		return nil, fmt.Errorf("Root must be specified")
-	}
-	rootfsPath := spec.Root.Path
-	if !filepath.IsAbs(rootfsPath) {
-		rootfsPath = filepath.Join(cwd, rootfsPath)
-	}
-	labels := []string{}
-	for k, v := range spec.Annotations {
-		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
-	}
-	config := &configc.Config{
-		Rootfs:     rootfsPath,
-		Readonlyfs: spec.Root.Readonly,
-		Hostname:   spec.Hostname,
-		Labels:     append(labels, fmt.Sprintf("bundle=%s", cwd)),
-	}
-
-	for _, m := range spec.Mounts {
-		config.Mounts = append(config.Mounts, createMount(cwd, m))
-	}
-	if err := createDevices(spec, config); err != nil {
-		return nil, err
-	}
-	c, err := createCgroupConfig(id, spec)
-	if err != nil {
-		return nil, err
-	}
-	config.Cgroups = c
-	// set linux-specific configc
-	if spec.Linux != nil {
-		for _, ns := range spec.Linux.Namespaces {
-			t, exists := namespaceMapping[ns.Type]
-			if !exists {
-				return nil, fmt.Errorf("namespace %q does not exist", ns)
-			}
-			if config.Namespaces.Contains(t) {
-				return nil, fmt.Errorf("malformed spec file: duplicated ns %q", ns)
-			}
-			config.Namespaces.Add(t, ns.Path)
-		}
-		if config.Namespaces.Contains(configc.NEWNET) && config.Namespaces.PathOf(configc.NEWNET) == "" {
-			config.Networks = []*configc.Network{
-				{
-					Type: "loopback",
-				},
-			}
-		}
-		config.MaskPaths = spec.Linux.MaskedPaths
-		config.ReadonlyPaths = spec.Linux.ReadonlyPaths
-		config.MountLabel = spec.Linux.MountLabel
-		config.Sysctl = spec.Linux.Sysctl
-	}
-	if spec.Process != nil {
-		if spec.Process.Capabilities != nil {
-			config.Capabilities = &specs.LinuxCapabilities{
-				Bounding:    spec.Process.Capabilities.Bounding,
-				Effective:   spec.Process.Capabilities.Effective,
-				Permitted:   spec.Process.Capabilities.Permitted,
-				Inheritable: spec.Process.Capabilities.Inheritable,
-				Ambient:     spec.Process.Capabilities.Ambient,
-			}
-		}
-	}
-	config.Version = specs.Version
-	return config, nil
-}
-
-func createMount(cwd string, m specs.Mount) *configc.Mount {
-	flags, pgflags, data, ext := parseMountOptions(m.Options)
-	source := m.Source
-	device := m.Type
+func createMount(cwd string, specMount specs.Mount) *configc.Mount {
+	flags, pgflags, data, ext := parseMountOptions(specMount.Options)
+	source := specMount.Source
+	device := specMount.Type
 	if flags&unix.MS_BIND != 0 {
 		if device == "" {
 			device = "bind"
 		}
 		if !filepath.IsAbs(source) {
-			source = filepath.Join(cwd, m.Source)
+			source = filepath.Join(cwd, specMount.Source)
 		}
 	}
 	return &configc.Mount{
 		Device:           device,
 		Source:           source,
-		Destination:      m.Destination,
+		Destination:      specMount.Destination,
 		Data:             data,
 		Flags:            flags,
 		PropagationFlags: pgflags,

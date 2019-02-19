@@ -10,13 +10,6 @@ type Rlimit struct {
 	Soft uint64 `json:"soft"`
 }
 
-// IDMap represents UID/GID Mappings for User Namespaces.
-type IDMap struct {
-	ContainerID int `json:"container_id"`
-	HostID      int `json:"host_id"`
-	Size        int `json:"size"`
-}
-
 // which are common across platforms, and those which are platform specific.
 // Config defines configuration options for executing a process inside a contained environment.
 type Config struct {
@@ -27,14 +20,15 @@ type Config struct {
 	// bind mounts are writtable.
 	Readonlyfs bool `json:"readonlyfs"`
 
+	// Specifies the mount propagation flags to be applied to /.
+	RootPropagation int `json:"rootPropagation"`
+
 	// Mounts specify additional source and destination paths that will be mounted inside the container's
 	// rootfs and mount namespace if specified
 	Mounts []*Mount `json:"mounts"`
 
 	// The device nodes that should be automatically created within the container upon container start.  Note, make sure that the node is marked as allowed in the cgroup as well!
 	Devices []*Device `json:"devices"`
-
-	MountLabel string `json:"mount_label"`
 
 	// Hostname optionally sets the container's hostname if provided
 	Hostname string `json:"hostname"`
@@ -75,6 +69,7 @@ type Config struct {
 
 	// Version is the version of opencontainer specification that is supported.
 	Version string `json:"version"`
+
 	// Labels are user defined metadata that is stored in the config and populated on the state
 	Labels []string `json:"labels"`
 }

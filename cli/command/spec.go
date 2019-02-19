@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/songxinjianqwe/rune/cli/constant"
 	"github.com/songxinjianqwe/rune/cli/util"
+	"github.com/songxinjianqwe/rune/libcapsule"
 	"github.com/songxinjianqwe/rune/libcapsule/util/spec"
 	"github.com/urfave/cli"
 	"io/ioutil"
@@ -21,22 +21,22 @@ var SpecCommand = cli.Command{
 			return err
 		}
 		exampleSpec := spec.Example()
-		if err := util.CheckNoFile(constant.SpecConfig); err != nil {
+		if err := util.CheckNoFile(libcapsule.ContainerConfigFilename); err != nil {
 			return err
 		}
 		data, err := json.MarshalIndent(exampleSpec, "", "\t")
 		if err != nil {
 			return err
 		}
-		return ioutil.WriteFile(constant.SpecConfig, data, 0666)
+		return ioutil.WriteFile(libcapsule.ContainerConfigFilename, data, 0666)
 	},
 }
 
 func loadSpec() (spec *specs.Spec, err error) {
-	file, err := os.Open(constant.SpecConfig)
+	file, err := os.Open(libcapsule.ContainerConfigFilename)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("JSON specification file %s not found", constant.SpecConfig)
+			return nil, fmt.Errorf("JSON specification file %s not found", libcapsule.ContainerConfigFilename)
 		}
 		return nil, err
 	}

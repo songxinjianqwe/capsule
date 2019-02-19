@@ -64,17 +64,6 @@ func (ns NamespaceType) NsFlag() uintptr {
 	return 0
 }
 
-func NamespaceTypes() []NamespaceType {
-	return []NamespaceType{
-		NEWUSER, // Keep user NS always first, don't move it.
-		NEWIPC,
-		NEWUTS,
-		NEWNET,
-		NEWPID,
-		NEWNS,
-	}
-}
-
 func (n Namespaces) CloneFlags() uintptr {
 	var flags uintptr = 1
 	for _, ns := range n {

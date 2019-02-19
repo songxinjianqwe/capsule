@@ -23,6 +23,10 @@ type InitializerImpl struct {
 	execFifoFd int
 }
 
+// **************************************************************************************************
+// public
+// **************************************************************************************************
+
 /**
 容器init进程初始化，即容器初始化
 */
@@ -39,6 +43,11 @@ func (initializer *InitializerImpl) Init() error {
 	if hostname := initializer.config.ContainerConfig.Hostname; hostname != "" {
 		if err := unix.Sethostname([]byte(hostname)); err != nil {
 			return util.NewGenericErrorWithInfo(err, util.SystemError, "init process/set hostname")
+		}
+	}
+	for key, value := range initializer.config.ContainerConfig.Sysctl {
+		if err := writeSystemProperty(key, value); err != nil {
+			return util.NewGenericErrorWithInfo(err, util.SystemError, fmt.Sprintf("write sysctl key %s", key))
 		}
 	}
 	for _, path := range initializer.config.ContainerConfig.ReadonlyPaths {
@@ -77,13 +86,9 @@ func (initializer *InitializerImpl) Init() error {
 	return nil
 }
 
-func maskPath(path string, labels []string) error {
-	return nil
-}
-
-func readonlyPath(path string) error {
-	return nil
-}
+// **************************************************************************************************
+// private
+// **************************************************************************************************
 
 func (initializer *InitializerImpl) setUpNetwork() error {
 	return nil
@@ -98,5 +103,21 @@ func (initializer *InitializerImpl) prepareRootfs() error {
 }
 
 func (initializer *InitializerImpl) finalizeNamespace() error {
+	return nil
+}
+
+// **************************************************************************************************
+// util
+// **************************************************************************************************
+
+func writeSystemProperty(key string, value string) error {
+	return nil
+}
+
+func maskPath(path string, labels []string) error {
+	return nil
+}
+
+func readonlyPath(path string) error {
 	return nil
 }

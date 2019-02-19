@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
-	"path/filepath"
 )
 
 var errEmptyID = errors.New("container id cannot be empty")
@@ -69,13 +67,8 @@ func GetContainer(id string) (libcapsule.Container, error) {
 创建容器实例
 */
 func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) {
-	// 将 process.cwd + rootfs 拼接作为Rootfs的路径
 	if id == "" {
 		return nil, errEmptyID
-	}
-	rootfsPath := spec.Root.Path
-	if !filepath.IsAbs(rootfsPath) {
-		rootfsPath = filepath.Join(spec.Process.Cwd, rootfsPath)
 	}
 	config, err := specutil.CreateContainerConfig(id, spec)
 	if err != nil {
@@ -130,23 +123,11 @@ func newProcess(p specs.Process) (*libcapsule.Process, error) {
 		lp.Capabilities.Ambient = p.Capabilities.Ambient
 	}
 	for _, posixRlimit := range p.Rlimits {
-		rl, err := createResourcelimit(posixRlimit)
+		rl, err := specutil.CreateResourcelimit(posixRlimit)
 		if err != nil {
 			return nil, err
 		}
 		lp.Rlimits = append(lp.Rlimits, rl)
 	}
 	return lp, nil
-}
-
-func createResourcelimit(rlimit specs.POSIXRlimit) (configc.Rlimit, error) {
-	rl, err := strToRlimit(rlimit.Type)
-	if err != nil {
-		return configc.Rlimit{}, err
-	}
-	return configc.Rlimit{
-		Type: rl,
-		Hard: rlimit.Hard,
-		Soft: rlimit.Soft,
-	}, nil
 }

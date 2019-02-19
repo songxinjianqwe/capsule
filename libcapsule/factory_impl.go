@@ -17,7 +17,7 @@ import (
 
 const (
 	// 容器状态文件的文件名
-	StateFilename = "containerState.json"
+	StateFilename = "state.json"
 	// 用于parent进程与init进程的start/run切换
 	ExecFifoFilename = "exec.fifo"
 	// 重新执行本应用的command，相当于 重新执行./rune
@@ -25,7 +25,8 @@ const (
 	// 运行容器init进程的命令
 	ContainerInitArgs = "init"
 	// 运行时文件的存放目录
-	RuntimeRoot = "/run/rune"
+	RuntimeRoot             = "/run/rune"
+	ContainerConfigFilename = "config.json"
 )
 
 func NewFactory() (Factory, error) {
