@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 )
 
@@ -25,9 +26,13 @@ func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessW
 	if err != nil {
 		return nil, err
 	}
+	fifo, err := os.Open(filepath.Join(RuntimeRoot, ExecFifoFilename))
+	if err != nil {
+		return nil, err
+	}
 	initProcessCmd, err := buildInitProcessCommand(container.config.Rootfs,
 		container.config.Namespaces.CloneFlags(),
-		process, reader)
+		process, reader, fifo)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +49,7 @@ func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessW
 /**
 构造一个init进程的command对象
 */
-func buildInitProcessCommand(cmdDir string, cloneFlags uintptr, process *Process, childPipe *os.File) (*exec.Cmd, error) {
+func buildInitProcessCommand(cmdDir string, cloneFlags uintptr, process *Process, childPipe *os.File, fifo *os.File) (*exec.Cmd, error) {
 	cmd := exec.Command(ContainerInitPath, ContainerInitArgs)
 	cmd.Stdin = process.Stdin
 	cmd.Stdout = process.Stdout
@@ -56,7 +61,11 @@ func buildInitProcessCommand(cmdDir string, cloneFlags uintptr, process *Process
 	cmd.Dir = cmdDir
 	cmd.ExtraFiles = append(cmd.ExtraFiles, childPipe)
 	cmd.Env = append(cmd.Env,
-		fmt.Sprintf(InitPipeEnv+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
+		fmt.Sprintf(EnvInitPipe+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
+	)
+	cmd.ExtraFiles = append(cmd.ExtraFiles, fifo)
+	cmd.Env = append(cmd.Env,
+		fmt.Sprintf(EnvExecFifo+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
 	)
 	return cmd, nil
 }

@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	InitPipeEnv = "_LIBCAPSULE_INITPIPE"
+	EnvInitPipe = "_LIBCAPSULE_INITPIPE"
+	EnvExecFifo = "_LIBCAPSULE_EXECFIFO"
 )
 
 type LinuxContainerImpl struct {

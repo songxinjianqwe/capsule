@@ -57,10 +57,6 @@ type Config struct {
 	// placed into to limit the resources the container has available
 	Cgroups *Cgroup `json:"cgroups"`
 
-	// ProcessLabel specifies the label to apply to the process running in the container.  It is
-	// commonly used by selinux
-	ProcessLabel string `json:"process_label,omitempty"`
-
 	// Rlimits specifies the resource limits, such as max open files, to set in the container
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
 	Rlimits []Rlimit `json:"rlimits,omitempty"`
