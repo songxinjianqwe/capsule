@@ -38,6 +38,8 @@ func main() {
 		runeCli.StateCommand,
 		runeCli.SpecCommand,
 	}
+	// 日志是放在文件中的，而fmt.Printf是给用户看的
+	// 暂时将日志输出到stdout中
 	app.Before = func(c *cli.Context) error {
 		//设置输出样式，自带的只有两种样式logrus.JSONFormatter{}和logrus.TextFormatter{}
 		logrus.SetFormatter(&logrus.TextFormatter{})

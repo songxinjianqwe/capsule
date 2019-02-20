@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule"
 	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
 )
@@ -10,9 +11,20 @@ import (
 type ContainerAction uint8
 
 const (
-	ContainerActCreate ContainerAction = iota + 1
+	ContainerActCreate ContainerAction = iota
 	ContainerActRun
 )
+
+func (action ContainerAction) String() string {
+	switch action {
+	case ContainerActCreate:
+		return "ContainerActCreate"
+	case ContainerActRun:
+		return "ContainerActRun"
+	default:
+		return "Unknown ContainerAction"
+	}
+}
 
 /**
 创建或启动容器
@@ -21,12 +33,14 @@ or
 create and run
 */
 func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, error) {
+	logrus.Infof("launching container:%s, action: %s", id, action)
 	container, err := CreateContainer(id, spec)
 	if err != nil {
 		return -1, err
 	}
 	// 将specs.Process转为libcapsule.Process
 	process, err := newProcess(*spec.Process, true)
+	logrus.Infof("new process complete, libcapsule.Process: %#v", process)
 	if err != nil {
 		return -1, err
 	}
@@ -64,11 +78,13 @@ func GetContainer(id string) (libcapsule.Container, error) {
 创建容器实例
 */
 func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) {
+	logrus.Infof("creating container: %s", id)
 	if id == "" {
 		return nil, fmt.Errorf("container id cannot be empty")
 	}
 	// 1、将spec转为容器config
 	config, err := specutil.CreateContainerConfig(id, spec)
+	logrus.Infof("convert complete, config: %#v", config)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +116,7 @@ func LoadFactory() (libcapsule.Factory, error) {
 将specs.Process转为libcapsule.Process
 */
 func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
+	logrus.Infof("converting specs.Process to libcapsule.Process")
 	libcapsuleProcess := &libcapsule.Process{
 		Args:            p.Args,
 		Env:             p.Env,

@@ -16,12 +16,14 @@ import (
 
 func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentPipe *os.File, childPipe *os.File, c *LinuxContainerImpl) ProcessWrapper {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
+	logrus.Infof("new init process wrapper...")
 	return &InitProcessWrapperImpl{
-		initProcessCmd: cmd,
-		parentPipe:     parentPipe,
-		childPipe:      childPipe,
-		container:      c,
-		process:        process,
+		initProcessCmd:    cmd,
+		parentPipe:        parentPipe,
+		childPipe:         childPipe,
+		container:         c,
+		process:           process,
+		sharePidNamespace: c.config.Namespaces.Contains(configc.NEWPID),
 	}
 }
 
@@ -29,12 +31,13 @@ func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentPipe *os.File,
 ProcessWrapper接口的实现类，包裹了InitProcess，它返回的进程信息均为容器Init进程的信息
 */
 type InitProcessWrapperImpl struct {
-	initProcessCmd *exec.Cmd
-	parentPipe     *os.File
-	childPipe      *os.File
-	container      *LinuxContainerImpl
-	process        *Process
-	cgroupManger   *cgroups.CgroupManager
+	initProcessCmd    *exec.Cmd
+	parentPipe        *os.File
+	childPipe         *os.File
+	container         *LinuxContainerImpl
+	process           *Process
+	cgroupManger      *cgroups.CgroupManager
+	sharePidNamespace bool
 }
 
 type InitConfig struct {
@@ -43,7 +46,7 @@ type InitConfig struct {
 }
 
 func (p *InitProcessWrapperImpl) start() error {
-	defer p.parentPipe.Close()
+	logrus.Infof("InitProcessWrapperImpl starting...")
 	err := p.initProcessCmd.Start()
 	p.childPipe.Close()
 	if err != nil {
@@ -57,16 +60,6 @@ func (p *InitProcessWrapperImpl) start() error {
 			p.container.cgroupManager.Destroy()
 		}
 	}()
-	childPid, err := p.getChildPid()
-	if err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "getting the final child's pid from pipe")
-	}
-	if err := p.container.cgroupManager.Apply(childPid); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "applying cgroup configuration for process")
-	}
-	if err := p.waitForChildExit(childPid); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "waiting for our first child to exit")
-	}
 	if err = p.createNetworkInterfaces(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating network interfaces")
 	}
@@ -93,11 +86,24 @@ func (p *InitProcessWrapperImpl) terminate() error {
 }
 
 func (p *InitProcessWrapperImpl) wait() (*os.ProcessState, error) {
-	panic("implement me")
+	logrus.Infof("starting to wait init process exit")
+	err := p.initProcessCmd.Wait()
+	logrus.Infof("wait init process exit complete")
+	if err != nil {
+		return p.initProcessCmd.ProcessState, err
+	}
+	// we should kill all processes in cgroup when init is died if we use host PID namespace
+	if p.sharePidNamespace {
+		system.SignalAllProcesses(*p.cgroupManger, unix.SIGKILL)
+	}
+	return p.initProcessCmd.ProcessState, nil
 }
 
 func (p *InitProcessWrapperImpl) startTime() (uint64, error) {
 	stat, err := system.GetProcessStat(p.pid())
+	if err != nil {
+		return -1, err
+	}
 	return stat.StartTime, err
 }
 
@@ -114,6 +120,7 @@ func (p *InitProcessWrapperImpl) signal(sig os.Signal) error {
 // ******************************************************************************************************
 
 func (p *InitProcessWrapperImpl) createNetworkInterfaces() error {
+	logrus.Infof("creating network interfaces")
 	return nil
 }
 
@@ -122,18 +129,11 @@ func (p *InitProcessWrapperImpl) sendConfig() error {
 		ContainerConfig: p.container.config,
 		ProcessConfig:   *p.process,
 	}
+	logrus.Infof("sending config:%#v", initConfig)
 	bytes, err := json.Marshal(initConfig)
 	if err != nil {
 		return err
 	}
 	_, err = p.parentPipe.WriteString(string(bytes))
 	return err
-}
-
-func (p *InitProcessWrapperImpl) getChildPid() (int, error) {
-	return -1, nil
-}
-
-func (p *InitProcessWrapperImpl) waitForChildExit(pid int) error {
-	return nil
 }

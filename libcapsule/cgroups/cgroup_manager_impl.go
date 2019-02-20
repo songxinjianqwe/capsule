@@ -1,6 +1,7 @@
 package cgroups
 
 import (
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"sync"
 )
@@ -18,7 +19,8 @@ type LinuxCgroupManager struct {
 	Paths  map[string]string
 }
 
-func (LinuxCgroupManager) Apply(pid int) error {
+func (m *LinuxCgroupManager) Apply(pid int) error {
+	logrus.Infof("LinuxCgroupManager apply pid:%d", pid)
 	return nil
 }
 

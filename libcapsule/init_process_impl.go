@@ -2,6 +2,7 @@ package libcapsule
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,12 +20,14 @@ const DefaultStdFdCount = 3
 有可能是InitProcessWrapper，也有可能是SetnsProcessWrapper
 */
 func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessWrapper, error) {
+	logrus.Infof("new parent process...")
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		return nil, err
 	}
 	cmd, err := buildCommand(container,
 		process, reader, process.Init)
+	logrus.Infof("build command complete, command: %#v", cmd)
 	if err != nil {
 		return nil, err
 	}

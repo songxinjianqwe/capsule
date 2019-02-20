@@ -64,9 +64,9 @@ func (ns NamespaceType) NsFlag() uintptr {
 	return 0
 }
 
-func (n Namespaces) CloneFlags() uintptr {
-	var flags uintptr = 1
-	for _, ns := range n {
+func (n *Namespaces) CloneFlags() uintptr {
+	var flags uintptr
+	for _, ns := range *n {
 		flags |= ns.Type.NsFlag()
 	}
 	return flags

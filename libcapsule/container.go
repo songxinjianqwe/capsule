@@ -44,7 +44,7 @@ type State struct {
 	InitProcessStartTime uint64 `json:"init_process_start"`
 
 	// Created is the unix timestamp for the creation time of the container in UTC
-	Created time.Time `json:"createdTime"`
+	Created time.Time `json:"create_time"`
 
 	// Config is the container's configuration.
 	Config configc.Config `json:"config"`

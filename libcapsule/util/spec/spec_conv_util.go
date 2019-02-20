@@ -3,6 +3,7 @@ package spec
 import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"golang.org/x/sys/unix"
@@ -15,6 +16,7 @@ import (
 将specs.Spec转为libcapsule.Config
 */
 func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error) {
+	logrus.Infof("converting specs.Spec to libcapsule.Config")
 	// runc's cwd will always be the bundle path
 	rcwd, err := os.Getwd()
 	if err != nil {
@@ -33,6 +35,7 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 	if !filepath.IsAbs(rootfsPath) {
 		rootfsPath = filepath.Join(cwd, rootfsPath)
 	}
+	logrus.Infof("rootfs path is %s", rootfsPath)
 	// 将annotations转为labels
 	var labels []string
 	for k, v := range spec.Annotations {
@@ -48,16 +51,19 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 	for _, m := range spec.Mounts {
 		config.Mounts = append(config.Mounts, createMount(cwd, m))
 	}
+	logrus.Infof("convert mount complete, config.Mounts: %#v", config.Mounts)
 	// 转换设备
 	if err := createDevices(spec, config); err != nil {
 		return nil, err
 	}
+	logrus.Infof("convert devices complete, config.Devices: %#v", config.Devices)
 	// 转换cgroups
 	cgroupConfig, err := createCgroupConfig(id, spec)
 	if err != nil {
 		return nil, err
 	}
 	config.Cgroups = cgroupConfig
+	logrus.Infof("convert cgroup config complete, config.Cgroups: %#v", config.Cgroups)
 	// Linux特有配置
 	exists := false
 	if spec.Linux != nil {
@@ -82,6 +88,7 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 				},
 			}
 		}
+		logrus.Infof("convert namespaces complete, config.Namespaces: %#v", config.Namespaces)
 		config.MaskPaths = spec.Linux.MaskedPaths
 		config.ReadonlyPaths = spec.Linux.ReadonlyPaths
 		config.Sysctl = spec.Linux.Sysctl
@@ -91,6 +98,7 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 }
 
 func CreateResourceLimit(posixResourceLimit specs.POSIXRlimit) (configc.ResourceLimit, error) {
+	logrus.Infof("converting specs.POSIXRlimit to configc.ResourceLimit...", posixResourceLimit)
 	rl, err := strToRlimit(posixResourceLimit.Type)
 	if err != nil {
 		return configc.ResourceLimit{}, err
@@ -227,6 +235,7 @@ var allowedDevices = []*configc.Device{
 }
 
 func createMount(cwd string, specMount specs.Mount) *configc.Mount {
+	logrus.Infof("converting specs.mount to configc.Mount")
 	flags, pgflags, data, ext := parseMountOptions(specMount.Options)
 	source := specMount.Source
 	device := specMount.Type
@@ -250,6 +259,7 @@ func createMount(cwd string, specMount specs.Mount) *configc.Mount {
 }
 
 func createCgroupConfig(cgroupName string, spec *specs.Spec) (*configc.Cgroup, error) {
+	logrus.Infof("creating cgroup config")
 	var (
 		myCgroupPath string
 	)
@@ -455,6 +465,7 @@ func stringToDeviceRune(s string) (rune, error) {
 }
 
 func createDevices(spec *specs.Spec, config *configc.Config) error {
+	logrus.Infof("creating devices")
 	// add whitelisted devices
 	config.Devices = []*configc.Device{
 		{

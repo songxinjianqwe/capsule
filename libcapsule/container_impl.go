@@ -116,6 +116,7 @@ func (c *LinuxContainerImpl) Exec() error {
 // ************************************************************************************************
 
 func (c *LinuxContainerImpl) start(process *Process) error {
+	logrus.Infof("LinuxContainerImpl starting...")
 	// 容器启动会涉及两个管道，一个是用来传输配置信息的，一个是用来控制exec是否执行的
 	// 1、创建exec管道文件
 	if process.Init {
@@ -128,6 +129,7 @@ func (c *LinuxContainerImpl) start(process *Process) error {
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating new parent process")
 	}
+	logrus.Infof("new parent process complete, parent process: %#v", parent)
 	c.initProcess = parent
 	// 3、启动parent process
 	if err := parent.start(); err != nil {
@@ -217,6 +219,10 @@ func (c *LinuxContainerImpl) currentStatus() (Status, error) {
 */
 func (c *LinuxContainerImpl) refreshState() error {
 	status, err := c.detectRealStatus()
+	logrus.Infof("detected real status: %s", status)
+	if status != c.containerState.status() {
+		logrus.Warnf("detected real status is %s, but containerStatus is %s, do transition", status, c.containerState.status())
+	}
 	if err != nil {
 		return err
 	}
@@ -264,6 +270,7 @@ io.Pipe是内存管道，无法通过内存管道来感知容器状态
 */
 func (c *LinuxContainerImpl) createExecFifo() error {
 	fifoName := filepath.Join(c.root, ExecFifoFilename)
+	logrus.Infof("creating exec fifo in %s", fifoName)
 
 	if _, err := os.Stat(fifoName); err == nil {
 		return fmt.Errorf("exec fifo %s already exists", fifoName)
@@ -273,6 +280,7 @@ func (c *LinuxContainerImpl) createExecFifo() error {
 	if err := unix.Mkfifo(fifoName, 0622); err != nil {
 		return err
 	}
+	logrus.Infof("exec fifo created")
 	return nil
 }
 
@@ -281,6 +289,7 @@ func (c *LinuxContainerImpl) createExecFifo() error {
 */
 func (c *LinuxContainerImpl) deleteExecFifo() error {
 	fifoName := filepath.Join(c.root, ExecFifoFilename)
+	logrus.Infof("deleting exec fifo: %s", fifoName)
 	return os.Remove(fifoName)
 }
 
@@ -292,10 +301,12 @@ func (c *LinuxContainerImpl) updateState() (state *State, err error) {
 	if err != nil {
 		return nil, err
 	}
+	logrus.Infof("current state is %#v", state)
 	err = c.saveState(state)
 	if err != nil {
 		return nil, err
 	}
+	logrus.Infof("save state complete")
 	return state, nil
 }
 
@@ -303,7 +314,9 @@ func (c *LinuxContainerImpl) updateState() (state *State, err error) {
 将state JSON对象写入到文件中
 */
 func (c *LinuxContainerImpl) saveState(state *State) error {
-	file, err := os.Create(filepath.Join(RuntimeRoot, StateFilename))
+	stateFilePath := filepath.Join(c.root, StateFilename)
+	logrus.Infof("saving state in file: %s", stateFilePath)
+	file, err := os.Create(stateFilePath)
 	if err != nil {
 		return err
 	}
