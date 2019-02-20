@@ -84,26 +84,28 @@ func (factory *LinuxContainerFactoryImpl) Load(id string) (Container, error) {
 func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	initPipeEnv := os.Getenv(EnvInitPipe)
 	initPipeFd, err := strconv.Atoi(initPipeEnv)
-	logrus.Infof("got init pipe env: %d", initPipeFd)
+	logrus.WithField("init", true).Infof("got init pipe env: %d", initPipeFd)
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvInitPipe to int")
 	}
-
 	initializerType := InitializerType(os.Getenv(EnvInitializerType))
-	logrus.Infof("got initializer type: %s", initializerType)
+	logrus.WithField("init", true).Infof("got initializer type: %s", initializerType)
 	execFifoFd := -1
 	// 只有init process有fifo管道
 	if initializerType == StandardInitializer {
 		execFifoEnv := os.Getenv(EnvExecFifo)
 		execFifoFd, err = strconv.Atoi(execFifoEnv)
-		logrus.Infof("got exec fifo: %d", execFifoFd)
+		logrus.WithField("init", true).Infof("got exec fifo: %d", execFifoFd)
 		if err != nil {
 			return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvInitPipe to int")
 		}
 	}
 
 	childPipe := os.NewFile(uintptr(initPipeFd), "pipe")
-	defer childPipe.Close()
+	defer func() {
+		childPipe.Close()
+	}()
+	logrus.WithField("init", true).Infof("starting to read init config from child pipe")
 	bytes, err := ioutil.ReadAll(childPipe)
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "reading init config from childPipe")
@@ -112,7 +114,7 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	if err = json.Unmarshal(bytes, initConfig); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "unmarshalling init config")
 	}
-	logrus.Infof("read init config from child pipe: %#v", initConfig)
+	logrus.WithField("init", true).Infof("read init config from child pipe: %#v", initConfig)
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("panic from initialization: %v, %v", e, string(debug.Stack()))
@@ -126,7 +128,7 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating initializer")
 	}
-	logrus.Infof("created initializer:%#v", initializer)
+	logrus.WithField("init", true).Infof("created initializer:%#v", initializer)
 	if err := initializer.Init(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "executing init command")
 	}
@@ -141,7 +143,7 @@ func populateProcessEnvironment(env []string) error {
 		if len(p) < 2 {
 			return fmt.Errorf("invalid environment '%v'", pair)
 		}
-		logrus.Infof("set env: key:%s, value:%s", p[0], p[1])
+		logrus.WithField("init", true).Infof("set env: key:%s, value:%s", p[0], p[1])
 		if err := os.Setenv(p[0], p[1]); err != nil {
 			return err
 		}

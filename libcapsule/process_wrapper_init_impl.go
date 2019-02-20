@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"github.com/songxinjianqwe/rune/libcapsule/util/system"
@@ -36,7 +35,6 @@ type InitProcessWrapperImpl struct {
 	childPipe         *os.File
 	container         *LinuxContainerImpl
 	process           *Process
-	cgroupManger      *cgroups.CgroupManager
 	sharePidNamespace bool
 }
 
@@ -70,9 +68,9 @@ func (p *InitProcessWrapperImpl) start() error {
 	if err = p.parentPipe.Close(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "closing parent pipe")
 	}
-	state, err := p.wait()
-	if err != nil {
-		logrus.Errorf("waiting init process cmd error:%v, %s", state, err.Error())
+	if _, err := p.wait(); err != nil {
+		logrus.Errorf("waiting init process cmd error: %s", err)
+		return err
 	}
 	return nil
 }
@@ -94,7 +92,7 @@ func (p *InitProcessWrapperImpl) wait() (*os.ProcessState, error) {
 	}
 	// we should kill all processes in cgroup when init is died if we use host PID namespace
 	if p.sharePidNamespace {
-		system.SignalAllProcesses(*p.cgroupManger, unix.SIGKILL)
+		system.SignalAllProcesses(p.container.cgroupManager, unix.SIGKILL)
 	}
 	return p.initProcessCmd.ProcessState, nil
 }
@@ -102,7 +100,7 @@ func (p *InitProcessWrapperImpl) wait() (*os.ProcessState, error) {
 func (p *InitProcessWrapperImpl) startTime() (uint64, error) {
 	stat, err := system.GetProcessStat(p.pid())
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 	return stat.StartTime, err
 }

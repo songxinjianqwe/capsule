@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule"
 	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
+	"os"
 )
 
 type ContainerAction uint8
@@ -137,6 +138,11 @@ func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
 			return nil, err
 		}
 		libcapsuleProcess.Rlimits = append(libcapsuleProcess.Rlimits, rl)
+	}
+	if p.Terminal {
+		libcapsuleProcess.Stdin = os.Stdin
+		libcapsuleProcess.Stdout = os.Stdout
+		libcapsuleProcess.Stderr = os.Stderr
 	}
 	return libcapsuleProcess, nil
 }

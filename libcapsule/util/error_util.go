@@ -91,7 +91,7 @@ func NewGenericErrorWithInfo(err error, c ErrorCode, context string) Error {
 		ErrorCode: c,
 	}
 	if err != nil {
-		genericError.Message = fmt.Sprintf("[CONTEXT: %s]%s", context, err.Error())
+		genericError.Message = fmt.Sprintf("[CONTEXT: %s] %s", context, err.Error())
 	}
 	return genericError
 }

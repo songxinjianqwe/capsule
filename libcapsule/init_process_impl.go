@@ -21,7 +21,9 @@ const DefaultStdFdCount = 3
 */
 func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessWrapper, error) {
 	logrus.Infof("new parent process...")
+	logrus.Infof("creating pipe...")
 	reader, writer, err := os.Pipe()
+	logrus.Infof("create pipe complete, parent: %#v, child: %#v", writer, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -43,10 +45,6 @@ func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessW
 */
 func buildCommand(container *LinuxContainerImpl, process *Process, childPipe *os.File, init bool) (*exec.Cmd, error) {
 	cmd := exec.Command(ContainerInitPath, ContainerInitArgs)
-	cmd.Stdin = process.Stdin
-	cmd.Stdout = process.Stdout
-	cmd.Stderr = process.Stderr
-
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: container.config.Namespaces.CloneFlags(),
 	}
@@ -65,5 +63,8 @@ func buildCommand(container *LinuxContainerImpl, process *Process, childPipe *os
 			fmt.Sprintf(EnvExecFifo+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
 		)
 	}
+	cmd.Stdin = process.Stdin
+	cmd.Stdout = process.Stdout
+	cmd.Stderr = process.Stderr
 	return cmd, nil
 }

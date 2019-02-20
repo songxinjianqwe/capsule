@@ -55,4 +55,7 @@ type Process struct {
 
 	// Init specifies whether the process is the first process in the container.
 	Init bool
+
+	// Terminal creates an interactive terminal for the container.
+	Terminal bool
 }

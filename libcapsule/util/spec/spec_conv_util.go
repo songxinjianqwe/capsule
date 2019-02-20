@@ -16,7 +16,7 @@ import (
 将specs.Spec转为libcapsule.Config
 */
 func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error) {
-	logrus.Infof("converting specs.Spec to libcapsule.Config")
+	logrus.Infof("converting specs.Spec to libcapsule.Config...")
 	// runc's cwd will always be the bundle path
 	rcwd, err := os.Getwd()
 	if err != nil {
@@ -235,7 +235,7 @@ var allowedDevices = []*configc.Device{
 }
 
 func createMount(cwd string, specMount specs.Mount) *configc.Mount {
-	logrus.Infof("converting specs.mount to configc.Mount")
+	logrus.Infof("converting specs.mount to configc.Mount...")
 	flags, pgflags, data, ext := parseMountOptions(specMount.Options)
 	source := specMount.Source
 	device := specMount.Type
@@ -259,7 +259,7 @@ func createMount(cwd string, specMount specs.Mount) *configc.Mount {
 }
 
 func createCgroupConfig(cgroupName string, spec *specs.Spec) (*configc.Cgroup, error) {
-	logrus.Infof("creating cgroup config")
+	logrus.Infof("creating cgroup config...")
 	var (
 		myCgroupPath string
 	)
@@ -465,7 +465,7 @@ func stringToDeviceRune(s string) (rune, error) {
 }
 
 func createDevices(spec *specs.Spec, config *configc.Config) error {
-	logrus.Infof("creating devices")
+	logrus.Infof("creating devices...")
 	// add whitelisted devices
 	config.Devices = []*configc.Device{
 		{
