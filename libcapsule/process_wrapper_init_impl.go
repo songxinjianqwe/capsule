@@ -11,66 +11,18 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"syscall"
 )
 
-/**
-一个进程默认有三个文件描述符，stdin、stdout、stderr
-外带的文件描述符在这三个fd之后
-*/
-const DefaultStdFdCount = 3
-
-/**
-创建一个ParentProcess实例，用于启动容器Init进程，并和容器Init进程通信
-*/
-func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessWrapper, error) {
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		return nil, err
-	}
-	fifo, err := os.OpenFile(filepath.Join(container.root, ExecFifoFilename), os.O_RDWR, 0)
-	if err != nil {
-		return nil, err
-	}
-	initProcessCmd, err := buildInitProcessCommand(container.config.Rootfs,
-		container.config.Namespaces.CloneFlags(),
-		process, reader, fifo)
-	if err != nil {
-		return nil, err
-	}
-	parentProcess := InitProcessWrapperImpl{
-		initProcessCmd: initProcessCmd,
-		parentPipe:     writer,
-		childPipe:      reader,
-		container:      container,
+func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentPipe *os.File, childPipe *os.File, c *LinuxContainerImpl) ProcessWrapper {
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
+	return &InitProcessWrapperImpl{
+		initProcessCmd: cmd,
+		parentPipe:     parentPipe,
+		childPipe:      childPipe,
+		container:      c,
 		process:        process,
 	}
-	return &parentProcess, nil
-}
-
-/**
-构造一个init进程的command对象
-*/
-func buildInitProcessCommand(rootfs string, cloneFlags uintptr, process *Process, childPipe *os.File, fifo *os.File) (*exec.Cmd, error) {
-	cmd := exec.Command(ContainerInitPath, ContainerInitArgs)
-	cmd.Stdin = process.Stdin
-	cmd.Stdout = process.Stdout
-	cmd.Stderr = process.Stderr
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: cloneFlags,
-	}
-	cmd.Dir = rootfs
-	cmd.ExtraFiles = append(cmd.ExtraFiles, childPipe)
-	cmd.Env = append(cmd.Env,
-		fmt.Sprintf(EnvInitPipe+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
-	)
-	cmd.ExtraFiles = append(cmd.ExtraFiles, fifo)
-	cmd.Env = append(cmd.Env,
-		fmt.Sprintf(EnvExecFifo+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
-	)
-	return cmd, nil
 }
 
 /**
@@ -92,7 +44,6 @@ type InitConfig struct {
 
 func (p *InitProcessWrapperImpl) start() error {
 	defer p.parentPipe.Close()
-	// 非阻塞
 	err := p.initProcessCmd.Start()
 	p.childPipe.Close()
 	if err != nil {

@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	EnvInitPipe = "_LIBCAPSULE_INITPIPE"
-	EnvExecFifo = "_LIBCAPSULE_EXECFIFO"
+	EnvInitPipe        = "_LIBCAPSULE_INITPIPE"
+	EnvExecFifo        = "_LIBCAPSULE_EXECFIFO"
+	EnvInitializerType = "_LIBCAPSULE_INITIALIZERTYPE"
 )
 
 type LinuxContainerImpl struct {
@@ -66,20 +67,29 @@ func (c *LinuxContainerImpl) Processes() ([]int, error) {
 	panic("implement me")
 }
 
+/**
+Start是会让init process阻塞在cmd之前的
+*/
 func (c *LinuxContainerImpl) Start(process *Process) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.start(process)
 }
 
+/**
+Run 当运行init process，不会阻塞，会执行完cmd
+当运行非init process，会阻塞
+*/
 func (c *LinuxContainerImpl) Run(process *Process) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if err := c.start(process); err != nil {
 		return err
 	}
-	if err := c.exec(); err != nil {
-		return err
+	if process.Init {
+		if err := c.exec(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -92,6 +102,9 @@ func (c *LinuxContainerImpl) Signal(s os.Signal, all bool) error {
 	panic("implement me")
 }
 
+/**
+取消init process的阻塞
+*/
 func (c *LinuxContainerImpl) Exec() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -101,6 +114,7 @@ func (c *LinuxContainerImpl) Exec() error {
 // ************************************************************************************************
 // private
 // ************************************************************************************************
+
 func (c *LinuxContainerImpl) start(process *Process) error {
 	// 容器启动会涉及两个管道，一个是用来传输配置信息的，一个是用来控制exec是否执行的
 	// 1、创建exec管道文件
@@ -119,17 +133,17 @@ func (c *LinuxContainerImpl) start(process *Process) error {
 	if err := parent.start(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "starting container process")
 	}
-	// 4、更新容器状态
-	c.createdTime = time.Now().UTC()
-	c.containerState = &CreatedState{
-		c: c,
-	}
-	// 5、持久化容器状态
-	_, err = c.updateState()
-	if err != nil {
-		return err
-	}
 	if process.Init {
+		// 4、更新容器状态
+		c.createdTime = time.Now().UTC()
+		c.containerState = &CreatedState{
+			c: c,
+		}
+		// 5、持久化容器状态
+		_, err = c.updateState()
+		if err != nil {
+			return err
+		}
 		// 6、删除exec管道文件
 		err = c.deleteExecFifo()
 		if err != nil {

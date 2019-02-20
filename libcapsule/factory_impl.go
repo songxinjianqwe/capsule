@@ -82,16 +82,23 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvInitPipe to int")
 	}
+
+	initializerType := InitializerType(os.Getenv(EnvInitializerType))
+	execFifoFd := -1
+	// 只有init process有fifo管道
+	if initializerType == StandardInitializer {
+		execFifoEnv := os.Getenv(EnvExecFifo)
+		execFifoFd, err = strconv.Atoi(execFifoEnv)
+		if err != nil {
+			return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvInitPipe to int")
+		}
+	}
+
 	childPipe := os.NewFile(uintptr(initPipeFd), "pipe")
 	defer childPipe.Close()
 	bytes, err := ioutil.ReadAll(childPipe)
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "reading init config from childPipe")
-	}
-	execFifoEnv := os.Getenv(EnvExecFifo)
-	execFifoFd, err := strconv.Atoi(execFifoEnv)
-	if err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvInitPipe to int")
 	}
 	initConfig := &InitConfig{}
 	if err = json.Unmarshal(bytes, initConfig); err != nil {
@@ -117,7 +124,10 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	if err := populateProcessEnvironment(initConfig.ProcessConfig.Env); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "populating environment variables")
 	}
-	initializer := NewInitializer(initConfig, childPipe, execFifoFd)
+	initializer, err := NewInitializer(initializerType, initConfig, childPipe, execFifoFd)
+	if err != nil {
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating initializer")
+	}
 	if err := initializer.Init(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "executing init command")
 	}

@@ -9,15 +9,7 @@ import (
 	"syscall"
 )
 
-func NewInitializer(config *InitConfig, childPipe *os.File, execFifoFd int) Initializer {
-	return &InitializerImpl{
-		config:     config,
-		childPipe:  childPipe,
-		execFifoFd: execFifoFd,
-	}
-}
-
-type InitializerImpl struct {
+type InitializerStandardImpl struct {
 	config     *InitConfig
 	childPipe  *os.File
 	execFifoFd int
@@ -28,9 +20,9 @@ type InitializerImpl struct {
 // **************************************************************************************************
 
 /**
-容器init进程初始化，即容器初始化
+即容器初始化
 */
-func (initializer *InitializerImpl) Init() error {
+func (initializer *InitializerStandardImpl) Init() error {
 	if err := initializer.setUpNetwork(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "init process/set up network")
 	}
@@ -92,19 +84,19 @@ func (initializer *InitializerImpl) Init() error {
 // private
 // **************************************************************************************************
 
-func (initializer *InitializerImpl) setUpNetwork() error {
+func (initializer *InitializerStandardImpl) setUpNetwork() error {
 	return nil
 }
 
-func (initializer *InitializerImpl) setUpRoute() error {
+func (initializer *InitializerStandardImpl) setUpRoute() error {
 	return nil
 }
 
-func (initializer *InitializerImpl) prepareRootfs() error {
+func (initializer *InitializerStandardImpl) prepareRootfs() error {
 	return nil
 }
 
-func (initializer *InitializerImpl) finalizeNamespace() error {
+func (initializer *InitializerStandardImpl) finalizeNamespace() error {
 	return nil
 }
 
