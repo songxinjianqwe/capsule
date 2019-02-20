@@ -5,10 +5,10 @@ import (
 	"sync"
 )
 
-func NewCroupManager(config *configc.Cgroup, paths map[string]string) CgroupManager {
+func NewCroupManager(config *configc.Cgroup) CgroupManager {
 	return &LinuxCgroupManager{
 		Config: config,
-		Paths:  paths,
+		Paths:  make(map[string]string),
 	}
 }
 
@@ -19,33 +19,33 @@ type LinuxCgroupManager struct {
 }
 
 func (LinuxCgroupManager) Apply(pid int) error {
-	panic("implement me")
+	return nil
 }
 
 func (LinuxCgroupManager) GetPids() ([]int, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func (LinuxCgroupManager) GetAllPids() ([]int, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func (LinuxCgroupManager) GetStats() (*Stats, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func (LinuxCgroupManager) Freeze(state configc.FreezerState) error {
-	panic("implement me")
+	return nil
 }
 
 func (LinuxCgroupManager) Destroy() error {
-	panic("implement me")
+	return nil
 }
 
 func (LinuxCgroupManager) GetPaths() map[string]string {
-	panic("implement me")
+	return nil
 }
 
 func (LinuxCgroupManager) Set(container *configc.Config) error {
-	panic("implement me")
+	return nil
 }

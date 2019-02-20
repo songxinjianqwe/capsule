@@ -1,10 +1,6 @@
 package configc
 
-import (
-	"github.com/opencontainers/runtime-spec/specs-go"
-)
-
-type Rlimit struct {
+type ResourceLimit struct {
 	Type int    `json:"type"`
 	Hard uint64 `json:"hard"`
 	Soft uint64 `json:"soft"`
@@ -37,10 +33,6 @@ type Config struct {
 	// If a namespace is not provided that namespace is shared from the container's parent process
 	Namespaces Namespaces `json:"namespaces"`
 
-	// Capabilities specify the capabilities to keep when executing the process inside the container
-	// All capabilities not specified will be dropped from the processes capability mask
-	Capabilities *specs.LinuxCapabilities `json:"capabilities"`
-
 	// Networks specifies the container's network setup to be created
 	Networks []*Network `json:"networks"`
 
@@ -51,9 +43,9 @@ type Config struct {
 	// placed into to limit the resources the container has available
 	Cgroups *Cgroup `json:"cgroups"`
 
-	// Rlimits specifies the resource limits, such as max open files, to set in the container
-	// If Rlimits are not set, the container will inherit rlimits from the parent process
-	Rlimits []Rlimit `json:"rlimits,omitempty"`
+	// ResourceLimits specifies the resource limits, such as max open files, to set in the container
+	// If ResourceLimits are not set, the container will inherit rlimits from the parent process
+	ResourceLimits []ResourceLimit `json:"rlimits,omitempty"`
 
 	// MaskPaths specifies paths within the container's rootfs to mask over with a bind
 	// mount pointing to /dev/null as to prevent reads of the file.

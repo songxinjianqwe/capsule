@@ -10,6 +10,7 @@ import (
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -17,19 +18,25 @@ import (
 
 const (
 	// 容器状态文件的文件名
+	// 存放在 RuntimeRoot/containerId/下
 	StateFilename = "state.json"
 	// 用于parent进程与init进程的start/run切换
+	// 存放在 RuntimeRoot/containerId/下
 	ExecFifoFilename = "exec.fifo"
 	// 重新执行本应用的command，相当于 重新执行./rune
 	ContainerInitPath = "/proc/self/exe"
 	// 运行容器init进程的命令
 	ContainerInitArgs = "init"
 	// 运行时文件的存放目录
-	RuntimeRoot             = "/run/rune"
+	RuntimeRoot = "/run/rune"
+	// 容器配置文件，存放在运行rune的cwd下
 	ContainerConfigFilename = "config.json"
 )
 
 func NewFactory() (Factory, error) {
+	if err := os.MkdirAll(RuntimeRoot, 0700); err != nil {
+		return nil, util.NewGenericError(err, util.SystemError)
+	}
 	factory := LinuxContainerFactoryImpl{
 		Root:      RuntimeRoot,
 		Validator: validate.New(),
@@ -46,11 +53,20 @@ type LinuxContainerFactoryImpl struct {
 }
 
 func (factory *LinuxContainerFactoryImpl) Create(id string, config *configc.Config) (Container, error) {
+	containerRoot := filepath.Join(factory.Root, id)
+	if _, err := os.Stat(containerRoot); err == nil {
+		return nil, util.NewGenericError(fmt.Errorf("container with id exists: %v", id), util.SystemError)
+	} else if !os.IsNotExist(err) {
+		return nil, util.NewGenericError(err, util.SystemError)
+	}
+	if err := os.MkdirAll(containerRoot, 0711); err != nil {
+		return nil, util.NewGenericError(err, util.SystemError)
+	}
 	container := &LinuxContainerImpl{
 		id:            id,
-		root:          factory.Root,
+		root:          containerRoot,
 		config:        *config,
-		cgroupManager: cgroups.NewCroupManager(config.Cgroups, nil),
+		cgroupManager: cgroups.NewCroupManager(config.Cgroups),
 	}
 	container.containerState = &StoppedState{c: container}
 	return container, nil

@@ -3,9 +3,12 @@ package libcapsule
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
-	"io"
+	"github.com/songxinjianqwe/rune/libcapsule/util/system"
+	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,7 +29,7 @@ func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessW
 	if err != nil {
 		return nil, err
 	}
-	fifo, err := os.Open(filepath.Join(RuntimeRoot, ExecFifoFilename))
+	fifo, err := os.OpenFile(filepath.Join(container.root, ExecFifoFilename), os.O_RDWR, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +52,7 @@ func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessW
 /**
 构造一个init进程的command对象
 */
-func buildInitProcessCommand(cmdDir string, cloneFlags uintptr, process *Process, childPipe *os.File, fifo *os.File) (*exec.Cmd, error) {
+func buildInitProcessCommand(rootfs string, cloneFlags uintptr, process *Process, childPipe *os.File, fifo *os.File) (*exec.Cmd, error) {
 	cmd := exec.Command(ContainerInitPath, ContainerInitArgs)
 	cmd.Stdin = process.Stdin
 	cmd.Stdout = process.Stdout
@@ -58,7 +61,7 @@ func buildInitProcessCommand(cmdDir string, cloneFlags uintptr, process *Process
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: cloneFlags,
 	}
-	cmd.Dir = cmdDir
+	cmd.Dir = rootfs
 	cmd.ExtraFiles = append(cmd.ExtraFiles, childPipe)
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf(EnvInitPipe+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
@@ -79,7 +82,7 @@ type InitProcessWrapperImpl struct {
 	childPipe      *os.File
 	container      *LinuxContainerImpl
 	process        *Process
-	bootstrapData  io.Reader
+	cgroupManger   *cgroups.CgroupManager
 }
 
 type InitConfig struct {
@@ -87,27 +90,51 @@ type InitConfig struct {
 	ProcessConfig   Process
 }
 
-func (p *InitProcessWrapperImpl) pid() int {
-	panic("implement me")
-}
-
 func (p *InitProcessWrapperImpl) start() error {
 	defer p.parentPipe.Close()
+	// 非阻塞
 	err := p.initProcessCmd.Start()
+	p.childPipe.Close()
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "starting init process command")
+	}
+	if err := p.container.cgroupManager.Apply(p.pid()); err != nil {
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "applying cgroup configuration for process")
+	}
+	defer func() {
+		if err != nil {
+			p.container.cgroupManager.Destroy()
+		}
+	}()
+	childPid, err := p.getChildPid()
+	if err != nil {
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "getting the final child's pid from pipe")
+	}
+	if err := p.container.cgroupManager.Apply(childPid); err != nil {
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "applying cgroup configuration for process")
+	}
+	if err := p.waitForChildExit(childPid); err != nil {
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "waiting for our first child to exit")
 	}
 	if err = p.createNetworkInterfaces(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating network interfaces")
 	}
+	// init process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "sending config to init process")
 	}
 	if err = p.parentPipe.Close(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "closing parent pipe")
 	}
-	p.wait()
+	state, err := p.wait()
+	if err != nil {
+		logrus.Errorf("waiting init process cmd error:%v, %s", state, err.Error())
+	}
 	return nil
+}
+
+func (p *InitProcessWrapperImpl) pid() int {
+	return p.initProcessCmd.Process.Pid
 }
 
 func (p *InitProcessWrapperImpl) terminate() error {
@@ -119,23 +146,24 @@ func (p *InitProcessWrapperImpl) wait() (*os.ProcessState, error) {
 }
 
 func (p *InitProcessWrapperImpl) startTime() (uint64, error) {
-	panic("implement me")
+	stat, err := system.GetProcessStat(p.pid())
+	return stat.StartTime, err
 }
 
-func (p *InitProcessWrapperImpl) signal(os.Signal) error {
-	panic("implement me")
+func (p *InitProcessWrapperImpl) signal(sig os.Signal) error {
+	s, ok := sig.(syscall.Signal)
+	if !ok {
+		return util.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), util.SystemError)
+	}
+	return unix.Kill(p.pid(), s)
 }
 
-func (p *InitProcessWrapperImpl) externalDescriptors() []string {
-	panic("implement me")
-}
-
-func (p *InitProcessWrapperImpl) setExternalDescriptors(fds []string) {
-	panic("implement me")
-}
+// ******************************************************************************************************
+// biz methods
+// ******************************************************************************************************
 
 func (p *InitProcessWrapperImpl) createNetworkInterfaces() error {
-	panic("implement me")
+	return nil
 }
 
 func (p *InitProcessWrapperImpl) sendConfig() error {
@@ -149,4 +177,12 @@ func (p *InitProcessWrapperImpl) sendConfig() error {
 	}
 	_, err = p.parentPipe.WriteString(string(bytes))
 	return err
+}
+
+func (p *InitProcessWrapperImpl) getChildPid() (int, error) {
+	return -1, nil
+}
+
+func (p *InitProcessWrapperImpl) waitForChildExit(pid int) error {
+	return nil
 }

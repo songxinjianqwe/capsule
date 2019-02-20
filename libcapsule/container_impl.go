@@ -104,8 +104,10 @@ func (c *LinuxContainerImpl) Exec() error {
 func (c *LinuxContainerImpl) start(process *Process) error {
 	// 容器启动会涉及两个管道，一个是用来传输配置信息的，一个是用来控制exec是否执行的
 	// 1、创建exec管道文件
-	if err := c.createExecFifo(); err != nil {
-		return err
+	if process.Init {
+		if err := c.createExecFifo(); err != nil {
+			return err
+		}
 	}
 	// 2、创建parent process
 	parent, err := NewParentProcess(c, process)
@@ -122,14 +124,17 @@ func (c *LinuxContainerImpl) start(process *Process) error {
 	c.containerState = &CreatedState{
 		c: c,
 	}
+	// 5、持久化容器状态
 	_, err = c.updateState()
 	if err != nil {
 		return err
 	}
-	// 5、删除exec管道文件
-	err = c.deleteExecFifo()
-	if err != nil {
-		logrus.Errorf("delete exec fifo failed: %s", err.Error())
+	if process.Init {
+		// 6、删除exec管道文件
+		err = c.deleteExecFifo()
+		if err != nil {
+			logrus.Errorf("delete exec fifo failed: %s", err.Error())
+		}
 	}
 	return nil
 }

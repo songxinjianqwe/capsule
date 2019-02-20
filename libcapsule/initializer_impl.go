@@ -80,6 +80,8 @@ func (initializer *InitializerImpl) Init() error {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "write 0 to exec fifo")
 	}
 	fifo.Close()
+	// syscall.Exec与cmd.Start不同，后者是启动一个新的进程来执行命令
+	// 而前者会在覆盖当前进程的镜像、数据、堆栈等信息，包括PID。
 	if err := syscall.Exec(name, initializer.config.ProcessConfig.Args[0:], os.Environ()); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "exec user process")
 	}

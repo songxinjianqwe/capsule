@@ -1,7 +1,6 @@
 package system
 
 import (
-	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
@@ -11,8 +10,8 @@ import (
 	"unsafe"
 )
 
-// GetSubreaper returns the subreaper setting for the calling process
-func GetSubreaper() (int, error) {
+// getSubreaper returns the subreaper setting for the calling process
+func getSubreaper() (int, error) {
 	var i uintptr
 
 	if err := unix.Prctl(unix.PR_GET_CHILD_SUBREAPER, uintptr(unsafe.Pointer(&i)), 0, 0, 0); err != nil {
@@ -91,7 +90,7 @@ func SignalAllProcesses(m cgroups.CgroupManager, s os.Signal) error {
 		logrus.Warn(err)
 	}
 
-	subreaper, err := system.GetSubreaper()
+	subreaper, err := getSubreaper()
 	if err != nil {
 		// The error here means that PR_GET_CHILD_SUBREAPER is not
 		// supported because this code might run on a kernel older

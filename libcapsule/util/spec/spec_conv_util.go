@@ -86,30 +86,19 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 		config.ReadonlyPaths = spec.Linux.ReadonlyPaths
 		config.Sysctl = spec.Linux.Sysctl
 	}
-	if spec.Process != nil {
-		if spec.Process.Capabilities != nil {
-			config.Capabilities = &specs.LinuxCapabilities{
-				Bounding:    spec.Process.Capabilities.Bounding,
-				Effective:   spec.Process.Capabilities.Effective,
-				Permitted:   spec.Process.Capabilities.Permitted,
-				Inheritable: spec.Process.Capabilities.Inheritable,
-				Ambient:     spec.Process.Capabilities.Ambient,
-			}
-		}
-	}
 	config.Version = specs.Version
 	return config, nil
 }
 
-func CreateResourcelimit(rlimit specs.POSIXRlimit) (configc.Rlimit, error) {
-	rl, err := strToRlimit(rlimit.Type)
+func CreateResourceLimit(posixResourceLimit specs.POSIXRlimit) (configc.ResourceLimit, error) {
+	rl, err := strToRlimit(posixResourceLimit.Type)
 	if err != nil {
-		return configc.Rlimit{}, err
+		return configc.ResourceLimit{}, err
 	}
-	return configc.Rlimit{
+	return configc.ResourceLimit{
 		Type: rl,
-		Hard: rlimit.Hard,
-		Soft: rlimit.Soft,
+		Hard: posixResourceLimit.Hard,
+		Soft: posixResourceLimit.Soft,
 	}, nil
 }
 

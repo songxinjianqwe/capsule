@@ -1,7 +1,6 @@
 package libcapsule
 
 import (
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"io"
 	"os"
@@ -41,20 +40,19 @@ type Process struct {
 	ConsoleWidth  uint16
 	ConsoleHeight uint16
 
-	// Capabilities specify the capabilities to keep when executing the process inside the container
-	// All capabilities not specified will be dropped from the processes capability mask
-	Capabilities *specs.LinuxCapabilities
-
 	// Label specifies the label to apply to the process.  It is commonly used by selinux
 	Label string
 
 	// NoNewPrivileges controls whether processes can gain additional privileges.
 	NoNewPrivileges *bool
 
-	// Rlimits specifies the resource limits, such as max open files, to set in the container
-	// If Rlimits are not set, the container will inherit rlimits from the parent process
-	Rlimits []configc.Rlimit
+	// ResourceLimits specifies the resource limits, such as max open files, to set in the container
+	// If ResourceLimits are not set, the container will inherit rlimits from the parent process
+	Rlimits []configc.ResourceLimit
 
 	// ConsoleSocket provides the masterfd console.
 	ConsoleSocket *os.File
+
+	// Init specifies whether the process is the first process in the container.
+	Init bool
 }

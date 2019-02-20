@@ -19,8 +19,4 @@ type ProcessWrapper interface {
 	startTime() (uint64, error)
 
 	signal(os.Signal) error
-
-	externalDescriptors() []string
-
-	setExternalDescriptors(fds []string)
 }

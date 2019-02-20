@@ -1,14 +1,11 @@
 package util
 
 import (
-	"errors"
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/songxinjianqwe/rune/libcapsule"
 	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
 )
-
-var errEmptyID = errors.New("container id cannot be empty")
 
 type ContainerAction uint8
 
@@ -29,7 +26,7 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, 
 		return -1, err
 	}
 	// 将specs.Process转为libcapsule.Process
-	process, err := newProcess(*spec.Process)
+	process, err := newProcess(*spec.Process, true)
 	if err != nil {
 		return -1, err
 	}
@@ -54,7 +51,7 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, 
 */
 func GetContainer(id string) (libcapsule.Container, error) {
 	if id == "" {
-		return nil, errEmptyID
+		return nil, fmt.Errorf("container id cannot be empty")
 	}
 	factory, err := LoadFactory()
 	if err != nil {
@@ -68,16 +65,19 @@ func GetContainer(id string) (libcapsule.Container, error) {
 */
 func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) {
 	if id == "" {
-		return nil, errEmptyID
+		return nil, fmt.Errorf("container id cannot be empty")
 	}
+	// 1、将spec转为容器config
 	config, err := specutil.CreateContainerConfig(id, spec)
 	if err != nil {
 		return nil, err
 	}
+	// 2、创建容器工厂
 	factory, err := LoadFactory()
 	if err != nil {
 		return nil, err
 	}
+	// 3、创建容器
 	container, err := factory.Create(id, config)
 	if err != nil {
 		return nil, err
@@ -99,35 +99,27 @@ func LoadFactory() (libcapsule.Factory, error) {
 /*
 将specs.Process转为libcapsule.Process
 */
-func newProcess(p specs.Process) (*libcapsule.Process, error) {
-	lp := &libcapsule.Process{
+func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
+	libcapsuleProcess := &libcapsule.Process{
 		Args:            p.Args,
 		Env:             p.Env,
 		User:            fmt.Sprintf("%d:%d", p.User.UID, p.User.GID),
 		Cwd:             p.Cwd,
 		Label:           p.SelinuxLabel,
 		NoNewPrivileges: &p.NoNewPrivileges,
+		Init:            init,
 	}
 
 	if p.ConsoleSize != nil {
-		lp.ConsoleWidth = uint16(p.ConsoleSize.Width)
-		lp.ConsoleHeight = uint16(p.ConsoleSize.Height)
+		libcapsuleProcess.ConsoleWidth = uint16(p.ConsoleSize.Width)
+		libcapsuleProcess.ConsoleHeight = uint16(p.ConsoleSize.Height)
 	}
-
-	if p.Capabilities != nil {
-		lp.Capabilities = &specs.LinuxCapabilities{}
-		lp.Capabilities.Bounding = p.Capabilities.Bounding
-		lp.Capabilities.Effective = p.Capabilities.Effective
-		lp.Capabilities.Inheritable = p.Capabilities.Inheritable
-		lp.Capabilities.Permitted = p.Capabilities.Permitted
-		lp.Capabilities.Ambient = p.Capabilities.Ambient
-	}
-	for _, posixRlimit := range p.Rlimits {
-		rl, err := specutil.CreateResourcelimit(posixRlimit)
+	for _, posixResourceLimit := range p.Rlimits {
+		rl, err := specutil.CreateResourceLimit(posixResourceLimit)
 		if err != nil {
 			return nil, err
 		}
-		lp.Rlimits = append(lp.Rlimits, rl)
+		libcapsuleProcess.Rlimits = append(libcapsuleProcess.Rlimits, rl)
 	}
-	return lp, nil
+	return libcapsuleProcess, nil
 }
