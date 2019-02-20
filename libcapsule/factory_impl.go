@@ -82,49 +82,55 @@ func (factory *LinuxContainerFactoryImpl) Load(id string) (Container, error) {
 }
 
 func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
-	initPipeEnv := os.Getenv(EnvInitPipe)
-	initPipeFd, err := strconv.Atoi(initPipeEnv)
-	logrus.WithField("init", true).Infof("got init pipe env: %d", initPipeFd)
+	defer func() {
+		if e := recover(); e != nil {
+			logrus.Errorf("panic from initialization: %v, %v", e, string(debug.Stack()))
+		}
+	}()
+	configPipeEnv := os.Getenv(EnvConfigPipe)
+	initPipeFd, err := strconv.Atoi(configPipeEnv)
+	logrus.WithField("init", true).Infof("got config pipe env: %d", initPipeFd)
 	if err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvInitPipe to int")
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvConfigPipe to int")
 	}
 	initializerType := InitializerType(os.Getenv(EnvInitializerType))
 	logrus.WithField("init", true).Infof("got initializer type: %s", initializerType)
-	execFifoFd := -1
+
+	execPipeFd := -1
 	// 只有init process有fifo管道
 	if initializerType == StandardInitializer {
-		execFifoEnv := os.Getenv(EnvExecFifo)
-		execFifoFd, err = strconv.Atoi(execFifoEnv)
-		logrus.WithField("init", true).Infof("got exec fifo: %d", execFifoFd)
+		execPipeEnv := os.Getenv(EnvExecPipe)
+		execPipeFd, err = strconv.Atoi(execPipeEnv)
+		logrus.WithField("init", true).Infof("got exec pipe env: %d", execPipeFd)
 		if err != nil {
-			return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvInitPipe to int")
+			return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvConfigPipe to int")
 		}
 	}
 
-	childPipe := os.NewFile(uintptr(initPipeFd), "pipe")
-	defer func() {
-		childPipe.Close()
-	}()
+	configPipe := os.NewFile(uintptr(initPipeFd), "pipe")
+	logrus.WithField("init", true).Infof("open child pipe: %#v", configPipe)
 	logrus.WithField("init", true).Infof("starting to read init config from child pipe")
-	bytes, err := ioutil.ReadAll(childPipe)
+	bytes, err := ioutil.ReadAll(configPipe)
 	if err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "reading init config from childPipe")
+		logrus.WithField("init", true).Errorf("read init config failed: %s", err.Error())
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "reading init config from configPipe")
 	}
+	// child 读完就关
+	if err = configPipe.Close(); err != nil {
+		logrus.Errorf("closing parent pipe failed: %s", err.Error())
+	}
+	logrus.Infof("read init config complete, unmarshal bytes")
 	initConfig := &InitConfig{}
 	if err = json.Unmarshal(bytes, initConfig); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "unmarshalling init config")
+		return util.NewGenericErrorWithInfo(err, util.SystemError, "unmarshal init config")
 	}
 	logrus.WithField("init", true).Infof("read init config from child pipe: %#v", initConfig)
-	defer func() {
-		if e := recover(); e != nil {
-			err = fmt.Errorf("panic from initialization: %v, %v", e, string(debug.Stack()))
-		}
-	}()
+
 	// 环境变量设置
 	if err := populateProcessEnvironment(initConfig.ProcessConfig.Env); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "populating environment variables")
 	}
-	initializer, err := NewInitializer(initializerType, initConfig, childPipe, execFifoFd)
+	initializer, err := NewInitializer(initializerType, initConfig, configPipe, execPipeFd)
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating initializer")
 	}

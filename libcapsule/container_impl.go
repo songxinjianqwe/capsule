@@ -2,14 +2,11 @@ package libcapsule
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
-	"github.com/songxinjianqwe/rune/libcapsule/util/proc"
-	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,9 +14,9 @@ import (
 )
 
 const (
-	EnvInitPipe        = "_LIBCAPSULE_INITPIPE"
-	EnvExecFifo        = "_LIBCAPSULE_EXECFIFO"
-	EnvInitializerType = "_LIBCAPSULE_INITIALIZERTYPE"
+	EnvConfigPipe      = "_LIBCAPSULE_CONFIG_PIPE"
+	EnvExecPipe        = "_LIBCAPSULE_EXEC_PIPE"
+	EnvInitializerType = "_LIBCAPSULE_INITIALIZER_TYPE"
 )
 
 type LinuxContainerImpl struct {
@@ -118,38 +115,27 @@ func (c *LinuxContainerImpl) Exec() error {
 func (c *LinuxContainerImpl) start(process *Process) error {
 	logrus.Infof("LinuxContainerImpl starting...")
 	// 容器启动会涉及两个管道，一个是用来传输配置信息的，一个是用来控制exec是否执行的
-	// 1、创建exec管道文件
-	if process.Init {
-		if err := c.createExecFifo(); err != nil {
-			return err
-		}
-	}
-	// 2、创建parent process
+	// 1、创建parent process
 	parent, err := NewParentProcess(c, process)
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating new parent process")
 	}
 	logrus.Infof("new parent process complete, parent process: %#v", parent)
 	c.initProcess = parent
-	// 3、启动parent process
+	// 2、启动parent process
 	if err := parent.start(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "starting container process")
 	}
 	if process.Init {
-		// 4、更新容器状态
+		// 3、更新容器状态
 		c.createdTime = time.Now().UTC()
 		c.containerState = &CreatedState{
 			c: c,
 		}
-		// 5、持久化容器状态
+		// 4、持久化容器状态
 		_, err = c.updateState()
 		if err != nil {
 			return err
-		}
-		// 6、删除exec管道文件
-		err = c.deleteExecFifo()
-		if err != nil {
-			logrus.Errorf("delete exec fifo failed: %s", err.Error())
 		}
 	}
 	return nil
@@ -207,90 +193,7 @@ func (c *LinuxContainerImpl) currentOCIState() (*specs.State, error) {
 }
 
 func (c *LinuxContainerImpl) currentStatus() (Status, error) {
-	if err := c.refreshState(); err != nil {
-		return -1, err
-	}
 	return c.containerState.status(), nil
-}
-
-/**
-因为外部用户来使用libcapsule时会随意修改容器内存中的状态，所以这个containerState并不可信，我们需要自己去检测一个真正的容器状态，
-并进行数据纠错
-*/
-func (c *LinuxContainerImpl) refreshState() error {
-	status, err := c.detectRealStatus()
-	logrus.Infof("detected real status: %s", status)
-	if status != c.containerState.status() {
-		logrus.Warnf("detected real status is %s, but containerStatus is %s, do transition", status, c.containerState.status())
-	}
-	if err != nil {
-		return err
-	}
-	switch status {
-	case Created:
-		return c.containerState.transition(&CreatedState{c: c})
-	case Running:
-		return c.containerState.transition(&RunningState{c: c})
-	case Stopped:
-		return c.containerState.transition(&StoppedState{c: c})
-	default:
-		return util.NewGenericError(fmt.Errorf("检测到未知容器状态:%d", status), util.SystemError)
-	}
-}
-
-/**
-1、如果容器init进程不存在，或者进程已经死亡或成为僵尸进程，则均为 【Stopped】
-2、如果exec.fifo文件存在，则为 【Created】
-3、其他情况为 【Running】
-*/
-func (c *LinuxContainerImpl) detectRealStatus() (Status, error) {
-	if c.initProcess == nil {
-		return Stopped, nil
-	}
-	pid := c.initProcess.pid()
-	processState, err := proc.Stat(pid)
-	if err != nil {
-		return Stopped, nil
-	}
-	initProcessStartTime, _ := c.initProcess.startTime()
-	if processState.StartTime != initProcessStartTime || processState.State == proc.Zombie || processState.State == proc.Dead {
-		return Stopped, nil
-	}
-	// 在容器创建前，会先创建exec管道；在容器创建后，会删除该管道
-	if _, err := os.Stat(filepath.Join(c.root, ExecFifoFilename)); err == nil {
-		return Created, nil
-	}
-	return Running, nil
-}
-
-/**
-在start前，创建exec.fifo管道
-io.Pipe是内存管道，无法通过内存管道来感知容器状态
-因为管道存在，则说明容器是处于created之后，running之前的状态
-*/
-func (c *LinuxContainerImpl) createExecFifo() error {
-	fifoName := filepath.Join(c.root, ExecFifoFilename)
-	logrus.Infof("creating exec fifo in %s", fifoName)
-
-	if _, err := os.Stat(fifoName); err == nil {
-		return fmt.Errorf("exec fifo %s already exists", fifoName)
-	}
-	// 读是4，写是2，执行是1
-	// 自己可以读写，同组可以写，其他组可以写
-	if err := unix.Mkfifo(fifoName, 0622); err != nil {
-		return err
-	}
-	logrus.Infof("exec fifo created")
-	return nil
-}
-
-/**
-在start后，删除exec.fifo管道
-*/
-func (c *LinuxContainerImpl) deleteExecFifo() error {
-	fifoName := filepath.Join(c.root, ExecFifoFilename)
-	logrus.Infof("deleting exec fifo: %s", fifoName)
-	return os.Remove(fifoName)
 }
 
 /**

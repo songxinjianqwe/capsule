@@ -7,13 +7,12 @@ import (
 	"os/exec"
 )
 
-func NewSetnsProcessWrapper(process *Process, cmd *exec.Cmd, parentPipe *os.File, childPipe *os.File) ProcessWrapper {
+func NewSetnsProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File) ProcessWrapper {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(SetnsInitializer)))
 	return &SetnsProcessWrapperImpl{
-		initProcessCmd: cmd,
-		parentPipe:     parentPipe,
-		childPipe:      childPipe,
-		process:        process,
+		initProcessCmd:   cmd,
+		parentConfigPipe: parentConfigPipe,
+		process:          process,
 	}
 }
 
@@ -21,11 +20,10 @@ func NewSetnsProcessWrapper(process *Process, cmd *exec.Cmd, parentPipe *os.File
 ProcessWrapper接口的实现类，包裹了SetnsProcess
 */
 type SetnsProcessWrapperImpl struct {
-	initProcessCmd *exec.Cmd
-	parentPipe     *os.File
-	childPipe      *os.File
-	process        *Process
-	cgroupManger   *cgroups.CgroupManager
+	initProcessCmd   *exec.Cmd
+	parentConfigPipe *os.File
+	process          *Process
+	cgroupManger     *cgroups.CgroupManager
 }
 
 func (p *SetnsProcessWrapperImpl) pid() int {

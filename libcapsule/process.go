@@ -17,10 +17,6 @@ type Process struct {
 	// local to the container's user and group configuration.
 	User string
 
-	// AdditionalGroups specifies the gids that should be added to supplementary groups
-	// in addition to those that the user belongs to.
-	AdditionalGroups []string
-
 	// Cwd will change the processes current working directory inside the container's rootfs.
 	Cwd string
 
@@ -36,10 +32,6 @@ type Process struct {
 	// ExtraFiles specifies additional open files to be inherited by the container
 	ExtraFiles []*os.File
 
-	// Initial sizings for the console
-	ConsoleWidth  uint16
-	ConsoleHeight uint16
-
 	// Label specifies the label to apply to the process.  It is commonly used by selinux
 	Label string
 
@@ -49,9 +41,6 @@ type Process struct {
 	// ResourceLimits specifies the resource limits, such as max open files, to set in the container
 	// If ResourceLimits are not set, the container will inherit rlimits from the parent process
 	Rlimits []configc.ResourceLimit
-
-	// ConsoleSocket provides the masterfd console.
-	ConsoleSocket *os.File
 
 	// Init specifies whether the process is the first process in the container.
 	Init bool

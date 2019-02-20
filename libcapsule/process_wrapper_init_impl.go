@@ -13,13 +13,13 @@ import (
 	"syscall"
 )
 
-func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentPipe *os.File, childPipe *os.File, c *LinuxContainerImpl) ProcessWrapper {
+func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, parentExecPipe *os.File, c *LinuxContainerImpl) ProcessWrapper {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
 	logrus.Infof("new init process wrapper...")
 	return &InitProcessWrapperImpl{
 		initProcessCmd:    cmd,
-		parentPipe:        parentPipe,
-		childPipe:         childPipe,
+		parentConfigPipe:  parentConfigPipe,
+		parentExecPipe:    parentExecPipe,
 		container:         c,
 		process:           process,
 		sharePidNamespace: c.config.Namespaces.Contains(configc.NEWPID),
@@ -31,8 +31,8 @@ ProcessWrapper接口的实现类，包裹了InitProcess，它返回的进程信�
 */
 type InitProcessWrapperImpl struct {
 	initProcessCmd    *exec.Cmd
-	parentPipe        *os.File
-	childPipe         *os.File
+	parentConfigPipe  *os.File
+	parentExecPipe    *os.File
 	container         *LinuxContainerImpl
 	process           *Process
 	sharePidNamespace bool
@@ -46,7 +46,6 @@ type InitConfig struct {
 func (p *InitProcessWrapperImpl) start() error {
 	logrus.Infof("InitProcessWrapperImpl starting...")
 	err := p.initProcessCmd.Start()
-	p.childPipe.Close()
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "starting init process command")
 	}
@@ -65,11 +64,12 @@ func (p *InitProcessWrapperImpl) start() error {
 	if err = p.sendConfig(); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "sending config to init process")
 	}
-	if err = p.parentPipe.Close(); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "closing parent pipe")
+	// parent 写完就关
+	if err = p.parentConfigPipe.Close(); err != nil {
+		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
-	if _, err := p.wait(); err != nil {
-		logrus.Errorf("waiting init process cmd error: %s", err)
+	if state, err := p.wait(); err != nil {
+		logrus.Errorf("waiting init process cmd error: process:%#v, %s", state, err)
 		return err
 	}
 	return nil
@@ -86,10 +86,10 @@ func (p *InitProcessWrapperImpl) terminate() error {
 func (p *InitProcessWrapperImpl) wait() (*os.ProcessState, error) {
 	logrus.Infof("starting to wait init process exit")
 	err := p.initProcessCmd.Wait()
-	logrus.Infof("wait init process exit complete")
 	if err != nil {
 		return p.initProcessCmd.ProcessState, err
 	}
+	logrus.Infof("wait init process exit complete")
 	// we should kill all processes in cgroup when init is died if we use host PID namespace
 	if p.sharePidNamespace {
 		system.SignalAllProcesses(p.container.cgroupManager, unix.SIGKILL)
@@ -127,11 +127,17 @@ func (p *InitProcessWrapperImpl) sendConfig() error {
 		ContainerConfig: p.container.config,
 		ProcessConfig:   *p.process,
 	}
+	// remove unnecessary fields, or init process will unmarshal it failed
+	initConfig.ProcessConfig.Stdin = nil
+	initConfig.ProcessConfig.Stdout = nil
+	initConfig.ProcessConfig.Stderr = nil
+	initConfig.ProcessConfig.ExtraFiles = nil
+
 	logrus.Infof("sending config:%#v", initConfig)
 	bytes, err := json.Marshal(initConfig)
 	if err != nil {
 		return err
 	}
-	_, err = p.parentPipe.WriteString(string(bytes))
+	_, err = p.parentConfigPipe.WriteString(string(bytes))
 	return err
 }

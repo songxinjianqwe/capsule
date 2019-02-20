@@ -126,11 +126,7 @@ func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
 		Label:           p.SelinuxLabel,
 		NoNewPrivileges: &p.NoNewPrivileges,
 		Init:            init,
-	}
-
-	if p.ConsoleSize != nil {
-		libcapsuleProcess.ConsoleWidth = uint16(p.ConsoleSize.Width)
-		libcapsuleProcess.ConsoleHeight = uint16(p.ConsoleSize.Height)
+		Terminal:        p.Terminal,
 	}
 	for _, posixResourceLimit := range p.Rlimits {
 		rl, err := specutil.CreateResourceLimit(posixResourceLimit)
