@@ -44,28 +44,14 @@ func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessW
 	childConfigPipe, parentConfigPipe, err := os.Pipe()
 	logrus.Infof("create config pipe complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
 
-	var (
-		// 只对init类型的process有效
-		parentExecPipe *os.File = nil
-		childExecPipe  *os.File = nil
-	)
-	if process.Init {
-		// Exec信号: child(init process)写，parent 读
-		parentExecPipe, childExecPipe, err := os.Pipe()
-		logrus.Infof("create exec pipe complete, parentExecPipe: %#v, childExecPipe: %#v", parentExecPipe, childExecPipe)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	cmd, err := buildCommand(container,
-		process, childConfigPipe, childExecPipe, process.Init)
+		process, childConfigPipe)
 	logrus.Infof("build command complete, command: %#v", cmd)
 	if err != nil {
 		return nil, err
 	}
 	if process.Init {
-		return NewInitProcessWrapper(process, cmd, parentConfigPipe, parentExecPipe, container), nil
+		return NewInitProcessWrapper(process, cmd, parentConfigPipe, container), nil
 	} else {
 		return NewSetnsProcessWrapper(process, cmd, parentConfigPipe), nil
 	}
@@ -74,7 +60,7 @@ func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessW
 /**
 构造一个command对象
 */
-func buildCommand(container *LinuxContainerImpl, process *Process, childConfigPipe *os.File, childExecPipe *os.File, init bool) (*exec.Cmd, error) {
+func buildCommand(container *LinuxContainerImpl, process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
 	cmd := exec.Command(ContainerInitPath, ContainerInitArgs)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: container.config.Namespaces.CloneFlags(),
@@ -84,12 +70,6 @@ func buildCommand(container *LinuxContainerImpl, process *Process, childConfigPi
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf(EnvConfigPipe+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
 	)
-	if init {
-		cmd.ExtraFiles = append(cmd.ExtraFiles, childExecPipe)
-		cmd.Env = append(cmd.Env,
-			fmt.Sprintf(EnvExecPipe+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
-		)
-	}
 	cmd.Stdin = process.Stdin
 	cmd.Stdout = process.Stdout
 	cmd.Stderr = process.Stderr

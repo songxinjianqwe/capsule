@@ -16,13 +16,12 @@ type Initializer interface {
 	Init() error
 }
 
-func NewInitializer(initializerType InitializerType, config *InitConfig, configPipe *os.File, execPipeFd int) (Initializer, error) {
+func NewInitializer(initializerType InitializerType, config *InitConfig, configPipe *os.File) (Initializer, error) {
 	switch initializerType {
 	case StandardInitializer:
 		return &InitializerStandardImpl{
 			config:     config,
 			configPipe: configPipe,
-			execPipeFd: execPipeFd,
 		}, nil
 	case SetnsInitializer:
 		return &InitializerSetnsImpl{

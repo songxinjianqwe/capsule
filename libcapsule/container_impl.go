@@ -10,12 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 )
 
 const (
 	EnvConfigPipe      = "_LIBCAPSULE_CONFIG_PIPE"
-	EnvExecPipe        = "_LIBCAPSULE_EXEC_PIPE"
 	EnvInitializerType = "_LIBCAPSULE_INITIALIZER_TYPE"
 )
 
@@ -74,7 +74,7 @@ func (c *LinuxContainerImpl) Start(process *Process) error {
 }
 
 /**
-Run 当运行init process，不会阻塞，会执行完cmd
+当运行init process，不会阻塞，会执行完cmd
 当运行非init process，会阻塞
 */
 func (c *LinuxContainerImpl) Run(process *Process) error {
@@ -141,8 +141,9 @@ func (c *LinuxContainerImpl) start(process *Process) error {
 	return nil
 }
 
+// 让init process开始执行真正的cmd
 func (c *LinuxContainerImpl) exec() error {
-	panic("implement me")
+	return c.initProcess.signal(syscall.SIGCONT)
 }
 
 func (c *LinuxContainerImpl) currentState() (*State, error) {

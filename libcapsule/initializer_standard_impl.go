@@ -7,13 +7,13 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
+	"os/signal"
 	"syscall"
 )
 
 type InitializerStandardImpl struct {
 	config     *InitConfig
 	configPipe *os.File
-	execPipeFd int
 }
 
 // **************************************************************************************************
@@ -72,17 +72,11 @@ func (initializer *InitializerStandardImpl) Init() error {
 	}
 	logrus.WithField("init", true).Infof("look path: %s", name)
 
-	logrus.WithField("init", true).Info("opening exec pipe...")
-	execPipe := os.NewFile(uintptr(initializer.execPipeFd), "execPipe")
-	logrus.WithField("init", true).Info("writing 0 to exec pipe and block here")
-	// block here
-	if _, err := execPipe.Write([]byte{0}); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "write 0 to exec pipe")
-	}
-	logrus.WithField("init", true).Info("close exec execPipe")
-	if err := execPipe.Close(); err != nil {
-		fmt.Printf("close execPipe error: %s", err.Error())
-	}
+	logrus.WithField("init", true).Info("start to wait continue signal...")
+	receivedChan := make(chan os.Signal, 1)
+	signal.Notify(receivedChan, syscall.SIGCONT)
+	<-receivedChan
+	logrus.WithField("init", true).Info("received continue signal")
 
 	logrus.WithField("init", true).Info("execute real command and cover rune init process")
 	// syscall.Exec与cmd.Start不同，后者是启动一个新的进程来执行命令

@@ -96,18 +96,7 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	initializerType := InitializerType(os.Getenv(EnvInitializerType))
 	logrus.WithField("init", true).Infof("got initializer type: %s", initializerType)
 
-	execPipeFd := -1
-	// 只有init process有fifo管道
-	if initializerType == StandardInitializer {
-		execPipeEnv := os.Getenv(EnvExecPipe)
-		execPipeFd, err = strconv.Atoi(execPipeEnv)
-		logrus.WithField("init", true).Infof("got exec pipe env: %d", execPipeFd)
-		if err != nil {
-			return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvConfigPipe to int")
-		}
-	}
-
-	configPipe := os.NewFile(uintptr(initPipeFd), "pipe")
+	configPipe := os.NewFile(uintptr(initPipeFd), "configPipe")
 	logrus.WithField("init", true).Infof("open child pipe: %#v", configPipe)
 	logrus.WithField("init", true).Infof("starting to read init config from child pipe")
 	bytes, err := ioutil.ReadAll(configPipe)
@@ -130,7 +119,7 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	if err := populateProcessEnvironment(initConfig.ProcessConfig.Env); err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "populating environment variables")
 	}
-	initializer, err := NewInitializer(initializerType, initConfig, configPipe, execPipeFd)
+	initializer, err := NewInitializer(initializerType, initConfig, configPipe)
 	if err != nil {
 		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating initializer")
 	}

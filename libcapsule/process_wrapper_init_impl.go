@@ -13,13 +13,12 @@ import (
 	"syscall"
 )
 
-func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, parentExecPipe *os.File, c *LinuxContainerImpl) ProcessWrapper {
+func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, c *LinuxContainerImpl) ProcessWrapper {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
 	logrus.Infof("new init process wrapper...")
 	return &InitProcessWrapperImpl{
 		initProcessCmd:    cmd,
 		parentConfigPipe:  parentConfigPipe,
-		parentExecPipe:    parentExecPipe,
 		container:         c,
 		process:           process,
 		sharePidNamespace: c.config.Namespaces.Contains(configc.NEWPID),
