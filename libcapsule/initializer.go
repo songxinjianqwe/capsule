@@ -2,6 +2,7 @@ package libcapsule
 
 import (
 	"fmt"
+	"golang.org/x/sys/unix"
 	"os"
 )
 
@@ -22,6 +23,7 @@ func NewInitializer(initializerType InitializerType, config *InitConfig, configP
 		return &InitializerStandardImpl{
 			config:     config,
 			configPipe: configPipe,
+			parentPid:  unix.Getppid(),
 		}, nil
 	case SetnsInitializer:
 		return &InitializerSetnsImpl{

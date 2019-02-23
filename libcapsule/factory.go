@@ -12,7 +12,7 @@ type Factory interface {
 	// ConfigInvalid - config is invalid
 	// Systemerror - System util
 	//
-	// On util, any partially createdTime container parts are cleaned up (the operation is atomic).
+	// On util, any partially created container parts are cleaned up (the operation is atomic).
 	Create(id string, config *configc.Config) (Container, error)
 
 	// 加载一个容器

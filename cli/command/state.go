@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// containerState represents the platform agnostic pieces relating to a
+// state represents the platform agnostic pieces relating to a
 // running container's status and state
 type ContainerStateVO struct {
 	// Version is the OCI version for the container

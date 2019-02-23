@@ -47,7 +47,7 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, 
 	}
 	switch action {
 	case ContainerActCreate:
-		err := container.Start(process)
+		err := container.Create(process)
 		if err != nil {
 			return -1, err
 		}

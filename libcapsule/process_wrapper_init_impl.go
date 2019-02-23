@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
+	"os/signal"
 	"syscall"
 )
 
@@ -46,10 +47,10 @@ func (p *InitProcessWrapperImpl) start() error {
 	logrus.Infof("InitProcessWrapperImpl starting...")
 	err := p.initProcessCmd.Start()
 	if err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "starting init process command")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init process command")
 	}
 	if err := p.container.cgroupManager.Apply(p.pid()); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "applying cgroup configuration for process")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
 	}
 	defer func() {
 		if err != nil {
@@ -57,20 +58,28 @@ func (p *InitProcessWrapperImpl) start() error {
 		}
 	}()
 	if err = p.createNetworkInterfaces(); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating network interfaces")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "creating network interfaces")
 	}
 	// init process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "sending config to init process")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "sending config to init process")
 	}
 	// parent 写完就关
 	if err = p.parentConfigPipe.Close(); err != nil {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
-	if state, err := p.wait(); err != nil {
-		logrus.Errorf("waiting init process cmd error: process:%#v, %s", state, err)
-		return err
+	// set rlimits, this has to be done here because we lose permissions
+	// to raise the limits once we enter a user-namespace
+	if err := p.setupResourceLimits(); err != nil {
+		return util.NewGenericErrorWithContext(err, util.SystemError, "setting rlimits for ready process")
 	}
+	// 等待init process到达在初始化之后，执行命令之前的状态
+	// 使用SIGUSR1信号
+	logrus.WithField("init", true).Info("start to wait init process ready(SIGUSR1) signal...")
+	receivedChan := make(chan os.Signal, 1)
+	signal.Notify(receivedChan, syscall.SIGUSR1)
+	<-receivedChan
+	logrus.WithField("init", true).Info("received SIGUSR1 signal")
 	return nil
 }
 
@@ -132,11 +141,16 @@ func (p *InitProcessWrapperImpl) sendConfig() error {
 	initConfig.ProcessConfig.Stderr = nil
 	initConfig.ProcessConfig.ExtraFiles = nil
 
-	logrus.Infof("sending config:%#v", initConfig)
+	logrus.Infof("sending config: %#v", initConfig)
 	bytes, err := json.Marshal(initConfig)
 	if err != nil {
 		return err
 	}
 	_, err = p.parentConfigPipe.WriteString(string(bytes))
 	return err
+}
+
+func (p *InitProcessWrapperImpl) setupResourceLimits() error {
+	logrus.Infof("setting up resource limits")
+	return nil
 }

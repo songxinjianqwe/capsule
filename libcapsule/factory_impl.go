@@ -20,9 +20,6 @@ const (
 	// 容器状态文件的文件名
 	// 存放在 RuntimeRoot/containerId/下
 	StateFilename = "state.json"
-	// 用于parent进程与init进程的start/run切换
-	// 存放在 RuntimeRoot/containerId/下
-	ExecFifoFilename = "exec.fifo"
 	// 重新执行本应用的command，相当于 重新执行./rune
 	ContainerInitPath = "/proc/self/exe"
 	// 运行容器init进程的命令
@@ -47,7 +44,7 @@ func NewFactory() (Factory, error) {
 }
 
 type LinuxContainerFactoryImpl struct {
-	// Root directory for the factory to store containerState.
+	// Root directory for the factory to store state.
 	Root string
 
 	// Validator provides validation to container configurations.
@@ -78,7 +75,24 @@ func (factory *LinuxContainerFactoryImpl) Create(id string, config *configc.Conf
 }
 
 func (factory *LinuxContainerFactoryImpl) Load(id string) (Container, error) {
-	panic("implement me")
+	containerRoot := filepath.Join(factory.Root, id)
+	state, err := factory.loadState(containerRoot, id)
+	if err != nil {
+		return nil, err
+	}
+	container := &LinuxContainerImpl{
+		id:            id,
+		root:          containerRoot,
+		config:        state.Config,
+		cgroupManager: cgroups.NewCroupManager(state.Config.Cgroups),
+	}
+
+	container.containerState, err = NewContainerState(state.Status, container)
+	if err != nil {
+		return nil, err
+	}
+	container.initProcess = NewNoChildProcessWrapper(state.InitProcessPid, state.InitProcessStartTime)
+	return container, nil
 }
 
 func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
@@ -91,7 +105,7 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	initPipeFd, err := strconv.Atoi(configPipeEnv)
 	logrus.WithField("init", true).Infof("got config pipe env: %d", initPipeFd)
 	if err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "converting EnvConfigPipe to int")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "converting EnvConfigPipe to int")
 	}
 	initializerType := InitializerType(os.Getenv(EnvInitializerType))
 	logrus.WithField("init", true).Infof("got initializer type: %s", initializerType)
@@ -102,7 +116,7 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	bytes, err := ioutil.ReadAll(configPipe)
 	if err != nil {
 		logrus.WithField("init", true).Errorf("read init config failed: %s", err.Error())
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "reading init config from configPipe")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "reading init config from configPipe")
 	}
 	// child 读完就关
 	if err = configPipe.Close(); err != nil {
@@ -111,21 +125,21 @@ func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
 	logrus.Infof("read init config complete, unmarshal bytes")
 	initConfig := &InitConfig{}
 	if err = json.Unmarshal(bytes, initConfig); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "unmarshal init config")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "unmarshal init config")
 	}
 	logrus.WithField("init", true).Infof("read init config from child pipe: %#v", initConfig)
 
 	// 环境变量设置
 	if err := populateProcessEnvironment(initConfig.ProcessConfig.Env); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "populating environment variables")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "populating environment variables")
 	}
 	initializer, err := NewInitializer(initializerType, initConfig, configPipe)
 	if err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "creating initializer")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "creating initializer")
 	}
 	logrus.WithField("init", true).Infof("created initializer:%#v", initializer)
 	if err := initializer.Init(); err != nil {
-		return util.NewGenericErrorWithInfo(err, util.SystemError, "executing init command")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "executing init command")
 	}
 	return nil
 }
@@ -144,4 +158,21 @@ func populateProcessEnvironment(env []string) error {
 		}
 	}
 	return nil
+}
+
+func (factory *LinuxContainerFactoryImpl) loadState(containerRoot, id string) (*State, error) {
+	stateFilePath := filepath.Join(containerRoot, StateFilename)
+	f, err := os.Open(stateFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, util.NewGenericError(fmt.Errorf("container %s does not exist", id), util.ContainerNotExists)
+		}
+		return nil, util.NewGenericError(err, util.SystemError)
+	}
+	defer f.Close()
+	var state *State
+	if err := json.NewDecoder(f).Decode(&state); err != nil {
+		return nil, util.NewGenericError(err, util.SystemError)
+	}
+	return state, nil
 }

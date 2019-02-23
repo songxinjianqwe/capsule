@@ -81,7 +81,7 @@ func NewGenericError(err error, c ErrorCode) Error {
 	return genericError
 }
 
-func NewGenericErrorWithInfo(err error, c ErrorCode, context string) Error {
+func NewGenericErrorWithContext(err error, c ErrorCode, context string) Error {
 	if le, ok := err.(Error); ok {
 		return le
 	}

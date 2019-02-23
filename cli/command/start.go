@@ -25,7 +25,7 @@ var StartCommand = cli.Command{
 		}
 		switch status {
 		case libcapsule.Created:
-			return container.Exec()
+			return container.Start()
 		case libcapsule.Stopped:
 			return errors.New("cannot start a container that has stopped")
 		case libcapsule.Running:

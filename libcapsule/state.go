@@ -17,15 +17,29 @@ func newStateTransitionError(from, to ContainerState) error {
 	}
 }
 
-// stateTransitionError is returned when an invalid containerState transition happens from one
-// containerState to another.
+func NewContainerState(statusStr string, c *LinuxContainerImpl) (ContainerState, error) {
+	status := statusFromString(statusStr)
+	switch status {
+	case Created:
+		return &CreatedState{c: c}, nil
+	case Stopped:
+		return &StoppedState{c: c}, nil
+	case Running:
+		return &RunningState{c: c}, nil
+	default:
+		return nil, fmt.Errorf("Unknown status")
+	}
+}
+
+// stateTransitionError is returned when an invalid state transition happens from one
+// state to another.
 type stateTransitionError struct {
 	From string
 	To   string
 }
 
 func (s *stateTransitionError) Error() string {
-	return fmt.Sprintf("invalid containerState transition from %s to %s", s.From, s.To)
+	return fmt.Sprintf("invalid state transition from %s to %s", s.From, s.To)
 }
 
 type ContainerState interface {
@@ -50,7 +64,7 @@ func destroy(c *LinuxContainerImpl) error {
 }
 
 // ******************************************************************************************
-// 【StoppedState】 represents a container is a stopped/destroyed containerState.
+// 【StoppedState】 represents a container is a stopped/destroyed state.
 // ******************************************************************************************
 type StoppedState struct {
 	c *LinuxContainerImpl

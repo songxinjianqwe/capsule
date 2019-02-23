@@ -15,27 +15,43 @@ const (
 	Created Status = iota
 	// Running is the status that denotes the container exists and is running.
 	Running
-	// Stopped is the status that denotes the container does not have a createdTime or running process.
+	// Stopped is the status that denotes the container does not have a created or running process.
 	Stopped
 )
 
 func (s Status) String() string {
 	switch s {
 	case Created:
-		return "createdTime"
+		return "Created"
 	case Running:
-		return "running"
+		return "Running"
 	case Stopped:
-		return "stopped"
+		return "Stopped"
 	default:
-		return "unknown"
+		return "Unknown"
 	}
 }
 
-// State represents a running container's containerState
+func statusFromString(s string) Status {
+	switch s {
+	case "Created":
+		return Created
+	case "Running":
+		return Running
+	case "Stopped":
+		return Stopped
+	default:
+		return -1
+	}
+}
+
+// State represents a running container's state
 type State struct {
 	// ID is the container ID.
 	ID string `json:"id"`
+
+	// Status is the container Status
+	Status string `json:"status"`
 
 	// InitProcessPid is the init process id in the parent namespace.
 	InitProcessPid int `json:"init_process_pid"`
@@ -48,7 +64,6 @@ type State struct {
 
 	// Config is the container's configuration.
 	Config configc.Config `json:"config"`
-	// Platform specific fields below here
 
 	// Path to all the cgroups setup for a container. Key is cgroup subsystem name
 	// with the value as the path.
@@ -88,18 +103,18 @@ type Container interface {
 	// Systemerror - System util.
 	//
 	// Some of the returned PIDs may no longer refer to processes in the Container, unless
-	// the Container containerState is PAUSED in which case every PID in the slice is valid.
+	// the Container state is PAUSED in which case every PID in the slice is valid.
 	Processes() ([]int, error)
 
-	// 阻塞式
+	// 创建但不运行
 	// errors:
 	// ContainerNotExists - Container no longer exists,
 	// ConfigInvalid - configc is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
-	Start(process *Process) (err error)
+	Create(process *Process) (err error)
 
-	// 非阻塞式
+	// Create + Start
 	// errors:
 	// ContainerNotExists - Container no longer exists,
 	// ConfigInvalid - configc is invalid,
@@ -122,5 +137,5 @@ type Container interface {
 	// 让容器执行最终命令
 	// errors:
 	// SystemError - System util.
-	Exec() error
+	Start() error
 }
