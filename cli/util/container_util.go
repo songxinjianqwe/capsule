@@ -33,7 +33,7 @@ create
 or
 create and start
 */
-func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, shouldDestroy bool) (int, error) {
+func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, error) {
 	logrus.Infof("launching container:%s, action: %s", id, action)
 	container, err := CreateContainer(id, spec)
 	if err != nil {
@@ -51,16 +51,18 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, should
 		if err != nil {
 			return -1, err
 		}
+		// 不管是否是terminal，都不会删除容器
 	case ContainerActRun:
 		// c.run == c.start + c.exec
 		err := container.Run(process)
 		if err != nil {
 			return -1, err
 		}
-	}
-	if shouldDestroy {
-		if err := container.Destroy(); err != nil {
-			return -1, err
+		// 如果terminal为true，即前台运行，那么Run结束，即为容器进程结束，则删除容器
+		if spec.Process.Terminal {
+			if err := container.Destroy(); err != nil {
+				return -1, err
+			}
 		}
 	}
 	return 0, nil

@@ -10,13 +10,6 @@ import (
 	"os"
 )
 
-func newStateTransitionError(from, to ContainerState) error {
-	return &stateTransitionError{
-		From: from.status().String(),
-		To:   to.status().String(),
-	}
-}
-
 func NewContainerState(statusStr string, c *LinuxContainerImpl) (ContainerState, error) {
 	status := statusFromString(statusStr)
 	switch status {
@@ -31,19 +24,7 @@ func NewContainerState(statusStr string, c *LinuxContainerImpl) (ContainerState,
 	}
 }
 
-// stateTransitionError is returned when an invalid state transition happens from one
-// state to another.
-type stateTransitionError struct {
-	From string
-	To   string
-}
-
-func (s *stateTransitionError) Error() string {
-	return fmt.Sprintf("invalid state transition from %s to %s", s.From, s.To)
-}
-
 type ContainerState interface {
-	transition(ContainerState) error
 	destroy() error
 	status() Status
 }
@@ -74,17 +55,6 @@ func (b *StoppedState) status() Status {
 	return Stopped
 }
 
-func (b *StoppedState) transition(s ContainerState) error {
-	switch s.(type) {
-	case *RunningState:
-		b.c.containerState = s
-		return nil
-	case *StoppedState:
-		return nil
-	}
-	return newStateTransitionError(b, s)
-}
-
 func (b *StoppedState) destroy() error {
 	return destroy(b.c)
 }
@@ -98,24 +68,6 @@ type RunningState struct {
 
 func (r *RunningState) status() Status {
 	return Running
-}
-
-func (r *RunningState) transition(s ContainerState) error {
-	switch s.(type) {
-	case *StoppedState:
-		t, err := r.c.currentStatus()
-		if err != nil {
-			return err
-		}
-		if t == Running {
-			return util.NewGenericError(fmt.Errorf("container still running"), util.ContainerNotStopped)
-		}
-		r.c.containerState = s
-		return nil
-	case *RunningState:
-		return nil
-	}
-	return newStateTransitionError(r, s)
 }
 
 func (r *RunningState) destroy() error {
@@ -138,17 +90,6 @@ type CreatedState struct {
 
 func (i *CreatedState) status() Status {
 	return Created
-}
-
-func (i *CreatedState) transition(s ContainerState) error {
-	switch s.(type) {
-	case *RunningState, *StoppedState:
-		i.c.containerState = s
-		return nil
-	case *CreatedState:
-		return nil
-	}
-	return newStateTransitionError(i, s)
 }
 
 func (i *CreatedState) destroy() error {

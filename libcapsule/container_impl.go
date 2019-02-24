@@ -163,6 +163,11 @@ func (c *LinuxContainerImpl) start() error {
 	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
 		return err
 	}
+	// 更新容器状态为running
+	c.containerState = &RunningState{c: c}
+	if err := c.saveState(); err != nil {
+		return err
+	}
 	// 这里必须wait，否则对于iterative的命令，会在输入任何命令后进程立即退出，并且ssh进程退出/登录用户注销
 	logrus.Infof("wait child process exit...")
 	if err := c.initProcess.wait(); err != nil {
