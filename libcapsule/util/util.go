@@ -35,10 +35,10 @@ func CleanPath(path string) string {
 	return filepath.Clean(path)
 }
 
-// Annotations returns the bundle path and user defined annotations from the
+// GetAnnotations returns the bundle path and user defined annotations from the
 // libcapsule state.  We need to remove the bundle because that is a label
 // added by libcapsule.
-func Annotations(labels []string) (bundle string, userAnnotations map[string]string) {
+func GetAnnotations(labels []string) (bundle string, userAnnotations map[string]string) {
 	userAnnotations = make(map[string]string)
 	for _, l := range labels {
 		parts := strings.SplitN(l, "=", 2)

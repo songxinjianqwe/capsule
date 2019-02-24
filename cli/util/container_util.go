@@ -31,9 +31,9 @@ func (action ContainerAction) String() string {
 创建或启动容器
 create
 or
-create and run
+create and start
 */
-func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, error) {
+func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, shouldDestroy bool) (int, error) {
 	logrus.Infof("launching container:%s, action: %s", id, action)
 	container, err := CreateContainer(id, spec)
 	if err != nil {
@@ -55,6 +55,11 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, 
 		// c.run == c.start + c.exec
 		err := container.Run(process)
 		if err != nil {
+			return -1, err
+		}
+	}
+	if shouldDestroy {
+		if err := container.Destroy(); err != nil {
 			return -1, err
 		}
 	}
@@ -123,7 +128,6 @@ func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
 		Env:             p.Env,
 		User:            fmt.Sprintf("%d:%d", p.User.UID, p.User.GID),
 		Cwd:             p.Cwd,
-		Label:           p.SelinuxLabel,
 		NoNewPrivileges: &p.NoNewPrivileges,
 		Init:            init,
 		Terminal:        p.Terminal,
@@ -133,7 +137,7 @@ func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
 		if err != nil {
 			return nil, err
 		}
-		libcapsuleProcess.Rlimits = append(libcapsuleProcess.Rlimits, rl)
+		libcapsuleProcess.ResourceLimits = append(libcapsuleProcess.ResourceLimits, rl)
 	}
 	// 如果启用终端，则将进程的stdin等置为os的
 	if p.Terminal {

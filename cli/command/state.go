@@ -25,7 +25,7 @@ type ContainerStateVO struct {
 	Rootfs string `json:"rootfs"`
 	// Created is the unix timestamp for the creation time of the container in UTC
 	Created time.Time `json:"created"`
-	// Annotations is the user defined annotations added to the config.
+	// GetAnnotations is the user defined annotations added to the config.
 	Annotations map[string]string `json:"annotations,omitempty"`
 	// The owner of the state directory (the owner of the container).
 	Owner string `json:"owner"`

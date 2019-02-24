@@ -24,6 +24,7 @@ type ProcessWrapper interface {
 	// startTime returns the process create time.
 	startTime() (uint64, error)
 
+	// send signal to the process
 	signal(os.Signal) error
 }
 

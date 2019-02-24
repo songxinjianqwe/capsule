@@ -32,15 +32,12 @@ type Process struct {
 	// ExtraFiles specifies additional open files to be inherited by the container
 	ExtraFiles []*os.File
 
-	// Label specifies the label to apply to the process.  It is commonly used by selinux
-	Label string
-
 	// NoNewPrivileges controls whether processes can gain additional privileges.
 	NoNewPrivileges *bool
 
 	// ResourceLimits specifies the resource limits, such as max open files, to set in the container
 	// If ResourceLimits are not set, the container will inherit rlimits from the parent process
-	Rlimits []configc.ResourceLimit
+	ResourceLimits []configc.ResourceLimit
 
 	// Init specifies whether the process is the first process in the container.
 	Init bool

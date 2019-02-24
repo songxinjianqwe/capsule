@@ -3,7 +3,6 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/mrunalp/fileutils"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
@@ -44,7 +43,7 @@ func mountToRootfs(m *configc.Mount, rootfs string) error {
 		}
 		return mountPropagate(m, rootfs)
 	case "tmpfs":
-		copyUp := m.Extensions&configs.EXT_COPYUP == configs.EXT_COPYUP
+		copyUp := m.Extensions&configc.EXT_COPYUP == configc.EXT_COPYUP
 		tmpDir := ""
 		stat, err := os.Stat(dest)
 		if err != nil {
@@ -178,7 +177,7 @@ func mountPropagate(m *configc.Mount, rootfs string) error {
 		flags &= ^unix.MS_RDONLY
 	}
 
-	copyUp := m.Extensions&configs.EXT_COPYUP == configs.EXT_COPYUP
+	copyUp := m.Extensions&configc.EXT_COPYUP == configc.EXT_COPYUP
 	if !(copyUp || strings.HasPrefix(dest, rootfs)) {
 		dest = filepath.Join(rootfs, dest)
 	}

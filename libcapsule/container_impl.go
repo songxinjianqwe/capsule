@@ -102,7 +102,9 @@ func (c *LinuxContainerImpl) Start() error {
 }
 
 func (c *LinuxContainerImpl) Destroy() error {
-	panic("implement me")
+	c.mutex.Lock()
+	c.mutex.Unlock()
+	return c.containerState.destroy()
 }
 
 func (c *LinuxContainerImpl) Signal(s os.Signal, all bool) error {
@@ -129,7 +131,6 @@ func (c *LinuxContainerImpl) Signal(s os.Signal, all bool) error {
 */
 func (c *LinuxContainerImpl) create(process *Process) error {
 	logrus.Infof("LinuxContainerImpl starting...")
-	// 容器启动会涉及两个管道，一个是用来传输配置信息的，一个是用来控制exec是否执行的
 	// 1、创建parent process
 	parent, err := NewParentProcess(c, process)
 	if err != nil {
@@ -162,6 +163,7 @@ func (c *LinuxContainerImpl) start() error {
 	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
 		return err
 	}
+	// 这里必须wait，否则对于iterative的命令，会在输入任何命令后进程立即退出，并且ssh进程退出/登录用户注销
 	logrus.Infof("wait child process exit...")
 	if err := c.initProcess.wait(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
@@ -198,7 +200,7 @@ func (c *LinuxContainerImpl) currentState() (*State, error) {
 }
 
 func (c *LinuxContainerImpl) currentOCIState() (*specs.State, error) {
-	bundle, annotations := util.Annotations(c.config.Labels)
+	bundle, annotations := util.GetAnnotations(c.config.Labels)
 	state := &specs.State{
 		Version:     specs.Version,
 		ID:          c.ID(),
