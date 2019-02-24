@@ -71,7 +71,7 @@ Create并不会运行cmd
 func (c *LinuxContainerImpl) Create(process *Process) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	return c.start(process)
+	return c.create(process)
 }
 
 /**
@@ -81,11 +81,11 @@ CreateAndStart
 func (c *LinuxContainerImpl) Run(process *Process) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	if err := c.start(process); err != nil {
+	if err := c.create(process); err != nil {
 		return err
 	}
 	if process.Init {
-		if err := c.exec(); err != nil {
+		if err := c.start(); err != nil {
 			return err
 		}
 	}
@@ -98,7 +98,7 @@ func (c *LinuxContainerImpl) Run(process *Process) error {
 func (c *LinuxContainerImpl) Start() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	return c.exec()
+	return c.start()
 }
 
 func (c *LinuxContainerImpl) Destroy() error {
@@ -114,7 +114,7 @@ func (c *LinuxContainerImpl) Signal(s os.Signal, all bool) error {
 // ************************************************************************************************
 
 /**
-1. parent start child
+1. parent create child
 2.1 parent init, then send config
 2.2 child init, then wait config
 3. child wait parent config
@@ -125,9 +125,9 @@ func (c *LinuxContainerImpl) Signal(s os.Signal, all bool) error {
 7. parent received signal, then refresh state
 8. child wait parent SIGUSR2 signal
 9. if create, then parent exit; if run, then parent send SIGUSR2 signal to child
-10. child received SIGUSR2 signal, then exec command
+10. child received SIGUSR2 signal, then start command
 */
-func (c *LinuxContainerImpl) start(process *Process) error {
+func (c *LinuxContainerImpl) create(process *Process) error {
 	logrus.Infof("LinuxContainerImpl starting...")
 	// 容器启动会涉及两个管道，一个是用来传输配置信息的，一个是用来控制exec是否执行的
 	// 1、创建parent process
@@ -152,13 +152,22 @@ func (c *LinuxContainerImpl) start(process *Process) error {
 			return err
 		}
 	}
+	logrus.Infof("create container complete!")
 	return nil
 }
 
 // 让init process开始执行真正的cmd
-func (c *LinuxContainerImpl) exec() error {
+func (c *LinuxContainerImpl) start() error {
 	logrus.Infof("send SIGUSR2 to child process...")
-	return c.initProcess.signal(syscall.SIGUSR2)
+	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
+		return err
+	}
+	logrus.Infof("wait child process exit...")
+	if err := c.initProcess.wait(); err != nil {
+		return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
+	}
+	logrus.Infof("child process exited")
+	return nil
 }
 
 func (c *LinuxContainerImpl) currentState() (*State, error) {

@@ -38,7 +38,7 @@ func (p *SetnsProcessWrapperImpl) terminate() error {
 	panic("implement me")
 }
 
-func (p *SetnsProcessWrapperImpl) wait() (*os.ProcessState, error) {
+func (p *SetnsProcessWrapperImpl) wait() error {
 	panic("implement me")
 }
 

@@ -25,7 +25,7 @@ type InitializerStandardImpl struct {
 容器初始化
 */
 func (initializer *InitializerStandardImpl) Init() error {
-	logrus.WithField("init", true).Infof("InitializerStandardImpl start to Init()")
+	logrus.WithField("init", true).Infof("InitializerStandardImpl create to Init()")
 	if err := initializer.setUpNetwork(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init process/set up network")
 	}
@@ -80,17 +80,20 @@ func (initializer *InitializerStandardImpl) Init() error {
 	}
 
 	// 等待parent给一个继续执行命令，即exec的信号
-	logrus.WithField("init", true).Info("start to wait parent continue(SIGUSR2) signal...")
+	logrus.WithField("init", true).Info("create to wait parent continue(SIGUSR2) signal...")
 	receivedChan := make(chan os.Signal, 1)
 	signal.Notify(receivedChan, syscall.SIGUSR2)
 	<-receivedChan
-	logrus.WithField("init", true).Info("received SIGUSR2 signal")
+	logrus.WithField("init", true).Info("received parent continue(SIGUSR2) signal")
 
 	logrus.WithField("init", true).Info("execute real command and cover rune init process")
 	// syscall.Exec与cmd.Start不同，后者是启动一个新的进程来执行命令
 	// 而前者会在覆盖当前进程的镜像、数据、堆栈等信息，包括PID。
+	logrus.WithField("init", true).Infof("syscall.Exec(name: %s, args: %v, env: %v)...", name, initializer.config.ProcessConfig.Args, os.Environ())
+	// 在执行这条命令后，当前进程的命令会变化，但pid不变，同时parent进程死掉，当前进程的父进程变为pid=1的进程
+	// 问题是在输入任何指令后，当前进程会立即结束，并且ssh结束/当前登录用户的会话结束
 	if err := syscall.Exec(name, initializer.config.ProcessConfig.Args, os.Environ()); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "exec user process")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "start user process")
 	}
 	return nil
 }
@@ -111,11 +114,26 @@ func (initializer *InitializerStandardImpl) setUpRoute() error {
 
 func (initializer *InitializerStandardImpl) prepareRootfs() error {
 	logrus.WithField("init", true).Info("preparing rootfs...")
+	if err := prepareRoot(&initializer.config.ContainerConfig); err != nil {
+		return util.NewGenericErrorWithContext(err, util.SystemError, "preparing root")
+	}
+	for _, m := range initializer.config.ContainerConfig.Mounts {
+		if err := mountToRootfs(m, initializer.config.ContainerConfig.Rootfs); err != nil {
+			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
+		}
+	}
 	return nil
 }
 
 func (initializer *InitializerStandardImpl) finalizeNamespace() error {
 	logrus.WithField("init", true).Info("finalizing namespace...")
+	cwd := initializer.config.ProcessConfig.Cwd
+	if cwd != "" {
+		logrus.WithField("init", true).Info("changing dir to cwd: %s", cwd)
+		if err := os.Chdir(cwd); err != nil {
+			return fmt.Errorf("chdir to cwd (%q) set in config.json failed: %v", cwd, err)
+		}
+	}
 	return nil
 }
 

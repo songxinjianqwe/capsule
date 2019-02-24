@@ -91,7 +91,7 @@ func (factory *LinuxContainerFactoryImpl) Load(id string) (Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	container.initProcess = NewNoChildProcessWrapper(state.InitProcessPid, state.InitProcessStartTime)
+	container.initProcess = NewNoChildProcessWrapper(state.InitProcessPid, state.InitProcessStartTime, container)
 	return container, nil
 }
 

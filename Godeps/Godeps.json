@@ -9,9 +9,23 @@
 			"Rev": "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
 		},
 		{
+			"ImportPath": "github.com/mrunalp/fileutils",
+			"Rev": "7d4729fb36185a7c1719923406c9d40e54fb93c7"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/runc/libcontainer/configs",
+			"Comment": "v1.0.0-rc6-39-ge4fa8a45",
+			"Rev": "e4fa8a457544ca646e02e60d124aebb0bb7f52ad"
+		},
+		{
 			"ImportPath": "github.com/opencontainers/runtime-spec/specs-go",
 			"Comment": "v1.0.1-57-g1722abf",
 			"Rev": "1722abf79c2f8f2675f47367f827c6491472cf27"
+		},
+		{
+			"ImportPath": "github.com/pkg/errors",
+			"Comment": "v0.8.1-22-gffb6e22",
+			"Rev": "ffb6e22f01932bf7ac35e0bad9be11f01d1c8685"
 		},
 		{
 			"ImportPath": "github.com/sirupsen/logrus",

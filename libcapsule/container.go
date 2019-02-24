@@ -56,7 +56,7 @@ type State struct {
 	// InitProcessPid is the init process id in the parent namespace.
 	InitProcessPid int `json:"init_process_pid"`
 
-	// InitProcessStartTime is the init process start time in clock cycles since boot time.
+	// InitProcessStartTime is the init process create time in clock cycles since boot time.
 	InitProcessStartTime uint64 `json:"init_process_start"`
 
 	// Created is the unix timestamp for the creation time of the container in UTC

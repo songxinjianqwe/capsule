@@ -25,6 +25,9 @@ func main() {
 	app.Name = AppName
 	app.Version = AppVersion
 	app.Usage = Usage
+	app.ExitErrHandler = func(context *cli.Context, err error) {
+		logrus.Errorf(err.Error())
+	}
 	app.Commands = []cli.Command{
 		runeCli.CreateCommand,
 		runeCli.StartCommand,

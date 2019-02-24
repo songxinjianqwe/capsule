@@ -12,16 +12,16 @@ type ProcessWrapper interface {
 	// pid returns the pid for the running process.
 	pid() int
 
-	// start starts the process execution.
+	// create starts the process execution.
 	start() error
 
 	// send a SIGKILL to the process and wait for the exit.
 	terminate() error
 
 	// wait waits on the process returning the process state.
-	wait() (*os.ProcessState, error)
+	wait() error
 
-	// startTime returns the process start time.
+	// startTime returns the process create time.
 	startTime() (uint64, error)
 
 	signal(os.Signal) error

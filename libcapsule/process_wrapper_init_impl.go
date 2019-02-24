@@ -18,11 +18,10 @@ func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
 	logrus.Infof("new init process wrapper...")
 	return &InitProcessWrapperImpl{
-		initProcessCmd:    cmd,
-		parentConfigPipe:  parentConfigPipe,
-		container:         c,
-		process:           process,
-		sharePidNamespace: c.config.Namespaces.Contains(configc.NEWPID),
+		initProcessCmd:   cmd,
+		parentConfigPipe: parentConfigPipe,
+		container:        c,
+		process:          process,
 	}
 }
 
@@ -30,17 +29,16 @@ func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os
 ProcessWrapper接口的实现类，包裹了InitProcess，它返回的进程信息均为容器Init进程的信息
 */
 type InitProcessWrapperImpl struct {
-	initProcessCmd    *exec.Cmd
-	parentConfigPipe  *os.File
-	parentExecPipe    *os.File
-	container         *LinuxContainerImpl
-	process           *Process
-	sharePidNamespace bool
+	initProcessCmd   *exec.Cmd
+	parentConfigPipe *os.File
+	parentExecPipe   *os.File
+	container        *LinuxContainerImpl
+	process          *Process
 }
 
 type InitConfig struct {
-	ContainerConfig configc.Config
-	ProcessConfig   Process
+	ContainerConfig configc.Config `json:"container_config"`
+	ProcessConfig   Process        `json:"process_config"`
 }
 
 func (p *InitProcessWrapperImpl) start() error {
@@ -75,7 +73,7 @@ func (p *InitProcessWrapperImpl) start() error {
 	}
 	// 等待init process到达在初始化之后，执行命令之前的状态
 	// 使用SIGUSR1信号
-	logrus.WithField("init", true).Info("start to wait init process ready(SIGUSR1) signal...")
+	logrus.WithField("init", true).Info("create to wait init process ready(SIGUSR1) signal...")
 	receivedChan := make(chan os.Signal, 1)
 	signal.Notify(receivedChan, syscall.SIGUSR1)
 	<-receivedChan
@@ -91,18 +89,14 @@ func (p *InitProcessWrapperImpl) terminate() error {
 	panic("implement me")
 }
 
-func (p *InitProcessWrapperImpl) wait() (*os.ProcessState, error) {
+func (p *InitProcessWrapperImpl) wait() error {
 	logrus.Infof("starting to wait init process exit")
 	err := p.initProcessCmd.Wait()
 	if err != nil {
-		return p.initProcessCmd.ProcessState, err
+		return err
 	}
 	logrus.Infof("wait init process exit complete")
-	// we should kill all processes in cgroup when init is died if we use host PID namespace
-	if p.sharePidNamespace {
-		system.SignalAllProcesses(p.container.cgroupManager, unix.SIGKILL)
-	}
-	return p.initProcessCmd.ProcessState, nil
+	return nil
 }
 
 func (p *InitProcessWrapperImpl) startTime() (uint64, error) {

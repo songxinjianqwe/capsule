@@ -135,6 +135,7 @@ func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
 		}
 		libcapsuleProcess.Rlimits = append(libcapsuleProcess.Rlimits, rl)
 	}
+	// 如果启用终端，则将进程的stdin等置为os的
 	if p.Terminal {
 		libcapsuleProcess.Stdin = os.Stdin
 		libcapsuleProcess.Stdout = os.Stdout
