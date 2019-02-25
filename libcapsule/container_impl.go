@@ -167,7 +167,7 @@ func (c *LinuxContainer) create(process *Process) error {
 // 让init process开始执行真正的cmd
 func (c *LinuxContainer) start() error {
 	// 目前一定是Created状态
-	logrus.Infof("send SIGUSR2 to child config...")
+	logrus.Infof("send SIGUSR2 to child process...")
 	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
 		return err
 	}
@@ -176,11 +176,11 @@ func (c *LinuxContainer) start() error {
 	}
 	// 对于前台进程来说，这里必须wait，否则在仅有容器进程存活情况下，它在输入任何命令后立即退出，并且ssh进程退出/登录用户注销
 	if !c.initProcess.detach() {
-		logrus.Infof("wait child config exit...")
+		logrus.Infof("wait child process exit...")
 		if err := c.initProcess.wait(); err != nil {
-			return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child config exit")
+			return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
 		}
-		logrus.Infof("child config exited")
+		logrus.Infof("child process exited")
 	}
 	return nil
 }

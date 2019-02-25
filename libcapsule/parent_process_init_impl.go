@@ -77,11 +77,11 @@ func (p *ParentInitProcess) start() error {
 	}
 	// 等待init process到达在初始化之后，执行命令之前的状态
 	// 使用SIGUSR1信号
-	logrus.WithField("init", true).Info("create to wait init config ready(SIGUSR1) signal...")
+	logrus.Info("start waiting init process ready(SIGUSR1) signal...")
 	receivedChan := make(chan os.Signal, 1)
 	signal.Notify(receivedChan, syscall.SIGUSR1)
 	<-receivedChan
-	logrus.WithField("init", true).Info("received SIGUSR1 signal")
+	logrus.Info("received SIGUSR1 signal")
 	return nil
 }
 

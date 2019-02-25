@@ -74,13 +74,14 @@ func (initializer *InitializerStandardImpl) Init() error {
 	logrus.WithField("init", true).Infof("look path: %s", name)
 
 	logrus.WithField("init", true).Infof("sync parent ready...")
+
 	// 告诉parent，init process已经初始化完毕，马上要执行命令了
 	if err := unix.Kill(initializer.parentPid, syscall.SIGUSR1); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/sync parent ready")
 	}
 
 	// 等待parent给一个继续执行命令，即exec的信号
-	logrus.WithField("init", true).Info("create to wait parent continue(SIGUSR2) signal...")
+	logrus.WithField("init", true).Info("start waiting parent continue(SIGUSR2) signal...")
 	receivedChan := make(chan os.Signal, 1)
 	signal.Notify(receivedChan, syscall.SIGUSR2)
 	<-receivedChan

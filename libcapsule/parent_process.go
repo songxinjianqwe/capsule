@@ -18,7 +18,7 @@ type ParentProcess interface {
 	// send a SIGKILL to the process and wait for the exit.
 	terminate() error
 
-	// wait waits on the config returning the process state.
+	// wait waits on the process returning the process state.
 	wait() error
 
 	// startTime returns the process create time.
@@ -27,7 +27,7 @@ type ParentProcess interface {
 	// send signal to the process
 	signal(os.Signal) error
 
-	// config returns the process is detach
+	// detach returns the process is detach
 	detach() bool
 }
 
@@ -42,9 +42,9 @@ const DefaultStdFdCount = 3
 有可能是InitProcessWrapper，也有可能是SetnsProcessWrapper
 */
 func NewParentProcess(container *LinuxContainer, process *Process) (ParentProcess, error) {
-	logrus.Infof("new parent config...")
+	logrus.Infof("new parent process...")
 	logrus.Infof("creating pipes...")
-	// Config: parent 写，child(init config)读
+	// Config: parent 写，child(init process)读
 	childConfigPipe, parentConfigPipe, err := os.Pipe()
 	logrus.Infof("create config pipe complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
 

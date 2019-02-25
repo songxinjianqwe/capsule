@@ -48,6 +48,7 @@ type ContainerStatusBehavior interface {
 }
 
 func destroy(c *LinuxContainer) error {
+	logrus.Infof("destroying container...")
 	if !c.config.Namespaces.Contains(configc.NEWPID) {
 		if err := system.SignalAllProcesses(c.cgroupManager, unix.SIGKILL); err != nil {
 			logrus.Warn(err)
@@ -59,6 +60,7 @@ func destroy(c *LinuxContainer) error {
 	}
 	c.initProcess = nil
 	c.statusBehavior = &StoppedState{c: c}
+	logrus.Infof("destroy container complete")
 	return err
 }
 

@@ -54,7 +54,7 @@ func (p *ParentNoChildProcess) wait() error {
 		stat, err := system.GetProcessStat(p.pid())
 		// 如果出现err，或者进程已经成为僵尸进程，则退出循环
 		if os.IsNotExist(err) {
-			logrus.Infof("%d config exited(/proc/%d/stat not exists)", p.pid(), p.pid())
+			logrus.Infof("%d process exited(/proc/%d/stat not exists)", p.pid(), p.pid())
 			return nil
 		}
 		if err != nil || stat.State == system.Zombie {

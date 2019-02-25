@@ -38,9 +38,9 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init b
 	var container libcapsule.Container
 	var err error
 	if init {
-		container, err = GetContainer(id)
-	} else {
 		container, err = CreateContainer(id, spec)
+	} else {
+		container, err = GetContainer(id)
 	}
 	if err != nil {
 		return -1, err
@@ -59,13 +59,13 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init b
 		}
 		// 不管是否是terminal，都不会删除容器
 	case ContainerActRun:
-		// c.run == c.start + c.exec
+		// c.run == c.start + c.exec [+ c.destroy]
 		err := container.Run(process)
 		if err != nil {
 			return -1, err
 		}
-		// 如果terminal为true，即前台运行，那么Run结束，即为容器进程结束，则删除容器
-		if spec.Process.Terminal {
+		// 如果是前台运行，那么Run结束，即为容器进程结束，则删除容器
+		if !detach {
 			if err := container.Destroy(); err != nil {
 				return -1, err
 			}
