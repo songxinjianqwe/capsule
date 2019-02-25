@@ -16,13 +16,8 @@ const (
 
 	// Container errors
 	ContainerNotExists
-	ContainerPaused
 	ContainerNotStopped
 	ContainerNotRunning
-	ContainerNotPaused
-
-	// Process errors
-	NoProcessOps
 
 	// Common errors
 	ConfigInvalid
@@ -36,8 +31,6 @@ func (c ErrorCode) String() string {
 		return "Id already in use"
 	case InvalidIdFormat:
 		return "Invalid format"
-	case ContainerPaused:
-		return "Container paused"
 	case ConfigInvalid:
 		return "Invalid configuration"
 	case SystemError:
@@ -50,10 +43,6 @@ func (c ErrorCode) String() string {
 		return "Container is not running"
 	case ConsoleExists:
 		return "Console exists for process"
-	case ContainerNotPaused:
-		return "Container is not paused"
-	case NoProcessOps:
-		return "No process operations"
 	default:
 		return "Unknown util"
 	}

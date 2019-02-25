@@ -7,7 +7,7 @@ import (
 	"os/exec"
 )
 
-func NewSetnsProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File) ParentProcess {
+func NewParentSetnsProcess(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File) ParentProcess {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(SetnsInitializer)))
 	return &ParentSetnsProcess{
 		initProcessCmd:   cmd,

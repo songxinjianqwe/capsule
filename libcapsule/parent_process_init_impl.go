@@ -14,9 +14,9 @@ import (
 	"syscall"
 )
 
-func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, c *LinuxContainer) ParentProcess {
+func NewParentInitProcess(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, c *LinuxContainer) ParentProcess {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
-	logrus.Infof("new init config wrapper...")
+	logrus.Infof("new init process wrapper...")
 	return &ParentInitProcess{
 		initProcessCmd:   cmd,
 		parentConfigPipe: parentConfigPipe,
@@ -49,10 +49,10 @@ func (p *ParentInitProcess) start() error {
 	logrus.Infof("ParentInitProcess starting...")
 	err := p.initProcessCmd.Start()
 	if err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init config command")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init process command")
 	}
 	if err := p.container.cgroupManager.Apply(p.pid()); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for config")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
 	}
 	defer func() {
 		if err != nil {

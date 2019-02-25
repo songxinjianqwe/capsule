@@ -8,22 +8,22 @@ import (
 	"strings"
 )
 
-// State is the status of a process.
-type State rune
+// ProcessStatus is the status of a process.
+type ProcessStatus rune
 
 const ( // Only values for Linux 3.14 and later are listed here
-	Dead        State = 'X'
-	DiskSleep   State = 'D'
-	Running     State = 'R'
-	Sleeping    State = 'S'
-	Stopped     State = 'T'
-	TracingStop State = 't'
-	Zombie      State = 'Z'
+	Dead        ProcessStatus = 'X'
+	DiskSleep   ProcessStatus = 'D'
+	Running     ProcessStatus = 'R'
+	Sleeping    ProcessStatus = 'S'
+	Stopped     ProcessStatus = 'T'
+	TracingStop ProcessStatus = 't'
+	Zombie      ProcessStatus = 'Z'
 )
 
 // String forms of the state from proc(5)'s documentation for
-// /proc/[pid]/status' "State" field.
-func (s State) String() string {
+// /proc/[pid]/status' "ProcessStatus" field.
+func (s ProcessStatus) String() string {
 	switch s {
 	case Dead:
 		return "dead"
@@ -54,8 +54,8 @@ type ProcessStat struct {
 	// Name is the command run by the process.
 	Name string
 
-	// State is the state of the process.
-	State State
+	// ProcessStatus is the state of the process.
+	Status ProcessStatus
 
 	// StartTime is the number of clock ticks after system boot (since
 	// Linux 2.6).
@@ -97,7 +97,7 @@ func parseStat(data string) (stat ProcessStat, err error) {
 	parts = strings.Split(data[i+2:], " ")
 	var state int
 	fmt.Sscanf(parts[3-3], "%c", &state)
-	stat.State = State(state)
+	stat.Status = ProcessStatus(state)
 	fmt.Sscanf(parts[22-3], "%d", &stat.StartTime)
 	return stat, nil
 }

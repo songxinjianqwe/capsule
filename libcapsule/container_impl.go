@@ -108,10 +108,21 @@ func (c *LinuxContainer) Destroy() error {
 	return c.statusBehavior.destroy()
 }
 
-func (c *LinuxContainer) Signal(s os.Signal, all bool) error {
+func (c *LinuxContainer) Signal(s os.Signal) error {
 	c.mutex.Lock()
 	c.mutex.Unlock()
-	return c.initProcess.signal(s)
+	status, err := c.currentStatus()
+	if err != nil {
+		return err
+	}
+	// to avoid a PID reuse attack
+	if status == Running || status == Created {
+		if err := c.initProcess.signal(s); err != nil {
+			return util.NewGenericErrorWithContext(err, util.SystemError, "signaling init process")
+		}
+		return nil
+	}
+	return util.NewGenericErrorWithContext(err, util.ContainerNotRunning, "signaling init process")
 }
 
 // ************************************************************************************************
@@ -148,14 +159,14 @@ func (c *LinuxContainer) create(process *Process) error {
 	if process.Init {
 		// 3、更新容器状态
 		c.createdTime = time.Now().UTC()
-		c.statusBehavior = &CreatedState{
+		c.statusBehavior = &CreatedStatusBehavior{
 			c: c,
 		}
 		// 4、持久化容器状态
 		if err = c.saveState(); err != nil {
 			return err
 		}
-		// 5. 创建标记文件，表示Created
+		// 5、创建标记文件，表示Created
 		if err := c.createFlagFile(); err != nil {
 			return err
 		}
@@ -272,7 +283,7 @@ func (c *LinuxContainer) detectContainerStatus() (ContainerStatus, error) {
 		return Stopped, nil
 	}
 	initProcessStartTime, _ := c.initProcess.startTime()
-	if processState.StartTime != initProcessStartTime || processState.State == system.Zombie || processState.State == system.Dead {
+	if processState.StartTime != initProcessStartTime || processState.Status == system.Zombie || processState.Status == system.Dead {
 		return Stopped, nil
 	}
 	// 容器进程存在的话，会有两种情况：一种是调用完create方法，容器进程阻塞在cmd之前；一种是容器进程解除阻塞，执行了cmd

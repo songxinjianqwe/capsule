@@ -148,7 +148,7 @@ func newProcess(p specs.Process, init bool, detach bool) (*libcapsule.Process, e
 		libcapsuleProcess.ResourceLimits = append(libcapsuleProcess.ResourceLimits, rl)
 	}
 	// 如果启用终端，则将进程的stdin等置为os的
-	if detach {
+	if !detach {
 		libcapsuleProcess.Stdin = os.Stdin
 		libcapsuleProcess.Stdout = os.Stdout
 		libcapsuleProcess.Stderr = os.Stderr

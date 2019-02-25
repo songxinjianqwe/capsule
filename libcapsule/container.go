@@ -54,7 +54,7 @@ type Container interface {
 	// SystemError - System util.
 	Run(process *Process) (err error)
 
-	// 在杀掉所有运行进程后，销毁容器
+	// 删除容器，如果容器还处于created，则杀掉容器进程
 	// errors:
 	// ContainerNotStopped - Container is still running,
 	// ContainerPaused - Container is paused,
@@ -64,7 +64,7 @@ type Container interface {
 	// 向容器init进程发送信号
 	// errors:
 	// SystemError - System util.
-	Signal(s os.Signal, all bool) error
+	Signal(s os.Signal) error
 
 	// 让容器执行最终命令
 	// errors:

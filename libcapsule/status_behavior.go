@@ -3,21 +3,21 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
-	"github.com/songxinjianqwe/rune/libcapsule/util/system"
 	"golang.org/x/sys/unix"
 	"os"
+	"syscall"
+	"time"
 )
 
 func NewContainerStatusBehavior(status ContainerStatus, c *LinuxContainer) (ContainerStatusBehavior, error) {
 	switch status {
 	case Created:
-		return &CreatedState{c: c}, nil
+		return &CreatedStatusBehavior{c: c}, nil
 	case Stopped:
-		return &StoppedState{c: c}, nil
+		return &StoppedStatusBehavior{c: c}, nil
 	case Running:
-		return &RunningState{c: c}, nil
+		return &RunningStatusBehavior{c: c}, nil
 	default:
 		return nil, fmt.Errorf("unknown status")
 	}
@@ -49,110 +49,117 @@ type ContainerStatusBehavior interface {
 
 func destroy(c *LinuxContainer) error {
 	logrus.Infof("destroying container...")
-	if !c.config.Namespaces.Contains(configc.NEWPID) {
-		if err := system.SignalAllProcesses(c.cgroupManager, unix.SIGKILL); err != nil {
-			logrus.Warn(err)
-		}
-	}
 	err := c.cgroupManager.Destroy()
 	if rerr := os.RemoveAll(c.root); err == nil {
 		err = rerr
 	}
 	c.initProcess = nil
-	c.statusBehavior = &StoppedState{c: c}
+	c.statusBehavior = &StoppedStatusBehavior{c: c}
 	logrus.Infof("destroy container complete")
 	return err
 }
 
 // ******************************************************************************************
-// 【StoppedState】 represents a container is a stopped/destroyed state.
+// 【StoppedStatusBehavior】 represents a container is a stopped/destroyed state.
 // ******************************************************************************************
-type StoppedState struct {
+type StoppedStatusBehavior struct {
 	c *LinuxContainer
 }
 
-func (b *StoppedState) status() ContainerStatus {
+func (behavior *StoppedStatusBehavior) status() ContainerStatus {
 	return Stopped
 }
 
-func (b *StoppedState) transition(s ContainerStatusBehavior) error {
+func (behavior *StoppedStatusBehavior) transition(s ContainerStatusBehavior) error {
 	switch s.(type) {
-	case *RunningState:
-		b.c.statusBehavior = s
+	case *RunningStatusBehavior:
+		behavior.c.statusBehavior = s
 		return nil
-	case *StoppedState:
+	case *StoppedStatusBehavior:
 		return nil
 	}
-	return newStateTransitionError(b, s)
+	return newStateTransitionError(behavior, s)
 }
 
-func (b *StoppedState) destroy() error {
-	return destroy(b.c)
+func (behavior *StoppedStatusBehavior) destroy() error {
+	return destroy(behavior.c)
 }
 
 // ******************************************************************************************
-// 【RunningState】 represents a container that is currently running.
+// 【RunningStatusBehavior】 represents a container that is currently running.
 // ******************************************************************************************
-type RunningState struct {
+type RunningStatusBehavior struct {
 	c *LinuxContainer
 }
 
-func (r *RunningState) status() ContainerStatus {
+func (behavior *RunningStatusBehavior) status() ContainerStatus {
 	return Running
 }
 
-func (r *RunningState) transition(s ContainerStatusBehavior) error {
+func (behavior *RunningStatusBehavior) transition(s ContainerStatusBehavior) error {
 	switch s.(type) {
-	case *StoppedState:
-		t, err := r.c.currentStatus()
+	case *StoppedStatusBehavior:
+		t, err := behavior.c.currentStatus()
 		if err != nil {
 			return err
 		}
 		if t == Running {
 			return util.NewGenericError(fmt.Errorf("container still running"), util.ContainerNotStopped)
 		}
-		r.c.statusBehavior = s
+		behavior.c.statusBehavior = s
 		return nil
-	case *RunningState:
+	case *RunningStatusBehavior:
 		return nil
 	}
-	return newStateTransitionError(r, s)
+	return newStateTransitionError(behavior, s)
 }
 
-func (r *RunningState) destroy() error {
-	t, err := r.c.currentStatus()
+func (behavior *RunningStatusBehavior) destroy() error {
+	t, err := behavior.c.currentStatus()
 	if err != nil {
 		return err
 	}
 	if t == Running {
 		return util.NewGenericError(fmt.Errorf("container is not destroyed"), util.ContainerNotStopped)
 	}
-	return destroy(r.c)
+	return destroy(behavior.c)
 }
 
 // ******************************************************************************************
-// 【CreatedState】
+// 【CreatedStatusBehavior】
 // ******************************************************************************************
-type CreatedState struct {
+type CreatedStatusBehavior struct {
 	c *LinuxContainer
 }
 
-func (i *CreatedState) status() ContainerStatus {
+func (behavior *CreatedStatusBehavior) status() ContainerStatus {
 	return Created
 }
 
-func (i *CreatedState) transition(s ContainerStatusBehavior) error {
+func (behavior *CreatedStatusBehavior) transition(s ContainerStatusBehavior) error {
 	switch s.(type) {
-	case *RunningState, *StoppedState:
-		i.c.statusBehavior = s
+	case *RunningStatusBehavior, *StoppedStatusBehavior:
+		behavior.c.statusBehavior = s
 		return nil
-	case *CreatedState:
+	case *CreatedStatusBehavior:
 		return nil
 	}
-	return newStateTransitionError(i, s)
+	return newStateTransitionError(behavior, s)
 }
 
-func (i *CreatedState) destroy() error {
-	i.c.initProcess.signal(unix.SIGKILL)
-	return destroy(i.c)
+func (behavior *CreatedStatusBehavior) destroy() error {
+	logrus.Infof("send SIGKILL signal to init process")
+	_ = behavior.c.Signal(unix.SIGKILL)
+	// 最多等10s
+	for i := 0; i < 100; i++ {
+		logrus.Infof("[%d]detect container status", i)
+		time.Sleep(100 * time.Millisecond)
+		// 检测容器状态，如果容器被杀掉了，那么出现err，此时就可以destroy容器了（一种检测容器状态的方法）
+		if err := behavior.c.Signal(syscall.Signal(0)); err != nil {
+			logrus.Infof("container was killed, destroying...")
+			return destroy(behavior.c)
+		}
+	}
+	return fmt.Errorf("container init still running")
+
 }

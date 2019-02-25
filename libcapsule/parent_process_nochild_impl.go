@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func NewNoChildProcessWrapper(initProcessPid int, initProcessStartTime uint64, c *LinuxContainer) ParentProcess {
+func NewParentNoChildProcess(initProcessPid int, initProcessStartTime uint64, c *LinuxContainer) ParentProcess {
 	return &ParentNoChildProcess{
 		initProcessPid:       initProcessPid,
 		initProcessStartTime: initProcessStartTime,
@@ -57,7 +57,7 @@ func (p *ParentNoChildProcess) wait() error {
 			logrus.Infof("%d process exited(/proc/%d/stat not exists)", p.pid(), p.pid())
 			return nil
 		}
-		if err != nil || stat.State == system.Zombie {
+		if err != nil || stat.Status == system.Zombie {
 			return err
 		}
 	}

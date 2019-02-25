@@ -55,9 +55,9 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 		return nil, err
 	}
 	if process.Init {
-		return NewInitProcessWrapper(process, cmd, parentConfigPipe, container), nil
+		return NewParentInitProcess(process, cmd, parentConfigPipe, container), nil
 	} else {
-		return NewSetnsProcessWrapper(process, cmd, parentConfigPipe), nil
+		return NewParentSetnsProcess(process, cmd, parentConfigPipe), nil
 	}
 }
 

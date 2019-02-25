@@ -100,12 +100,12 @@ func Example() *specs.Spec {
 				Source:      "sysfs",
 				Options:     []string{"nosuid", "noexec", "nodev", "ro"},
 			},
-			{
-				Destination: "/sys/fs/cgroup",
-				Type:        "cgroup",
-				Source:      "cgroup",
-				Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
-			},
+			//{
+			//	Destination: "/sys/fs/cgroup",
+			//	Type:        "cgroup",
+			//	Source:      "cgroup",
+			//	Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
+			//},
 		},
 		Linux: &specs.Linux{
 			MaskedPaths: []string{

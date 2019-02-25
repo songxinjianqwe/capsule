@@ -70,7 +70,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) 
 		config:        *config,
 		cgroupManager: cgroups.NewCroupManager(config.Cgroups),
 	}
-	container.statusBehavior = &StoppedState{c: container}
+	container.statusBehavior = &StoppedStatusBehavior{c: container}
 	logrus.Infof("create container complete, container: %#v", container)
 	return container, nil
 }
@@ -87,7 +87,7 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 		config:        state.Config,
 		cgroupManager: cgroups.NewCroupManager(state.Config.Cgroups),
 	}
-	container.initProcess = NewNoChildProcessWrapper(state.InitProcessPid, state.InitProcessStartTime, container)
+	container.initProcess = NewParentNoChildProcess(state.InitProcessPid, state.InitProcessStartTime, container)
 	detectedStatus, err := container.detectContainerStatus()
 	if err != nil {
 		return nil, err
