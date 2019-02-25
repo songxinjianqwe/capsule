@@ -10,10 +10,10 @@ type Process struct {
 	// The command to be run followed by any arguments.
 	Args []string
 
-	// Env specifies the environment variables for the process.
+	// Env specifies the environment variables for the config.
 	Env []string
 
-	// User will set the uid and gid of the executing process running inside the container
+	// User will set the uid and gid of the executing config running inside the container
 	// local to the container's user and group configuration.
 	User string
 
@@ -36,12 +36,12 @@ type Process struct {
 	NoNewPrivileges *bool
 
 	// ResourceLimits specifies the resource limits, such as max open files, to set in the container
-	// If ResourceLimits are not set, the container will inherit rlimits from the parent process
+	// If ResourceLimits are not set, the container will inherit rlimits from the parent config
 	ResourceLimits []configc.ResourceLimit
 
-	// Init specifies whether the process is the first process in the container.
+	// Init specifies whether the config is the first config in the container.
 	Init bool
 
-	// Terminal creates an interactive terminal for the container.
-	Terminal bool
+	// Detach specifies the container is running frontend or backend
+	Detach bool
 }

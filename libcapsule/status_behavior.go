@@ -10,8 +10,7 @@ import (
 	"os"
 )
 
-func NewContainerState(statusStr string, c *LinuxContainerImpl) (ContainerState, error) {
-	status := statusFromString(statusStr)
+func NewContainerStatusBehavior(status ContainerStatus, c *LinuxContainer) (ContainerStatusBehavior, error) {
 	switch status {
 	case Created:
 		return &CreatedState{c: c}, nil
@@ -20,16 +19,35 @@ func NewContainerState(statusStr string, c *LinuxContainerImpl) (ContainerState,
 	case Running:
 		return &RunningState{c: c}, nil
 	default:
-		return nil, fmt.Errorf("Unknown status")
+		return nil, fmt.Errorf("unknown status")
 	}
 }
 
-type ContainerState interface {
-	destroy() error
-	status() Status
+func newStateTransitionError(from, to ContainerStatusBehavior) error {
+	return &stateTransitionError{
+		From: from.status().String(),
+		To:   to.status().String(),
+	}
 }
 
-func destroy(c *LinuxContainerImpl) error {
+// stateTransitionError is returned when an invalid state transition happens from one
+// state to another.
+type stateTransitionError struct {
+	From string
+	To   string
+}
+
+func (s *stateTransitionError) Error() string {
+	return fmt.Sprintf("invalid state transition from %s to %s", s.From, s.To)
+}
+
+type ContainerStatusBehavior interface {
+	transition(ContainerStatusBehavior) error
+	destroy() error
+	status() ContainerStatus
+}
+
+func destroy(c *LinuxContainer) error {
 	if !c.config.Namespaces.Contains(configc.NEWPID) {
 		if err := system.SignalAllProcesses(c.cgroupManager, unix.SIGKILL); err != nil {
 			logrus.Warn(err)
@@ -40,7 +58,7 @@ func destroy(c *LinuxContainerImpl) error {
 		err = rerr
 	}
 	c.initProcess = nil
-	c.containerState = &StoppedState{c: c}
+	c.statusBehavior = &StoppedState{c: c}
 	return err
 }
 
@@ -48,11 +66,22 @@ func destroy(c *LinuxContainerImpl) error {
 // 【StoppedState】 represents a container is a stopped/destroyed state.
 // ******************************************************************************************
 type StoppedState struct {
-	c *LinuxContainerImpl
+	c *LinuxContainer
 }
 
-func (b *StoppedState) status() Status {
+func (b *StoppedState) status() ContainerStatus {
 	return Stopped
+}
+
+func (b *StoppedState) transition(s ContainerStatusBehavior) error {
+	switch s.(type) {
+	case *RunningState:
+		b.c.statusBehavior = s
+		return nil
+	case *StoppedState:
+		return nil
+	}
+	return newStateTransitionError(b, s)
 }
 
 func (b *StoppedState) destroy() error {
@@ -63,11 +92,29 @@ func (b *StoppedState) destroy() error {
 // 【RunningState】 represents a container that is currently running.
 // ******************************************************************************************
 type RunningState struct {
-	c *LinuxContainerImpl
+	c *LinuxContainer
 }
 
-func (r *RunningState) status() Status {
+func (r *RunningState) status() ContainerStatus {
 	return Running
+}
+
+func (r *RunningState) transition(s ContainerStatusBehavior) error {
+	switch s.(type) {
+	case *StoppedState:
+		t, err := r.c.currentStatus()
+		if err != nil {
+			return err
+		}
+		if t == Running {
+			return util.NewGenericError(fmt.Errorf("container still running"), util.ContainerNotStopped)
+		}
+		r.c.statusBehavior = s
+		return nil
+	case *RunningState:
+		return nil
+	}
+	return newStateTransitionError(r, s)
 }
 
 func (r *RunningState) destroy() error {
@@ -85,11 +132,22 @@ func (r *RunningState) destroy() error {
 // 【CreatedState】
 // ******************************************************************************************
 type CreatedState struct {
-	c *LinuxContainerImpl
+	c *LinuxContainer
 }
 
-func (i *CreatedState) status() Status {
+func (i *CreatedState) status() ContainerStatus {
 	return Created
+}
+
+func (i *CreatedState) transition(s ContainerStatusBehavior) error {
+	switch s.(type) {
+	case *RunningState, *StoppedState:
+		i.c.statusBehavior = s
+		return nil
+	case *CreatedState:
+		return nil
+	}
+	return newStateTransitionError(i, s)
 }
 
 func (i *CreatedState) destroy() error {

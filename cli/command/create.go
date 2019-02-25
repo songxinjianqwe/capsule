@@ -20,7 +20,7 @@ var CreateCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		status, err := util.LaunchContainer(ctx.Args().First(), spec, util.ContainerActCreate)
+		status, err := util.LaunchContainer(ctx.Args().First(), spec, util.ContainerActCreate, true, false)
 		if err != nil {
 			return err
 		}

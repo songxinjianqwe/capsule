@@ -14,10 +14,10 @@ import (
 	"syscall"
 )
 
-func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, c *LinuxContainerImpl) ProcessWrapper {
+func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, c *LinuxContainer) ParentProcess {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
-	logrus.Infof("new init process wrapper...")
-	return &InitProcessWrapperImpl{
+	logrus.Infof("new init config wrapper...")
+	return &ParentInitProcess{
 		initProcessCmd:   cmd,
 		parentConfigPipe: parentConfigPipe,
 		container:        c,
@@ -28,12 +28,16 @@ func NewInitProcessWrapper(process *Process, cmd *exec.Cmd, parentConfigPipe *os
 /**
 ProcessWrapper接口的实现类，包裹了InitProcess，它返回的进程信息均为容器Init进程的信息
 */
-type InitProcessWrapperImpl struct {
+type ParentInitProcess struct {
 	initProcessCmd   *exec.Cmd
 	parentConfigPipe *os.File
 	parentExecPipe   *os.File
-	container        *LinuxContainerImpl
+	container        *LinuxContainer
 	process          *Process
+}
+
+func (p *ParentInitProcess) detach() bool {
+	return p.process.Detach
 }
 
 type InitConfig struct {
@@ -41,14 +45,14 @@ type InitConfig struct {
 	ProcessConfig   Process        `json:"process_config"`
 }
 
-func (p *InitProcessWrapperImpl) start() error {
-	logrus.Infof("InitProcessWrapperImpl starting...")
+func (p *ParentInitProcess) start() error {
+	logrus.Infof("ParentInitProcess starting...")
 	err := p.initProcessCmd.Start()
 	if err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init process command")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init config command")
 	}
 	if err := p.container.cgroupManager.Apply(p.pid()); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for config")
 	}
 	defer func() {
 		if err != nil {
@@ -60,7 +64,7 @@ func (p *InitProcessWrapperImpl) start() error {
 	}
 	// init process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "sending config to init process")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "sending config to init config")
 	}
 	// parent 写完就关
 	if err = p.parentConfigPipe.Close(); err != nil {
@@ -69,11 +73,11 @@ func (p *InitProcessWrapperImpl) start() error {
 	// set rlimits, this has to be done here because we lose permissions
 	// to raise the limits once we enter a user-namespace
 	if err := p.setupResourceLimits(); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "setting rlimits for ready process")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "setting rlimits for ready config")
 	}
 	// 等待init process到达在初始化之后，执行命令之前的状态
 	// 使用SIGUSR1信号
-	logrus.WithField("init", true).Info("create to wait init process ready(SIGUSR1) signal...")
+	logrus.WithField("init", true).Info("create to wait init config ready(SIGUSR1) signal...")
 	receivedChan := make(chan os.Signal, 1)
 	signal.Notify(receivedChan, syscall.SIGUSR1)
 	<-receivedChan
@@ -81,25 +85,25 @@ func (p *InitProcessWrapperImpl) start() error {
 	return nil
 }
 
-func (p *InitProcessWrapperImpl) pid() int {
+func (p *ParentInitProcess) pid() int {
 	return p.initProcessCmd.Process.Pid
 }
 
-func (p *InitProcessWrapperImpl) terminate() error {
+func (p *ParentInitProcess) terminate() error {
 	panic("implement me")
 }
 
-func (p *InitProcessWrapperImpl) wait() error {
-	logrus.Infof("starting to wait init process exit")
+func (p *ParentInitProcess) wait() error {
+	logrus.Infof("starting to wait init config exit")
 	err := p.initProcessCmd.Wait()
 	if err != nil {
 		return err
 	}
-	logrus.Infof("wait init process exit complete")
+	logrus.Infof("wait init config exit complete")
 	return nil
 }
 
-func (p *InitProcessWrapperImpl) startTime() (uint64, error) {
+func (p *ParentInitProcess) startTime() (uint64, error) {
 	stat, err := system.GetProcessStat(p.pid())
 	if err != nil {
 		return 0, err
@@ -107,7 +111,7 @@ func (p *InitProcessWrapperImpl) startTime() (uint64, error) {
 	return stat.StartTime, err
 }
 
-func (p *InitProcessWrapperImpl) signal(sig os.Signal) error {
+func (p *ParentInitProcess) signal(sig os.Signal) error {
 	s, ok := sig.(syscall.Signal)
 	if !ok {
 		return util.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), util.SystemError)
@@ -119,17 +123,17 @@ func (p *InitProcessWrapperImpl) signal(sig os.Signal) error {
 // biz methods
 // ******************************************************************************************************
 
-func (p *InitProcessWrapperImpl) createNetworkInterfaces() error {
+func (p *ParentInitProcess) createNetworkInterfaces() error {
 	logrus.Infof("creating network interfaces")
 	return nil
 }
 
-func (p *InitProcessWrapperImpl) sendConfig() error {
+func (p *ParentInitProcess) sendConfig() error {
 	initConfig := &InitConfig{
 		ContainerConfig: p.container.config,
 		ProcessConfig:   *p.process,
 	}
-	// remove unnecessary fields, or init process will unmarshal it failed
+	// remove unnecessary fields, or init config will unmarshal it failed
 	initConfig.ProcessConfig.Stdin = nil
 	initConfig.ProcessConfig.Stdout = nil
 	initConfig.ProcessConfig.Stderr = nil
@@ -144,7 +148,7 @@ func (p *InitProcessWrapperImpl) sendConfig() error {
 	return err
 }
 
-func (p *InitProcessWrapperImpl) setupResourceLimits() error {
+func (p *ParentInitProcess) setupResourceLimits() error {
 	logrus.Infof("setting up resource limits")
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
+	"github.com/songxinjianqwe/rune/libcapsule/util/system"
 	"os"
 	"path/filepath"
 	"sync"
@@ -19,13 +20,13 @@ const (
 	EnvInitializerType = "_LIBCAPSULE_INITIALIZER_TYPE"
 )
 
-type LinuxContainerImpl struct {
+type LinuxContainer struct {
 	id             string
 	root           string
 	config         configc.Config
 	cgroupManager  cgroups.CgroupManager
-	initProcess    ProcessWrapper
-	containerState ContainerState
+	initProcess    ParentProcess
+	statusBehavior ContainerStatusBehavior
 	createdTime    time.Time
 	mutex          sync.Mutex
 }
@@ -34,33 +35,33 @@ type LinuxContainerImpl struct {
 // public
 // ************************************************************************************************
 
-func (c *LinuxContainerImpl) ID() string {
+func (c *LinuxContainer) ID() string {
 	return c.id
 }
 
-func (c *LinuxContainerImpl) Status() (Status, error) {
+func (c *LinuxContainer) Status() (ContainerStatus, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.currentStatus()
 }
 
-func (c *LinuxContainerImpl) State() (*State, error) {
+func (c *LinuxContainer) State() (*StateStorage, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.currentState()
 }
 
-func (c *LinuxContainerImpl) OCIState() (*specs.State, error) {
+func (c *LinuxContainer) OCIState() (*specs.State, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.currentOCIState()
 }
 
-func (c *LinuxContainerImpl) Config() configc.Config {
+func (c *LinuxContainer) Config() configc.Config {
 	return c.config
 }
 
-func (c *LinuxContainerImpl) Processes() ([]int, error) {
+func (c *LinuxContainer) Processes() ([]int, error) {
 	panic("implement me")
 }
 
@@ -68,7 +69,7 @@ func (c *LinuxContainerImpl) Processes() ([]int, error) {
 Create并不会运行cmd
 会让init process阻塞在cmd之前的
 */
-func (c *LinuxContainerImpl) Create(process *Process) error {
+func (c *LinuxContainer) Create(process *Process) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.create(process)
@@ -78,7 +79,7 @@ func (c *LinuxContainerImpl) Create(process *Process) error {
 CreateAndStart
 如果是exec（即不是init cmd），则在start中就会执行cmd，不需要exec再通知
 */
-func (c *LinuxContainerImpl) Run(process *Process) error {
+func (c *LinuxContainer) Run(process *Process) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if err := c.create(process); err != nil {
@@ -95,20 +96,22 @@ func (c *LinuxContainerImpl) Run(process *Process) error {
 /**
 取消init process的阻塞
 */
-func (c *LinuxContainerImpl) Start() error {
+func (c *LinuxContainer) Start() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.start()
 }
 
-func (c *LinuxContainerImpl) Destroy() error {
+func (c *LinuxContainer) Destroy() error {
 	c.mutex.Lock()
 	c.mutex.Unlock()
-	return c.containerState.destroy()
+	return c.statusBehavior.destroy()
 }
 
-func (c *LinuxContainerImpl) Signal(s os.Signal, all bool) error {
-	panic("implement me")
+func (c *LinuxContainer) Signal(s os.Signal, all bool) error {
+	c.mutex.Lock()
+	c.mutex.Unlock()
+	return c.initProcess.signal(s)
 }
 
 // ************************************************************************************************
@@ -129,27 +132,31 @@ func (c *LinuxContainerImpl) Signal(s os.Signal, all bool) error {
 9. if create, then parent exit; if run, then parent send SIGUSR2 signal to child
 10. child received SIGUSR2 signal, then start command
 */
-func (c *LinuxContainerImpl) create(process *Process) error {
-	logrus.Infof("LinuxContainerImpl starting...")
-	// 1、创建parent process
+func (c *LinuxContainer) create(process *Process) error {
+	logrus.Infof("LinuxContainer starting...")
+	// 1、创建parent config
 	parent, err := NewParentProcess(c, process)
 	if err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "creating new parent process")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "creating new parent config")
 	}
-	logrus.Infof("new parent process complete, parent process: %#v", parent)
+	logrus.Infof("new parent config complete, parent config: %#v", parent)
 	c.initProcess = parent
-	// 2、启动parent process,直至child表示自己初始化完毕，等待执行命令
+	// 2、启动parent config,直至child表示自己初始化完毕，等待执行命令
 	if err := parent.start(); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "starting container process")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "starting container config")
 	}
 	if process.Init {
 		// 3、更新容器状态
 		c.createdTime = time.Now().UTC()
-		c.containerState = &CreatedState{
+		c.statusBehavior = &CreatedState{
 			c: c,
 		}
 		// 4、持久化容器状态
 		if err = c.saveState(); err != nil {
+			return err
+		}
+		// 5. 创建标记文件，表示Created
+		if err := c.createFlagFile(); err != nil {
 			return err
 		}
 	}
@@ -158,26 +165,27 @@ func (c *LinuxContainerImpl) create(process *Process) error {
 }
 
 // 让init process开始执行真正的cmd
-func (c *LinuxContainerImpl) start() error {
-	logrus.Infof("send SIGUSR2 to child process...")
+func (c *LinuxContainer) start() error {
+	// 目前一定是Created状态
+	logrus.Infof("send SIGUSR2 to child config...")
 	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
 		return err
 	}
-	// 更新容器状态为running
-	c.containerState = &RunningState{c: c}
-	if err := c.saveState(); err != nil {
+	if err := c.deleteFlagFileIfExists(); err != nil {
 		return err
 	}
-	// 这里必须wait，否则对于iterative的命令，会在输入任何命令后进程立即退出，并且ssh进程退出/登录用户注销
-	logrus.Infof("wait child process exit...")
-	if err := c.initProcess.wait(); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
+	// 对于前台进程来说，这里必须wait，否则在仅有容器进程存活情况下，它在输入任何命令后立即退出，并且ssh进程退出/登录用户注销
+	if !c.initProcess.detach() {
+		logrus.Infof("wait child config exit...")
+		if err := c.initProcess.wait(); err != nil {
+			return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child config exit")
+		}
+		logrus.Infof("child config exited")
 	}
-	logrus.Infof("child process exited")
 	return nil
 }
 
-func (c *LinuxContainerImpl) currentState() (*State, error) {
+func (c *LinuxContainer) currentState() (*StateStorage, error) {
 	var (
 		initProcessPid       = -1
 		initProcessStartTime uint64
@@ -186,9 +194,8 @@ func (c *LinuxContainerImpl) currentState() (*State, error) {
 		initProcessPid = c.initProcess.pid()
 		initProcessStartTime, _ = c.initProcess.startTime()
 	}
-	state := &State{
+	state := &StateStorage{
 		ID:                   c.ID(),
-		Status:               c.containerState.status().String(),
 		Config:               c.config,
 		InitProcessPid:       initProcessPid,
 		InitProcessStartTime: initProcessStartTime,
@@ -204,7 +211,7 @@ func (c *LinuxContainerImpl) currentState() (*State, error) {
 	return state, nil
 }
 
-func (c *LinuxContainerImpl) currentOCIState() (*specs.State, error) {
+func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
 	bundle, annotations := util.GetAnnotations(c.config.Labels)
 	state := &specs.State{
 		Version:     specs.Version,
@@ -225,14 +232,63 @@ func (c *LinuxContainerImpl) currentOCIState() (*specs.State, error) {
 	return state, err
 }
 
-func (c *LinuxContainerImpl) currentStatus() (Status, error) {
-	return c.containerState.status(), nil
+/**
+容器状态可以存储在state.json文件中，也可以每次去检测。
+前者是不靠谱的！如果是后台运行的容器，那么在parent process结束后，容器可能会退出，但此时parent process不会
+去监听容器进程状态，也就无法保证state.json文件的状态总是正确的。
+后者是每次获取状态时都去检测一遍，并矫正内存状态。
+*/
+func (c *LinuxContainer) currentStatus() (ContainerStatus, error) {
+	detectedStatus, err := c.detectContainerStatus()
+	if err != nil {
+		return -1, err
+	}
+	if c.statusBehavior.status() != detectedStatus {
+		containerState, err := NewContainerStatusBehavior(detectedStatus, c)
+		if err != nil {
+			return -1, err
+		}
+		if err := c.statusBehavior.transition(containerState); err != nil {
+			return -1, err
+		}
+	}
+	return c.statusBehavior.status(), nil
+}
+
+/**
+可以根据容器进程状态判断:
+1. 如果进程不存在，或状态异常，则说明为Stopped
+2. 如果进程存在，那么有可能是Created或Running，从进程状态没有办法区别
+3. parent process在创建容器之后会创建一个标记文件，标记容器尚未执行init process命令
+4. parent process在启动容器之后会删除该文件。
+*/
+func (c *LinuxContainer) detectContainerStatus() (ContainerStatus, error) {
+	if c.initProcess == nil {
+		return Stopped, nil
+	}
+	pid := c.initProcess.pid()
+	processState, err := system.GetProcessStat(pid)
+	if err != nil {
+		return Stopped, nil
+	}
+	initProcessStartTime, _ := c.initProcess.startTime()
+	if processState.StartTime != initProcessStartTime || processState.State == system.Zombie || processState.State == system.Dead {
+		return Stopped, nil
+	}
+	// 容器进程存在的话，会有两种情况：一种是调用完create方法，容器进程阻塞在cmd之前；一种是容器进程解除阻塞，执行了cmd
+	// 在容器创建后，会创建该标记；在容器启动后，会删除该标记
+	// 如果标记存在，则说明是创建容器之后，启动容器之前
+	if _, err := os.Stat(filepath.Join(c.root, NotExecFlagFilename)); err == nil {
+		return Created, nil
+	}
+	return Running, nil
 }
 
 /**
 更新容器状态文件state.json
+这个文件中不存储真正容器的状态，只需要在创建容器后创建文件即可，此后不再修改
 */
-func (c *LinuxContainerImpl) saveState() error {
+func (c *LinuxContainer) saveState() error {
 	state, err := c.currentState()
 	if err != nil {
 		return err
@@ -253,5 +309,28 @@ func (c *LinuxContainerImpl) saveState() error {
 		return err
 	}
 	logrus.Infof("save state complete")
+	return nil
+}
+
+func (c *LinuxContainer) createFlagFile() error {
+	flagFilePath := filepath.Join(c.root, NotExecFlagFilename)
+	logrus.Infof("creating not exec flag in file: %s", flagFilePath)
+	file, err := os.Create(flagFilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	logrus.Infof("save flag complete")
+	return nil
+}
+
+func (c *LinuxContainer) deleteFlagFileIfExists() error {
+	flagFilePath := filepath.Join(c.root, NotExecFlagFilename)
+	_, err := os.Stat(flagFilePath)
+	if err == nil {
+		// 如果文件存在，则删除
+		logrus.Infof("deleting flag :%s", flagFilePath)
+		return os.Remove(flagFilePath)
+	}
 	return nil
 }

@@ -8,7 +8,7 @@ import (
 	"syscall"
 )
 
-type ProcessWrapper interface {
+type ParentProcess interface {
 	// pid returns the pid for the running process.
 	pid() int
 
@@ -18,7 +18,7 @@ type ProcessWrapper interface {
 	// send a SIGKILL to the process and wait for the exit.
 	terminate() error
 
-	// wait waits on the process returning the process state.
+	// wait waits on the config returning the process state.
 	wait() error
 
 	// startTime returns the process create time.
@@ -26,6 +26,9 @@ type ProcessWrapper interface {
 
 	// send signal to the process
 	signal(os.Signal) error
+
+	// config returns the process is detach
+	detach() bool
 }
 
 /**
@@ -38,10 +41,10 @@ const DefaultStdFdCount = 3
 创建一个ProcessWrapper实例，用于启动容器进程
 有可能是InitProcessWrapper，也有可能是SetnsProcessWrapper
 */
-func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessWrapper, error) {
-	logrus.Infof("new parent process...")
+func NewParentProcess(container *LinuxContainer, process *Process) (ParentProcess, error) {
+	logrus.Infof("new parent config...")
 	logrus.Infof("creating pipes...")
-	// Config: parent 写，child(init process)读
+	// Config: parent 写，child(init config)读
 	childConfigPipe, parentConfigPipe, err := os.Pipe()
 	logrus.Infof("create config pipe complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
 
@@ -61,7 +64,7 @@ func NewParentProcess(container *LinuxContainerImpl, process *Process) (ProcessW
 /**
 构造一个command对象
 */
-func buildCommand(container *LinuxContainerImpl, process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
+func buildCommand(container *LinuxContainer, process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
 	cmd := exec.Command(ContainerInitPath, ContainerInitArgs)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: container.config.Namespaces.CloneFlags(),

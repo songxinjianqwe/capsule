@@ -17,7 +17,7 @@ type ContainerStateVO struct {
 	ID string `json:"id"`
 	// InitProcessPid is the init process id in the parent namespace
 	InitProcessPid int `json:"pid"`
-	// Status is the current status of the container, running, paused, ...
+	// ContainerStatus is the current status of the container, running, paused, ...
 	Status string `json:"status"`
 	// Bundle is the path on the filesystem to the bundle
 	Bundle string `json:"bundle"`
@@ -51,6 +51,6 @@ var StateCommand = cli.Command{
 	},
 }
 
-func convertContainerStateToVO(state *libcapsule.State) ContainerStateVO {
+func convertContainerStateToVO(state *libcapsule.StateStorage) ContainerStateVO {
 	panic("implement me")
 }

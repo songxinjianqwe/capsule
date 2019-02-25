@@ -33,14 +33,20 @@ create
 or
 create and start
 */
-func LaunchContainer(id string, spec *specs.Spec, action ContainerAction) (int, error) {
+func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init bool, detach bool) (int, error) {
 	logrus.Infof("launching container:%s, action: %s", id, action)
-	container, err := CreateContainer(id, spec)
+	var container libcapsule.Container
+	var err error
+	if init {
+		container, err = GetContainer(id)
+	} else {
+		container, err = CreateContainer(id, spec)
+	}
 	if err != nil {
 		return -1, err
 	}
 	// 将specs.Process转为libcapsule.Process
-	process, err := newProcess(*spec.Process, true)
+	process, err := newProcess(*spec.Process, init, detach)
 	logrus.Infof("new process complete, libcapsule.Process: %#v", process)
 	if err != nil {
 		return -1, err
@@ -123,7 +129,7 @@ func LoadFactory() (libcapsule.Factory, error) {
 /*
 将specs.Process转为libcapsule.Process
 */
-func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
+func newProcess(p specs.Process, init bool, detach bool) (*libcapsule.Process, error) {
 	logrus.Infof("converting specs.Process to libcapsule.Process")
 	libcapsuleProcess := &libcapsule.Process{
 		Args:            p.Args,
@@ -132,7 +138,7 @@ func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
 		Cwd:             p.Cwd,
 		NoNewPrivileges: &p.NoNewPrivileges,
 		Init:            init,
-		Terminal:        p.Terminal,
+		Detach:          detach,
 	}
 	for _, posixResourceLimit := range p.Rlimits {
 		rl, err := specutil.CreateResourceLimit(posixResourceLimit)
@@ -142,7 +148,7 @@ func newProcess(p specs.Process, init bool) (*libcapsule.Process, error) {
 		libcapsuleProcess.ResourceLimits = append(libcapsuleProcess.ResourceLimits, rl)
 	}
 	// 如果启用终端，则将进程的stdin等置为os的
-	if p.Terminal {
+	if detach {
 		libcapsuleProcess.Stdin = os.Stdin
 		libcapsuleProcess.Stdout = os.Stdout
 		libcapsuleProcess.Stderr = os.Stderr

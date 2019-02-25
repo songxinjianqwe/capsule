@@ -7,12 +7,19 @@ import (
 )
 
 /**
-如果Terminal=true，则表示将容器的stdio、stdout、stderr设置为os.stdio...等，且等待容器进程结束
-如果Terminal=false，则什么都不做。
+如果detach=true，则表示将容器的stdio、stdout、stderr设置为os.stdio...等，且等待容器进程结束
+如果detach=false，则什么都不做。
+并且rune start时，detach总是为false。
 */
 var RunCommand = cli.Command{
 	Name:  "run",
 	Usage: "create and start a container",
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "detach, d",
+			Usage: "detach from the container's process",
+		},
+	},
 	Action: func(ctx *cli.Context) error {
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
@@ -24,7 +31,7 @@ var RunCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		status, err := util.LaunchContainer(ctx.Args().First(), spec, util.ContainerActRun)
+		status, err := util.LaunchContainer(ctx.Args().First(), spec, util.ContainerActRun, true, ctx.Bool("detach"))
 		if err != nil {
 			return err
 		}

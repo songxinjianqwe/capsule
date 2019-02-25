@@ -18,8 +18,9 @@ import (
 
 const (
 	// 容器状态文件的文件名
-	// 存放在 RuntimeRoot/containerId/下
-	StateFilename = "state.json"
+	// 存放在 $RuntimeRoot/$containerId/下
+	StateFilename       = "state.json"
+	NotExecFlagFilename = "not_exec.flag"
 	// 重新执行本应用的command，相当于 重新执行./rune
 	ContainerInitPath = "/proc/self/exe"
 	// 运行容器init进程的命令
@@ -36,14 +37,14 @@ func NewFactory() (Factory, error) {
 	if err := os.MkdirAll(RuntimeRoot, 0700); err != nil {
 		return nil, util.NewGenericError(err, util.SystemError)
 	}
-	factory := LinuxContainerFactoryImpl{
+	factory := LinuxContainerFactory{
 		Root:      RuntimeRoot,
 		Validator: validate.New(),
 	}
 	return &factory, nil
 }
 
-type LinuxContainerFactoryImpl struct {
+type LinuxContainerFactory struct {
 	// Root directory for the factory to store state.
 	Root string
 
@@ -51,7 +52,7 @@ type LinuxContainerFactoryImpl struct {
 	Validator validate.Validator
 }
 
-func (factory *LinuxContainerFactoryImpl) Create(id string, config *configc.Config) (Container, error) {
+func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
 	containerRoot := filepath.Join(factory.Root, id)
 	if _, err := os.Stat(containerRoot); err == nil {
@@ -63,39 +64,42 @@ func (factory *LinuxContainerFactoryImpl) Create(id string, config *configc.Conf
 	if err := os.MkdirAll(containerRoot, 0711); err != nil {
 		return nil, util.NewGenericError(err, util.SystemError)
 	}
-	container := &LinuxContainerImpl{
+	container := &LinuxContainer{
 		id:            id,
 		root:          containerRoot,
 		config:        *config,
 		cgroupManager: cgroups.NewCroupManager(config.Cgroups),
 	}
-	container.containerState = &StoppedState{c: container}
+	container.statusBehavior = &StoppedState{c: container}
 	logrus.Infof("create container complete, container: %#v", container)
 	return container, nil
 }
 
-func (factory *LinuxContainerFactoryImpl) Load(id string) (Container, error) {
+func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 	containerRoot := filepath.Join(factory.Root, id)
 	state, err := factory.loadState(containerRoot, id)
 	if err != nil {
 		return nil, err
 	}
-	container := &LinuxContainerImpl{
+	container := &LinuxContainer{
 		id:            id,
 		root:          containerRoot,
 		config:        state.Config,
 		cgroupManager: cgroups.NewCroupManager(state.Config.Cgroups),
 	}
-
-	container.containerState, err = NewContainerState(state.Status, container)
+	container.initProcess = NewNoChildProcessWrapper(state.InitProcessPid, state.InitProcessStartTime, container)
+	detectedStatus, err := container.detectContainerStatus()
 	if err != nil {
 		return nil, err
 	}
-	container.initProcess = NewNoChildProcessWrapper(state.InitProcessPid, state.InitProcessStartTime, container)
+	container.statusBehavior, err = NewContainerStatusBehavior(detectedStatus, container)
+	if err != nil {
+		return nil, err
+	}
 	return container, nil
 }
 
-func (factory *LinuxContainerFactoryImpl) StartInitialization() error {
+func (factory *LinuxContainerFactory) StartInitialization() error {
 	defer func() {
 		if e := recover(); e != nil {
 			logrus.Errorf("panic from initialization: %v, %v", e, string(debug.Stack()))
@@ -160,7 +164,7 @@ func populateProcessEnvironment(env []string) error {
 	return nil
 }
 
-func (factory *LinuxContainerFactoryImpl) loadState(containerRoot, id string) (*State, error) {
+func (factory *LinuxContainerFactory) loadState(containerRoot, id string) (*StateStorage, error) {
 	stateFilePath := filepath.Join(containerRoot, StateFilename)
 	f, err := os.Open(stateFilePath)
 	if err != nil {
@@ -170,7 +174,7 @@ func (factory *LinuxContainerFactoryImpl) loadState(containerRoot, id string) (*
 		return nil, util.NewGenericError(err, util.SystemError)
 	}
 	defer f.Close()
-	var state *State
+	var state *StateStorage
 	if err := json.NewDecoder(f).Decode(&state); err != nil {
 		return nil, util.NewGenericError(err, util.SystemError)
 	}
