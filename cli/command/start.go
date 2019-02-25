@@ -1,8 +1,8 @@
 package command
 
 import (
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 	"github.com/songxinjianqwe/rune/cli/util"
 	"github.com/songxinjianqwe/rune/libcapsule"
 	"github.com/urfave/cli"
