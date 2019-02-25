@@ -29,15 +29,6 @@ type Container interface {
 	// Returns the current configc of the container.
 	Config() configc.Config
 
-	// 返回容器内的PIDs，存放在namespace中
-	// errors:
-	// ContainerNotExists - Container no longer exists,
-	// Systemerror - System util.
-	//
-	// Some of the returned PIDs may no longer refer to processes in the Container, unless
-	// the Container state is PAUSED in which case every PID in the slice is valid.
-	Processes() ([]int, error)
-
 	// 创建但不运行cmd
 	// errors:
 	// ContainerNotExists - Container no longer exists,

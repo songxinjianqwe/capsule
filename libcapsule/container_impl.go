@@ -61,10 +61,6 @@ func (c *LinuxContainer) Config() configc.Config {
 	return c.config
 }
 
-func (c *LinuxContainer) Processes() ([]int, error) {
-	panic("implement me")
-}
-
 /**
 Create并不会运行cmd
 会让init process阻塞在cmd之前的
@@ -148,17 +144,17 @@ func (c *LinuxContainer) create(process *Process) error {
 	// 1、创建parent config
 	parent, err := NewParentProcess(c, process)
 	if err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "creating new parent config")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "creating new parent process")
 	}
-	logrus.Infof("new parent config complete, parent config: %#v", parent)
+	logrus.Infof("new parent process complete, parent config: %#v", parent)
 	c.initProcess = parent
 	// 2、启动parent config,直至child表示自己初始化完毕，等待执行命令
 	if err := parent.start(); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "starting container config")
+		return util.NewGenericErrorWithContext(err, util.SystemError, "starting container process")
 	}
 	if process.Init {
 		// 3、更新容器状态
-		c.createdTime = time.Now().UTC()
+		c.createdTime = time.Now()
 		c.statusBehavior = &CreatedStatusBehavior{
 			c: c,
 		}

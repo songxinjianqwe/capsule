@@ -33,7 +33,7 @@ const (
 
 func NewFactory() (Factory, error) {
 	logrus.Infof("new container factory ...")
-	logrus.Infof("mkdir RuntimeRoot: %s", RuntimeRoot)
+	logrus.Infof("mkdir RuntimeRoot if not exists: %s", RuntimeRoot)
 	if err := os.MkdirAll(RuntimeRoot, 0700); err != nil {
 		return nil, util.NewGenericError(err, util.SystemError)
 	}

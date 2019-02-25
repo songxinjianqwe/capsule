@@ -9,7 +9,7 @@
 [https://github.com/songxinjianqwe/rune](https://github.com/songxinjianqwe/rune)
 
 ## Project Structure
-rune containers a cli and a library, whick provider atomic operations of container
+rune containers a cli and a library, which provider atomic operations of container
 
 ## Install
 1. `go get "github.com/songxinjianqwe/rune"`

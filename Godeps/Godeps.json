@@ -18,11 +18,6 @@
 			"Rev": "1722abf79c2f8f2675f47367f827c6491472cf27"
 		},
 		{
-			"ImportPath": "github.com/pkg/errors",
-			"Comment": "v0.8.1-22-gffb6e22",
-			"Rev": "ffb6e22f01932bf7ac35e0bad9be11f01d1c8685"
-		},
-		{
 			"ImportPath": "github.com/sirupsen/logrus",
 			"Comment": "v1.3.0-13-gcdb2f38",
 			"Rev": "cdb2f3857cfba7388d28dfe38316b0a39e694215"

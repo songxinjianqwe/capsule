@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule"
 	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
+	"io/ioutil"
 	"os"
 )
 
@@ -34,7 +35,7 @@ or
 create and start
 */
 func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init bool, detach bool) (int, error) {
-	logrus.Infof("launching container:%s, action: %s", id, action)
+	logrus.Infof("launching container: %s, action: %s", id, action)
 	var container libcapsule.Container
 	var err error
 	if init {
@@ -86,6 +87,18 @@ func GetContainer(id string) (libcapsule.Container, error) {
 		return nil, err
 	}
 	return factory.Load(id)
+}
+
+func GetContainerIds() ([]string, error) {
+	var ids []string
+	list, err := ioutil.ReadDir(libcapsule.RuntimeRoot)
+	if err != nil {
+		return nil, err
+	}
+	for _, fileInfo := range list {
+		ids = append(ids, fileInfo.Name())
+	}
+	return ids, nil
 }
 
 /**
