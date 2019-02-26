@@ -10,6 +10,17 @@ import (
 	"strings"
 )
 
+func prepareRoot(config *configc.Config) error {
+	logrus.WithField("init", true).Info("preparing root...")
+	flag := unix.MS_SLAVE | unix.MS_REC
+	logrus.WithField("init", true).Info("mounting / in \"\" fs...")
+	if err := unix.Mount("", "/", "", uintptr(flag), ""); err != nil {
+		return err
+	}
+	logrus.WithField("init", true).Infof("mounting %s in bind fs...", config.Rootfs)
+	return unix.Mount(config.Rootfs, config.Rootfs, "bind", unix.MS_BIND|unix.MS_REC, "")
+}
+
 /**
 挂载
 */

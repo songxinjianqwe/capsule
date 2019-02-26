@@ -24,40 +24,50 @@ type InitializerStandardImpl struct {
 /**
 容器初始化
 */
-func (initializer *InitializerStandardImpl) Init() error {
+func (initializer *InitializerStandardImpl) Init() (err error) {
 	logrus.WithField("init", true).Infof("InitializerStandardImpl create to Init()")
+	defer func() {
+		// 后面再出现err就不管了
+		if err != nil {
+			logrus.WithField("init", true).Errorf("init process failed, send SIGCHLD signal to parent")
+			// 告诉parent，init process已经初始化完毕，马上要执行命令了
+			if err := unix.Kill(initializer.parentPid, syscall.SIGCHLD); err != nil {
+				logrus.WithField("init", true).Errorf("send SIGABRT signal to parent failed")
+			}
+		}
+	}()
 	// 初始化网络
-	if err := initializer.setUpNetwork(); err != nil {
+	if err = initializer.setUpNetwork(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/set up network")
 	}
 
 	// 初始化路由
-	if err := initializer.setUpRoute(); err != nil {
+	if err = initializer.setUpRoute(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/set up route")
 	}
 
 	// 初始化rootfs
-	if err := initializer.prepareRootfs(); err != nil {
+	if err = initializer.prepareRootfs(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/prepare rootfs")
 	}
 
 	// 初始化hostname
 	if hostname := initializer.config.ContainerConfig.Hostname; hostname != "" {
 		logrus.WithField("init", true).Infof("setting hostname: %s", hostname)
-		if err := unix.Sethostname([]byte(hostname)); err != nil {
+		if err = unix.Sethostname([]byte(hostname)); err != nil {
 			return util.NewGenericErrorWithContext(err, util.SystemError, "init config/set hostname")
 		}
 	}
 
 	// 初始化环境变量
 	for key, value := range initializer.config.ContainerConfig.Sysctl {
-		if err := writeSystemProperty(key, value); err != nil {
+		if err = writeSystemProperty(key, value); err != nil {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("write sysctl key %s", key))
 		}
 	}
 
 	// 初始化namespace
-	if err := initializer.finalizeNamespace(); err != nil {
+	if err = initializer.finalizeNamespace(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/finalize namespace")
 	}
 
@@ -91,6 +101,7 @@ func (initializer *InitializerStandardImpl) Init() error {
 	if err := syscall.Exec(name, initializer.config.ProcessConfig.Args, os.Environ()); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "start user config")
 	}
+
 	return nil
 }
 
@@ -110,6 +121,9 @@ func (initializer *InitializerStandardImpl) setUpRoute() error {
 
 func (initializer *InitializerStandardImpl) prepareRootfs() error {
 	logrus.WithField("init", true).Info("preparing rootfs...")
+	if err := prepareRoot(&initializer.config.ContainerConfig); err != nil {
+		return util.NewGenericErrorWithContext(err, util.SystemError, "preparing root")
+	}
 	// 挂载
 	for _, m := range initializer.config.ContainerConfig.Mounts {
 		if err := mountToRootfs(m, initializer.config.ContainerConfig.Rootfs); err != nil {
@@ -137,15 +151,5 @@ func (initializer *InitializerStandardImpl) finalizeNamespace() error {
 
 func writeSystemProperty(key string, value string) error {
 	logrus.WithField("init", true).Infof("write system property:key:%s, value:%s", key, value)
-	return nil
-}
-
-func maskPath(path string, labels []string) error {
-	logrus.WithField("init", true).Infof("mask path:path:%s, labels:%v", path, labels)
-	return nil
-}
-
-func readonlyPath(path string) error {
-	logrus.WithField("init", true).Infof("make path read only:path:%s", path)
 	return nil
 }

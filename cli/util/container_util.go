@@ -5,6 +5,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule"
+	"github.com/songxinjianqwe/rune/libcapsule/util"
 	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
 	"io/ioutil"
 	"os"
@@ -53,24 +54,29 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init b
 	if err != nil {
 		return -1, err
 	}
+	var containerErr error
 	switch action {
 	case ContainerActCreate:
-		err := container.Create(process)
-		if err != nil {
-			return -1, err
-		}
+		containerErr = container.Create(process)
 		// 不管是否是terminal，都不会删除容器
 	case ContainerActRun:
 		// c.run == c.start + c.exec [+ c.destroy]
-		err := container.Run(process)
-		if err != nil {
-			return -1, err
+		containerErr = container.Run(process)
+	}
+	if containerErr != nil {
+		if err := container.Destroy(); err != nil {
+			logrus.Errorf(fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
+			return -1, util.NewGenericErrorWithContext(
+				err,
+				util.SystemError,
+				fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
 		}
-		// 如果是前台运行，那么Run结束，即为容器进程结束，则删除容器
-		if !detach {
-			if err := container.Destroy(); err != nil {
-				return -1, err
-			}
+		return -1, containerErr
+	}
+	// 如果是Run命令运行容器吗，并且是前台运行，那么Run结束，即为容器进程结束，则删除容器
+	if action == ContainerActRun && !detach {
+		if err := container.Destroy(); err != nil {
+			return -1, err
 		}
 	}
 	return 0, nil
@@ -92,6 +98,11 @@ func GetContainer(id string) (libcapsule.Container, error) {
 
 func GetContainerIds() ([]string, error) {
 	var ids []string
+	if _, err := os.Stat(libcapsule.RuntimeRoot); err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+	}
 	list, err := ioutil.ReadDir(libcapsule.RuntimeRoot)
 	if err != nil {
 		return nil, err

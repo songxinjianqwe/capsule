@@ -77,11 +77,16 @@ func (p *ParentInitProcess) start() error {
 	}
 	// 等待init process到达在初始化之后，执行命令之前的状态
 	// 使用SIGUSR1信号
-	logrus.Info("start waiting init process ready(SIGUSR1) signal...")
+	logrus.Info("start waiting init process ready(SIGUSR1) or fail(SIGCHLD) signal...")
 	receivedChan := make(chan os.Signal, 1)
-	signal.Notify(receivedChan, syscall.SIGUSR1)
-	<-receivedChan
-	logrus.Info("received SIGUSR1 signal")
+	signal.Notify(receivedChan, syscall.SIGUSR1, syscall.SIGCHLD)
+	sig := <-receivedChan
+	if sig == syscall.SIGUSR1 {
+		logrus.Info("received SIGUSR1 signal")
+	} else if sig == syscall.SIGCHLD {
+		logrus.Errorf("received SIGCHLD signal")
+		return fmt.Errorf("init process init failed")
+	}
 	return nil
 }
 
