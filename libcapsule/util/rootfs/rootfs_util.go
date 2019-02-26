@@ -49,20 +49,24 @@ func MountToRootfs(m *configc.Mount, rootfs string) error {
 			return err
 		}
 	}
-	return mount(m)
+	return mount(m, rootfs)
 }
 
 /**
 真正执行挂载
 */
-func mount(m *configc.Mount) error {
+func mount(m *configc.Mount, rootfs string) error {
 	var (
 		flags = m.Flags
+		dest  = m.Destination
 	)
 	if util.CleanPath(m.Destination) == "/dev" {
 		flags &= ^unix.MS_RDONLY
 	}
-	if err := unix.Mount(m.Source, m.Destination, m.Device, uintptr(flags), m.Data); err != nil {
+	if !strings.HasPrefix(dest, rootfs) {
+		dest = filepath.Join(rootfs, dest)
+	}
+	if err := unix.Mount(m.Source, dest, m.Device, uintptr(flags), m.Data); err != nil {
 		logrus.WithField("init", true).Errorf("mount failed, cause: %s", err.Error())
 		return err
 	}
