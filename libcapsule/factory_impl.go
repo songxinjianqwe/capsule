@@ -117,6 +117,7 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 	initializerType := InitializerType(os.Getenv(EnvInitializerType))
 	logrus.WithField("init", true).Infof("got initializer type: %s", initializerType)
 
+	// 读取config
 	configPipe := os.NewFile(uintptr(initPipeFd), "configPipe")
 	logrus.WithField("init", true).Infof("open child pipe: %#v", configPipe)
 	logrus.WithField("init", true).Infof("starting to read init config from child pipe")
@@ -140,11 +141,13 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 	if err := populateProcessEnvironment(initConfig.ProcessConfig.Env); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "populating environment variables")
 	}
+	// 创建Initializer
 	initializer, err := NewInitializer(initializerType, initConfig, configPipe)
 	if err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "creating initializer")
 	}
 	logrus.WithField("init", true).Infof("created initializer:%#v", initializer)
+	// 正式开始初始化
 	if err := initializer.Init(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "executing init command")
 	}

@@ -1,7 +1,6 @@
 package rootfs
 
 import (
-	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
@@ -9,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 func PrepareRoot(config *configc.Config) error {
@@ -28,7 +26,7 @@ func PrepareRoot(config *configc.Config) error {
 	//      mount -o remount,bind,ro olddir newdir
 	// Note that a read-only bind will create a read-only mountpoint (VFS entry), but the original filesystem superblock will still be writable, meaning that the olddir will be writable, but the newdir will be read-only.
 	// It's also possible to change nosuid, nodev, noexec, noatime, nodiratime and relatime VFS entry flags by "remount,bind" operation. It's impossible to change mount options recursively (for example with -o rbind,ro).
-	// 另一方面，还可以阻止文件被移动或者链接
+	// 另一方面，还可以阻止文件被移动或者被链接
 	// It creates a boundary that files cannot be moved or linked across
 	return unix.Mount(config.Rootfs, config.Rootfs, "bind", unix.MS_BIND|unix.MS_REC, "")
 }
@@ -44,8 +42,12 @@ func MountToRootfs(m *configc.Mount, rootfs string) error {
 	if !strings.HasPrefix(dest, rootfs) {
 		dest = filepath.Join(rootfs, dest)
 	}
-	if err := os.MkdirAll(dest, 0755); err != nil {
-		return err
+	_, err := os.Stat(dest)
+	if err != nil {
+		// 不存在，则创建
+		if err := os.MkdirAll(dest, 0755); err != nil {
+			return err
+		}
 	}
 	return mount(m)
 }
@@ -61,38 +63,30 @@ func mount(m *configc.Mount) error {
 		flags &= ^unix.MS_RDONLY
 	}
 	if err := unix.Mount(m.Source, m.Destination, m.Device, uintptr(flags), m.Data); err != nil {
+		logrus.WithField("init", true).Errorf("mount failed, cause: %s", err.Error())
 		return err
 	}
 	return nil
 }
 
+/**
+将该mount置为read only
+*/
 func RemountReadonly(m *configc.Mount) error {
 	var (
 		dest  = m.Destination
 		flags = m.Flags
 	)
-	for i := 0; i < 5; i++ {
-		// There is a special case in the kernel for
-		// MS_REMOUNT | MS_BIND, which allows us to change only the
-		// flags even as an unprivileged user (i.e. user namespace)
-		// assuming we don't drop any security related flags (nodev,
-		// nosuid, etc.). So, let's use that case so that we can do
-		// this re-mount without failing in a userns.
-		flags |= unix.MS_REMOUNT | unix.MS_BIND | unix.MS_RDONLY
-		if err := unix.Mount("", dest, "", uintptr(flags), ""); err != nil {
-			switch err {
-			case unix.EBUSY:
-				time.Sleep(100 * time.Millisecond)
-				continue
-			default:
-				return err
-			}
-		}
-		return nil
+	flags |= unix.MS_REMOUNT | unix.MS_BIND | unix.MS_RDONLY
+	if err := unix.Mount("", dest, "", uintptr(flags), ""); err != nil {
+		return err
 	}
-	return fmt.Errorf("unable to mount %s as readonly max retries reached", dest)
+	return nil
 }
 
+/**
+将rootfs 置为read only
+*/
 func SetRootfsReadonly() error {
 	return unix.Mount("/", "/", "bind", unix.MS_BIND|unix.MS_REMOUNT|unix.MS_RDONLY|unix.MS_REC, "")
 }

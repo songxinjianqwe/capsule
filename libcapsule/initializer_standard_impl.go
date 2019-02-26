@@ -173,7 +173,6 @@ func (initializer *InitializerStandardImpl) SetRootfsAndMountsReadOnly() error {
 			return util.NewGenericErrorWithContext(err, util.SystemError, "setting rootfs as readonly")
 		}
 	}
-
 	unix.Umask(0022)
 	return nil
 }
