@@ -78,7 +78,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) 
 
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 	containerRoot := filepath.Join(factory.Root, id)
-	state, err := factory.loadState(containerRoot, id)
+	state, err := factory.loadContainerState(containerRoot, id)
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +94,7 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 目前的状态
 	container.statusBehavior, err = NewContainerStatusBehavior(detectedStatus, container)
 	if err != nil {
 		return nil, err
@@ -166,7 +167,7 @@ func populateProcessEnvironment(env []string) error {
 	return nil
 }
 
-func (factory *LinuxContainerFactory) loadState(containerRoot, id string) (*StateStorage, error) {
+func (factory *LinuxContainerFactory) loadContainerState(containerRoot, id string) (*StateStorage, error) {
 	stateFilePath := filepath.Join(containerRoot, StateFilename)
 	f, err := os.Open(stateFilePath)
 	if err != nil {

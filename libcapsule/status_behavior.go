@@ -49,7 +49,9 @@ type ContainerStatusBehavior interface {
 
 func destroy(c *LinuxContainer) error {
 	logrus.Infof("destroying container...")
+	logrus.Infof("destroying cgroup manager...")
 	err := c.cgroupManager.Destroy()
+	logrus.Infof("removing container root files...")
 	if rerr := os.RemoveAll(c.root); err == nil {
 		err = rerr
 	}
@@ -161,5 +163,4 @@ func (behavior *CreatedStatusBehavior) destroy() error {
 		}
 	}
 	return fmt.Errorf("container init still running")
-
 }

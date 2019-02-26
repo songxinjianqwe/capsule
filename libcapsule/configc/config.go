@@ -16,9 +16,6 @@ type Config struct {
 	// bind mounts are writtable.
 	Readonlyfs bool `json:"readonlyfs"`
 
-	// Specifies the mount propagation flags to be applied to /.
-	RootPropagation int `json:"rootPropagation"`
-
 	// Mounts specify additional source and destination paths that will be mounted inside the container's
 	// rootfs and mount namespace if specified
 	Mounts []*Mount `json:"mounts"`

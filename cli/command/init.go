@@ -7,6 +7,9 @@ import (
 	"os"
 )
 
+/**
+仅限内部调用
+*/
 var InitCommand = cli.Command{
 	Name:  "init",
 	Usage: "init a container(execute init process)",

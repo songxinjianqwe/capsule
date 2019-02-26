@@ -1,6 +1,11 @@
 package spec
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
+)
 
 const (
 	RLIMIT_CPU        = iota // CPU time in sec
@@ -46,4 +51,16 @@ func strToRlimit(key string) (int, error) {
 		return 0, fmt.Errorf("wrong rlimit value: %s", key)
 	}
 	return rl, nil
+}
+func CreateResourceLimit(posixResourceLimit specs.POSIXRlimit) (configc.ResourceLimit, error) {
+	logrus.Infof("converting specs.POSIXRlimit to configc.ResourceLimit...", posixResourceLimit)
+	rl, err := strToRlimit(posixResourceLimit.Type)
+	if err != nil {
+		return configc.ResourceLimit{}, err
+	}
+	return configc.ResourceLimit{
+		Type: rl,
+		Hard: posixResourceLimit.Hard,
+		Soft: posixResourceLimit.Soft,
+	}, nil
 }

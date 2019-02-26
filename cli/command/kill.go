@@ -25,11 +25,11 @@ var KillCommand = cli.Command{
 			return err
 		}
 
-		sigstr := ctx.Args().Get(1)
-		if sigstr == "" {
-			sigstr = "SIGTERM"
+		sigStr := ctx.Args().Get(1)
+		if sigStr == "" {
+			sigStr = "SIGTERM"
 		}
-		signal, err := parseSignal(sigstr)
+		signal, err := parseSignal(sigStr)
 		if err != nil {
 			return err
 		}

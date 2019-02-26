@@ -108,6 +108,7 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 	c.mutex.Lock()
 	c.mutex.Unlock()
 	status, err := c.currentStatus()
+	logrus.Infof("sending %s to container init process...", s)
 	if err != nil {
 		return err
 	}
@@ -178,6 +179,7 @@ func (c *LinuxContainer) start() error {
 	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
 		return err
 	}
+	// 这里不好判断是否是之前在运行的是否是init process，索性就有就删，没有就算了
 	if err := c.deleteFlagFileIfExists(); err != nil {
 		return err
 	}
@@ -188,6 +190,10 @@ func (c *LinuxContainer) start() error {
 			return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
 		}
 		logrus.Infof("child process exited")
+		logrus.Infof("refreshing container status...")
+		if err := c.refreshStatus(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -246,18 +252,8 @@ func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
 后者是每次获取状态时都去检测一遍，并矫正内存状态。
 */
 func (c *LinuxContainer) currentStatus() (ContainerStatus, error) {
-	detectedStatus, err := c.detectContainerStatus()
-	if err != nil {
+	if err := c.refreshStatus(); err != nil {
 		return -1, err
-	}
-	if c.statusBehavior.status() != detectedStatus {
-		containerState, err := NewContainerStatusBehavior(detectedStatus, c)
-		if err != nil {
-			return -1, err
-		}
-		if err := c.statusBehavior.transition(containerState); err != nil {
-			return -1, err
-		}
 	}
 	return c.statusBehavior.status(), nil
 }
@@ -289,6 +285,26 @@ func (c *LinuxContainer) detectContainerStatus() (ContainerStatus, error) {
 		return Created, nil
 	}
 	return Running, nil
+}
+
+/**
+检测并刷新状态，调用完该方法后，容器的containerStatusBehavior是最新的状态对象
+*/
+func (c *LinuxContainer) refreshStatus() error {
+	detectedStatus, err := c.detectContainerStatus()
+	if err != nil {
+		return err
+	}
+	if c.statusBehavior.status() != detectedStatus {
+		containerState, err := NewContainerStatusBehavior(detectedStatus, c)
+		if err != nil {
+			return err
+		}
+		if err := c.statusBehavior.transition(containerState); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 /**

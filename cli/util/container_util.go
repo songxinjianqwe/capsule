@@ -8,6 +8,7 @@ import (
 	specutil "github.com/songxinjianqwe/rune/libcapsule/util/spec"
 	"io/ioutil"
 	"os"
+	"sync"
 )
 
 type ContainerAction uint8
@@ -128,15 +129,20 @@ func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) 
 	return container, nil
 }
 
+var (
+	singletonFactory    libcapsule.Factory
+	singletonFactoryErr error
+	once                sync.Once
+)
+
 /*
 创建容器工厂
 */
 func LoadFactory() (libcapsule.Factory, error) {
-	factory, err := libcapsule.NewFactory()
-	if err != nil {
-		return nil, err
-	}
-	return factory, nil
+	once.Do(func() {
+		singletonFactory, singletonFactoryErr = libcapsule.NewFactory()
+	})
+	return singletonFactory, singletonFactoryErr
 }
 
 /*

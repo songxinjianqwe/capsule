@@ -26,17 +26,22 @@ type InitializerStandardImpl struct {
 */
 func (initializer *InitializerStandardImpl) Init() error {
 	logrus.WithField("init", true).Infof("InitializerStandardImpl create to Init()")
+	// 初始化网络
 	if err := initializer.setUpNetwork(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/set up network")
 	}
+
+	// 初始化路由
 	if err := initializer.setUpRoute(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/set up route")
 	}
 
+	// 初始化rootfs
 	if err := initializer.prepareRootfs(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/prepare rootfs")
 	}
 
+	// 初始化hostname
 	if hostname := initializer.config.ContainerConfig.Hostname; hostname != "" {
 		logrus.WithField("init", true).Infof("setting hostname: %s", hostname)
 		if err := unix.Sethostname([]byte(hostname)); err != nil {
@@ -44,12 +49,14 @@ func (initializer *InitializerStandardImpl) Init() error {
 		}
 	}
 
+	// 初始化环境变量
 	for key, value := range initializer.config.ContainerConfig.Sysctl {
 		if err := writeSystemProperty(key, value); err != nil {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("write sysctl key %s", key))
 		}
 	}
 
+	// 初始化namespace
 	if err := initializer.finalizeNamespace(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/finalize namespace")
 	}
@@ -103,9 +110,7 @@ func (initializer *InitializerStandardImpl) setUpRoute() error {
 
 func (initializer *InitializerStandardImpl) prepareRootfs() error {
 	logrus.WithField("init", true).Info("preparing rootfs...")
-	if err := prepareRoot(&initializer.config.ContainerConfig); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "preparing root")
-	}
+	// 挂载
 	for _, m := range initializer.config.ContainerConfig.Mounts {
 		if err := mountToRootfs(m, initializer.config.ContainerConfig.Rootfs); err != nil {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
