@@ -89,8 +89,6 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 			}
 		}
 		logrus.Infof("convert namespaces complete, config.Namespaces: %#v", config.Namespaces)
-		config.MaskPaths = spec.Linux.MaskedPaths
-		config.ReadonlyPaths = spec.Linux.ReadonlyPaths
 		config.Sysctl = spec.Linux.Sysctl
 	}
 	config.Version = specs.Version

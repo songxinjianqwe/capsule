@@ -22,7 +22,7 @@ const (
 	StateFilename       = "state.json"
 	NotExecFlagFilename = "not_exec.flag"
 	// 重新执行本应用的command，相当于 重新执行./rune
-	ContainerInitPath = "/proc/self/exe"
+	ContainerInitCmd = "/proc/self/exe"
 	// 运行容器init进程的命令
 	ContainerInitArgs = "init"
 	// 运行时文件的存放目录
@@ -55,6 +55,7 @@ type LinuxContainerFactory struct {
 func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
 	containerRoot := filepath.Join(factory.Root, id)
+	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错
 	if _, err := os.Stat(containerRoot); err == nil {
 		return nil, util.NewGenericError(fmt.Errorf("container with id exists: %v", id), util.SystemError)
 	} else if !os.IsNotExist(err) {
@@ -83,6 +84,7 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 	}
 	container := &LinuxContainer{
 		id:            id,
+		createdTime:   state.Created,
 		root:          containerRoot,
 		config:        state.Config,
 		cgroupManager: cgroups.NewCroupManager(state.Config.Cgroups),

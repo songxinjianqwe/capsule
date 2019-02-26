@@ -4,3 +4,4 @@ coverage.txt
 *.iws
 *.iml
 *.ipr
+launch.json

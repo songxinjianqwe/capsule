@@ -47,14 +47,6 @@ type Config struct {
 	// If ResourceLimits are not set, the container will inherit rlimits from the parent process
 	ResourceLimits []ResourceLimit `json:"rlimits,omitempty"`
 
-	// MaskPaths specifies paths within the container's rootfs to mask over with a bind
-	// mount pointing to /dev/null as to prevent reads of the file.
-	MaskPaths []string `json:"mask_paths"`
-
-	// ReadonlyPaths specifies paths within the container's rootfs to remount as read-only
-	// so that these files prevent any writes.
-	ReadonlyPaths []string `json:"readonly_paths"`
-
 	// Sysctl is a map of properties and their values. It is the equivalent of using
 	// sysctl -w my.property.name value in Linux.
 	Sysctl map[string]string `json:"sysctl"`

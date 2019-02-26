@@ -65,7 +65,7 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 构造一个command对象
 */
 func buildCommand(container *LinuxContainer, process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
-	cmd := exec.Command(ContainerInitPath, ContainerInitArgs)
+	cmd := exec.Command(ContainerInitCmd, ContainerInitArgs)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: container.config.Namespaces.CloneFlags(),
 	}

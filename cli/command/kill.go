@@ -17,7 +17,7 @@ var KillCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 1, util.MinArgs); err != nil {
 			return err
 		}
-		if err := util.CheckArgs(ctx, 2, util.MinArgs); err != nil {
+		if err := util.CheckArgs(ctx, 2, util.MaxArgs); err != nil {
 			return err
 		}
 		container, err := util.GetContainer(ctx.Args().First())

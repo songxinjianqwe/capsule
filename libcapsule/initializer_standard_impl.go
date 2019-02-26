@@ -50,18 +50,6 @@ func (initializer *InitializerStandardImpl) Init() error {
 		}
 	}
 
-	for _, path := range initializer.config.ContainerConfig.ReadonlyPaths {
-		if err := readonlyPath(path); err != nil {
-			return util.NewGenericErrorWithContext(err, util.SystemError, "init config/set path read only")
-		}
-	}
-
-	for _, path := range initializer.config.ContainerConfig.MaskPaths {
-		if err := maskPath(path, initializer.config.ContainerConfig.Labels); err != nil {
-			return util.NewGenericErrorWithContext(err, util.SystemError, "init config/set path mask")
-		}
-	}
-
 	if err := initializer.finalizeNamespace(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/finalize namespace")
 	}

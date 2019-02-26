@@ -2,8 +2,6 @@ package spec
 
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"os"
-	"strings"
 )
 
 // Example returns an example spec file, with many options set so a user can
@@ -152,69 +150,4 @@ func Example() *specs.Spec {
 			},
 		},
 	}
-}
-
-// ToRootless converts the given spec file into one that should work with
-// rootless containers (euid != 0), by removing incompatible options and adding others that
-// are needed.
-func ToRootless(spec *specs.Spec) {
-	var namespaces []specs.LinuxNamespace
-
-	// Remove networkns from the spec.
-	for _, ns := range spec.Linux.Namespaces {
-		switch ns.Type {
-		case specs.NetworkNamespace, specs.UserNamespace:
-			// Do nothing.
-		default:
-			namespaces = append(namespaces, ns)
-		}
-	}
-	// Add userns to the spec.
-	namespaces = append(namespaces, specs.LinuxNamespace{
-		Type: specs.UserNamespace,
-	})
-	spec.Linux.Namespaces = namespaces
-
-	// Add mappings for the current user.
-	spec.Linux.UIDMappings = []specs.LinuxIDMapping{{
-		HostID:      uint32(os.Geteuid()),
-		ContainerID: 0,
-		Size:        1,
-	}}
-	spec.Linux.GIDMappings = []specs.LinuxIDMapping{{
-		HostID:      uint32(os.Getegid()),
-		ContainerID: 0,
-		Size:        1,
-	}}
-
-	// Fix up mounts.
-	var mounts []specs.Mount
-	for _, mount := range spec.Mounts {
-		// Ignore all mounts that are under /sys.
-		if strings.HasPrefix(mount.Destination, "/sys") {
-			continue
-		}
-
-		// Remove all gid= and uid= mappings.
-		var options []string
-		for _, option := range mount.Options {
-			if !strings.HasPrefix(option, "gid=") && !strings.HasPrefix(option, "uid=") {
-				options = append(options, option)
-			}
-		}
-
-		mount.Options = options
-		mounts = append(mounts, mount)
-	}
-	// Add the sysfs mount as an rbind.
-	mounts = append(mounts, specs.Mount{
-		Source:      "/sys",
-		Destination: "/sys",
-		Type:        "none",
-		Options:     []string{"rbind", "nosuid", "noexec", "nodev", "ro"},
-	})
-	spec.Mounts = mounts
-
-	// Remove cgroup settings.
-	spec.Linux.Resources = nil
 }
