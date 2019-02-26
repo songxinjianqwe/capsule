@@ -3,7 +3,9 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
+	"github.com/songxinjianqwe/rune/libcapsule/util/rootfs"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
@@ -47,8 +49,15 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	}
 
 	// 初始化rootfs
-	if err = initializer.prepareRootfs(); err != nil {
+	if err = initializer.setUpRootfsAndMounts(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/prepare rootfs")
+	}
+
+	// 如果有设置Mount的Namespace，则设置为read only（包括）
+	if initializer.config.ContainerConfig.Namespaces.Contains(configc.NEWNS) {
+		if err := initializer.SetRootfsAndMountsReadOnly(); err != nil {
+			return err
+		}
 	}
 
 	// 初始化hostname
@@ -119,14 +128,14 @@ func (initializer *InitializerStandardImpl) setUpRoute() error {
 	return nil
 }
 
-func (initializer *InitializerStandardImpl) prepareRootfs() error {
+func (initializer *InitializerStandardImpl) setUpRootfsAndMounts() error {
 	logrus.WithField("init", true).Info("preparing rootfs...")
-	if err := prepareRoot(&initializer.config.ContainerConfig); err != nil {
+	if err := rootfs.PrepareRoot(&initializer.config.ContainerConfig); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "preparing root")
 	}
 	// 挂载
 	for _, m := range initializer.config.ContainerConfig.Mounts {
-		if err := mountToRootfs(m, initializer.config.ContainerConfig.Rootfs); err != nil {
+		if err := rootfs.MountToRootfs(m, initializer.config.ContainerConfig.Rootfs); err != nil {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
 		}
 	}
@@ -142,6 +151,30 @@ func (initializer *InitializerStandardImpl) finalizeNamespace() error {
 			return fmt.Errorf("chdir to cwd (%q) set in config.json failed: %v", cwd, err)
 		}
 	}
+	return nil
+}
+
+func (initializer *InitializerStandardImpl) SetRootfsAndMountsReadOnly() error {
+	// remount dev as ro if specified
+	for _, m := range initializer.config.ContainerConfig.Mounts {
+		if util.CleanPath(m.Destination) == "/dev" {
+			if m.Flags&unix.MS_RDONLY == unix.MS_RDONLY {
+				if err := rootfs.RemountReadonly(m); err != nil {
+					return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("remounting %q as readonly", m.Destination))
+				}
+			}
+			break
+		}
+	}
+
+	// set rootfs ( / ) as readonly
+	if initializer.config.ContainerConfig.Readonlyfs {
+		if err := rootfs.SetRootfsReadonly(); err != nil {
+			return util.NewGenericErrorWithContext(err, util.SystemError, "setting rootfs as readonly")
+		}
+	}
+
+	unix.Umask(0022)
 	return nil
 }
 
