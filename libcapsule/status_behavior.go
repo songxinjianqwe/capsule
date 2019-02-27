@@ -47,13 +47,18 @@ type ContainerStatusBehavior interface {
 	status() ContainerStatus
 }
 
-func destroy(c *LinuxContainer) error {
+func destroy(c *LinuxContainer) (err error) {
 	logrus.Infof("destroying container...")
 	logrus.Infof("destroying cgroup manager...")
-	err := c.cgroupManager.Destroy()
+	err = c.cgroupManager.Destroy()
+	if err != nil {
+		logrus.Warnf("destroy cgroup manager failed, cause: %s", err.Error())
+	}
 	logrus.Infof("removing container root files...")
-	if rerr := os.RemoveAll(c.root); err == nil {
-		err = rerr
+	removeErr := os.RemoveAll(c.root)
+	if removeErr != nil {
+		logrus.Warnf("remove container root runtime files failed, cause: %s", err.Error())
+		err = removeErr
 	}
 	c.initProcess = nil
 	c.statusBehavior = &StoppedStatusBehavior{c: c}

@@ -20,23 +20,7 @@ type LinuxCgroupManager struct {
 }
 
 func (m *LinuxCgroupManager) Apply(pid int) error {
-	logrus.Infof("LinuxCgroupManager apply pid:%d", pid)
-	return nil
-}
-
-func (LinuxCgroupManager) GetPids() ([]int, error) {
-	return nil, nil
-}
-
-func (LinuxCgroupManager) GetAllPids() ([]int, error) {
-	return nil, nil
-}
-
-func (LinuxCgroupManager) GetStats() (*Stats, error) {
-	return nil, nil
-}
-
-func (LinuxCgroupManager) Freeze(state configc.FreezerState) error {
+	logrus.Infof("LinuxCgroupManager apply pid: %d", pid)
 	return nil
 }
 

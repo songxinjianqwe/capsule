@@ -62,7 +62,7 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 	logrus.Infof("convert devices complete, config.Devices: %#v", config.Devices)
 
 	// 转换cgroups
-	cgroupConfig, err := createCgroupConfig(id, spec)
+	cgroupConfig, err := createCgroupConfig(spec)
 	if err != nil {
 		return nil, err
 	}

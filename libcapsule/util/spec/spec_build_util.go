@@ -74,6 +74,7 @@ func Example() *specs.Spec {
 				},
 				CPU: &specs.LinuxCPU{
 					Shares: &cpuShares,
+					Cpus:   "1",
 				},
 				Memory: &specs.LinuxMemory{
 					Limit: &mem,

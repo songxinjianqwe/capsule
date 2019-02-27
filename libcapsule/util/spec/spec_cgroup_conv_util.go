@@ -108,22 +108,15 @@ var allowedDevices = []*configc.Device{
 	},
 }
 
-func createCgroupConfig(containerId string, spec *specs.Spec) (*configc.CgroupConfig, error) {
+func createCgroupConfig(spec *specs.Spec) (*configc.CgroupConfig, error) {
 	logrus.Infof("creating cgroup config...")
 	c := &configc.CgroupConfig{
 		Resources: &configc.Resources{},
 	}
 
-	var (
-		myCgroupPath string
-	)
-
+	var myCgroupPath string
 	if spec.Linux != nil && spec.Linux.CgroupsPath != "" {
 		myCgroupPath = util.CleanPath(spec.Linux.CgroupsPath)
-	}
-
-	if myCgroupPath == "" {
-		c.Name = containerId
 	}
 	c.Path = myCgroupPath
 
@@ -154,14 +147,14 @@ func createCgroupConfig(containerId string, spec *specs.Spec) (*configc.CgroupCo
 			if err != nil {
 				return nil, err
 			}
-			dd := &configc.Device{
+			device := &configc.Device{
 				Type:        dt,
 				Major:       major,
 				Minor:       minor,
 				Permissions: d.Access,
 				Allow:       d.Allow,
 			}
-			c.Resources.Devices = append(c.Resources.Devices, dd)
+			c.Resources.Devices = append(c.Resources.Devices, device)
 		}
 		if r.Memory != nil {
 			if r.Memory.Limit != nil {
@@ -171,6 +164,9 @@ func createCgroupConfig(containerId string, spec *specs.Spec) (*configc.CgroupCo
 		if r.CPU != nil {
 			if r.CPU.Shares != nil {
 				c.Resources.CpuShares = *r.CPU.Shares
+			}
+			if r.CPU.Cpus != "" {
+				c.Resources.CpusetCpus = r.CPU.Cpus
 			}
 		}
 	}
