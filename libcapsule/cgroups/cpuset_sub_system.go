@@ -6,17 +6,17 @@ type CpusetSubSystem struct {
 }
 
 func (CpusetSubSystem) Name() string {
-	panic("implement me")
+	return "cpuset"
 }
 
 func (CpusetSubSystem) Remove(*CgroupData) error {
 	panic("implement me")
 }
 
-func (CpusetSubSystem) Apply(*CgroupData) error {
+func (CpusetSubSystem) JoinCgroup(*CgroupData) error {
 	panic("implement me")
 }
 
-func (CpusetSubSystem) Set(path string, cgroup *configc.CgroupConfig) error {
+func (CpusetSubSystem) SetConfig(path string, cgroup *configc.CgroupConfig) error {
 	panic("implement me")
 }

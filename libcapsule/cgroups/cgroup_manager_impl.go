@@ -6,32 +6,33 @@ import (
 	"sync"
 )
 
-func NewCroupManager(config *configc.CgroupConfig) CgroupManager {
+func NewCroupManager() CgroupManager {
 	return &LinuxCgroupManager{
-		Config: config,
-		Paths:  make(map[string]string),
+		Paths: make(map[string]string),
 	}
 }
 
 type LinuxCgroupManager struct {
-	mutex  sync.Mutex
-	Config *configc.CgroupConfig
-	Paths  map[string]string
+	mutex sync.Mutex
+	Paths map[string]string // key是sub system的名称，value是当前容器在该sub system中的路径
 }
 
-func (m *LinuxCgroupManager) Apply(pid int) error {
+func (m *LinuxCgroupManager) JoinCgroupSet(pid int) error {
 	logrus.Infof("LinuxCgroupManager apply pid: %d", pid)
+	for _, subSystem := range subSystems {
+		subSystem.JoinCgroup()
+	}
 	return nil
 }
 
-func (LinuxCgroupManager) Destroy() error {
+func (m *LinuxCgroupManager) Destroy() error {
 	return nil
 }
 
-func (LinuxCgroupManager) GetPaths() map[string]string {
-	return nil
+func (m *LinuxCgroupManager) GetPaths() map[string]string {
+	return m.Paths
 }
 
-func (LinuxCgroupManager) Set(container *configc.Config) error {
+func (m *LinuxCgroupManager) SetConfig(config *configc.Config) error {
 	return nil
 }

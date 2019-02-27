@@ -10,15 +10,13 @@ type SubSystem interface {
 	// Removes the cgroup represented by 'CgroupData'.
 	Remove(*CgroupData) error
 	// Creates and joins the cgroup represented by 'CgroupData'.
-	Apply(*CgroupData) error
+	JoinCgroup(*CgroupData) error
 	// Set the cgroup represented by cgroup.
-	Set(path string, cgroup *configc.CgroupConfig) error
+	SetConfig(path string, cgroup *configc.CgroupConfig) error
 }
 
-type SubSystemSet []SubSystem
-
 var (
-	subsystems = SubSystemSet{
+	subsystems = []SubSystem{
 		&CpuSubSystem{},
 		&MemorySubSystem{},
 		&CpusetSubSystem{},

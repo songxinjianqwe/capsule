@@ -6,7 +6,7 @@ import (
 
 type CgroupManager interface {
 	// Applies cgroup configuration to the process with the specified pid
-	Apply(pid int) error
+	JoinCgroupSet(pid int) error
 
 	// Destroys the cgroup set
 	Destroy() error
@@ -22,5 +22,5 @@ type CgroupManager interface {
 	GetPaths() map[string]string
 
 	// Sets the cgroup as configured.
-	Set(container *configc.Config) error
+	SetConfig(config *configc.Config) error
 }

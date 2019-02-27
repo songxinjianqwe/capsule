@@ -8,17 +8,17 @@ type MemorySubSystem struct {
 }
 
 func (MemorySubSystem) Name() string {
-	panic("implement me")
+	return "memory"
 }
 
 func (MemorySubSystem) Remove(*CgroupData) error {
 	panic("implement me")
 }
 
-func (MemorySubSystem) Apply(*CgroupData) error {
+func (MemorySubSystem) JoinCgroup(*CgroupData) error {
 	panic("implement me")
 }
 
-func (MemorySubSystem) Set(path string, cgroup *configc.CgroupConfig) error {
+func (MemorySubSystem) SetConfig(path string, cgroup *configc.CgroupConfig) error {
 	panic("implement me")
 }
