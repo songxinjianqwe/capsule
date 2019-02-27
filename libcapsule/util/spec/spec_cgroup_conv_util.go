@@ -68,115 +68,13 @@ func createCgroupConfig(cgroupName string, spec *specs.Spec) (*configc.Cgroup, e
 			if r.Memory.Limit != nil {
 				c.Resources.Memory = *r.Memory.Limit
 			}
-			if r.Memory.Reservation != nil {
-				c.Resources.MemoryReservation = *r.Memory.Reservation
-			}
-			if r.Memory.Swap != nil {
-				c.Resources.MemorySwap = *r.Memory.Swap
-			}
-			if r.Memory.Kernel != nil {
-				c.Resources.KernelMemory = *r.Memory.Kernel
-			}
-			if r.Memory.KernelTCP != nil {
-				c.Resources.KernelMemoryTCP = *r.Memory.KernelTCP
-			}
-			if r.Memory.Swappiness != nil {
-				c.Resources.MemorySwappiness = r.Memory.Swappiness
-			}
-			if r.Memory.DisableOOMKiller != nil {
-				c.Resources.OomKillDisable = *r.Memory.DisableOOMKiller
-			}
 		}
 		if r.CPU != nil {
 			if r.CPU.Shares != nil {
 				c.Resources.CpuShares = *r.CPU.Shares
 			}
-			if r.CPU.Quota != nil {
-				c.Resources.CpuQuota = *r.CPU.Quota
-			}
-			if r.CPU.Period != nil {
-				c.Resources.CpuPeriod = *r.CPU.Period
-			}
-			if r.CPU.RealtimeRuntime != nil {
-				c.Resources.CpuRtRuntime = *r.CPU.RealtimeRuntime
-			}
-			if r.CPU.RealtimePeriod != nil {
-				c.Resources.CpuRtPeriod = *r.CPU.RealtimePeriod
-			}
 			if r.CPU.Cpus != "" {
 				c.Resources.CpusetCpus = r.CPU.Cpus
-			}
-			if r.CPU.Mems != "" {
-				c.Resources.CpusetMems = r.CPU.Mems
-			}
-		}
-		if r.Pids != nil {
-			c.Resources.PidsLimit = r.Pids.Limit
-		}
-		if r.BlockIO != nil {
-			if r.BlockIO.Weight != nil {
-				c.Resources.BlkioWeight = *r.BlockIO.Weight
-			}
-			if r.BlockIO.LeafWeight != nil {
-				c.Resources.BlkioLeafWeight = *r.BlockIO.LeafWeight
-			}
-			if r.BlockIO.WeightDevice != nil {
-				for _, wd := range r.BlockIO.WeightDevice {
-					var weight, leafWeight uint16
-					if wd.Weight != nil {
-						weight = *wd.Weight
-					}
-					if wd.LeafWeight != nil {
-						leafWeight = *wd.LeafWeight
-					}
-					weightDevice := configc.NewWeightDevice(wd.Major, wd.Minor, weight, leafWeight)
-					c.Resources.BlkioWeightDevice = append(c.Resources.BlkioWeightDevice, weightDevice)
-				}
-			}
-			if r.BlockIO.ThrottleReadBpsDevice != nil {
-				for _, td := range r.BlockIO.ThrottleReadBpsDevice {
-					rate := td.Rate
-					throttleDevice := configc.NewThrottleDevice(td.Major, td.Minor, rate)
-					c.Resources.BlkioThrottleReadBpsDevice = append(c.Resources.BlkioThrottleReadBpsDevice, throttleDevice)
-				}
-			}
-			if r.BlockIO.ThrottleWriteBpsDevice != nil {
-				for _, td := range r.BlockIO.ThrottleWriteBpsDevice {
-					rate := td.Rate
-					throttleDevice := configc.NewThrottleDevice(td.Major, td.Minor, rate)
-					c.Resources.BlkioThrottleWriteBpsDevice = append(c.Resources.BlkioThrottleWriteBpsDevice, throttleDevice)
-				}
-			}
-			if r.BlockIO.ThrottleReadIOPSDevice != nil {
-				for _, td := range r.BlockIO.ThrottleReadIOPSDevice {
-					rate := td.Rate
-					throttleDevice := configc.NewThrottleDevice(td.Major, td.Minor, rate)
-					c.Resources.BlkioThrottleReadIOPSDevice = append(c.Resources.BlkioThrottleReadIOPSDevice, throttleDevice)
-				}
-			}
-			if r.BlockIO.ThrottleWriteIOPSDevice != nil {
-				for _, td := range r.BlockIO.ThrottleWriteIOPSDevice {
-					rate := td.Rate
-					throttleDevice := configc.NewThrottleDevice(td.Major, td.Minor, rate)
-					c.Resources.BlkioThrottleWriteIOPSDevice = append(c.Resources.BlkioThrottleWriteIOPSDevice, throttleDevice)
-				}
-			}
-		}
-		for _, l := range r.HugepageLimits {
-			c.Resources.HugetlbLimit = append(c.Resources.HugetlbLimit, &configc.HugepageLimit{
-				Pagesize: l.Pagesize,
-				Limit:    l.Limit,
-			})
-		}
-		if r.Network != nil {
-			if r.Network.ClassID != nil {
-				c.Resources.NetClsClassid = *r.Network.ClassID
-			}
-			for _, m := range r.Network.Priorities {
-				c.Resources.NetPrioIfpriomap = append(c.Resources.NetPrioIfpriomap, &configc.IfPrioMap{
-					Interface: m.Name,
-					Priority:  int64(m.Priority),
-				})
 			}
 		}
 	}

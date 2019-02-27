@@ -12,7 +12,8 @@ type Config struct {
 	// rootfs and mount namespace if specified
 	Mounts []*Mount `json:"mounts"`
 
-	// The device nodes that should be automatically created within the container upon container start.  Note, make sure that the node is marked as allowed in the cgroup as well!
+	// The device nodes that should be automatically created within the container upon container start.
+	// Note, make sure that the node is marked as allowed in the cgroup as well!
 	Devices []*Device `json:"devices"`
 
 	// Hostname optionally sets the container's hostname if provided

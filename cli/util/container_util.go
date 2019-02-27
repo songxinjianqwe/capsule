@@ -57,8 +57,8 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init b
 	var containerErr error
 	switch action {
 	case ContainerActCreate:
+		// 如果是create，那么不管是否是terminal，都不会删除容器
 		containerErr = container.Create(process)
-		// 不管是否是terminal，都不会删除容器
 	case ContainerActRun:
 		// c.run == c.start + c.exec [+ c.destroy]
 		containerErr = container.Run(process)
