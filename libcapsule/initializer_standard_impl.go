@@ -49,13 +49,13 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	}
 
 	// 初始化rootfs
-	if err = initializer.setUpRootfsAndMounts(); err != nil {
+	if err = initializer.setUpRootfs(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/prepare rootfs")
 	}
 
-	// 如果有设置Mount的Namespace，则设置为read only（包括）
+	// 如果有设置Mount的Namespace，则设置rootfs与mount为read only（如果需要的话）
 	if initializer.config.ContainerConfig.Namespaces.Contains(configc.NEWNS) {
-		if err := initializer.SetRootfsAndMountsReadOnly(); err != nil {
+		if err := initializer.SetRootfsReadOnlyIfNeed(); err != nil {
 			return err
 		}
 	}
@@ -128,7 +128,7 @@ func (initializer *InitializerStandardImpl) setUpRoute() error {
 	return nil
 }
 
-func (initializer *InitializerStandardImpl) setUpRootfsAndMounts() error {
+func (initializer *InitializerStandardImpl) setUpRootfs() error {
 	logrus.WithField("init", true).Info("preparing rootfs...")
 	if err := rootfs.PrepareRoot(&initializer.config.ContainerConfig); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "preparing root")
@@ -139,22 +139,21 @@ func (initializer *InitializerStandardImpl) setUpRootfsAndMounts() error {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
 		}
 	}
-	return nil
-}
-
-func (initializer *InitializerStandardImpl) finalizeNamespace() error {
-	logrus.WithField("init", true).Info("finalizing namespace...")
-	cwd := initializer.config.ProcessConfig.Cwd
-	if cwd != "" {
-		logrus.WithField("init", true).Info("changing dir to cwd: %s", cwd)
-		if err := os.Chdir(cwd); err != nil {
-			return fmt.Errorf("chdir to cwd (%q) set in config.json failed: %v", cwd, err)
+	// 如果使用了Mount的namespace，则使用pivot_root命令
+	if initializer.config.ContainerConfig.Namespaces.Contains(configc.NEWNS) {
+		if err := rootfs.PivotRoot(initializer.config.ContainerConfig.Rootfs); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (initializer *InitializerStandardImpl) SetRootfsAndMountsReadOnly() error {
+func (initializer *InitializerStandardImpl) finalizeNamespace() error {
+	logrus.WithField("init", true).Info("finalizing namespace...")
+	return nil
+}
+
+func (initializer *InitializerStandardImpl) SetRootfsReadOnlyIfNeed() error {
 	// remount dev as ro if specified
 	for _, m := range initializer.config.ContainerConfig.Mounts {
 		if util.CleanPath(m.Destination) == "/dev" {
@@ -173,7 +172,6 @@ func (initializer *InitializerStandardImpl) SetRootfsAndMountsReadOnly() error {
 			return util.NewGenericErrorWithContext(err, util.SystemError, "setting rootfs as readonly")
 		}
 	}
-	unix.Umask(0022)
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 func PrepareRoot(config *configc.Config) error {
@@ -28,6 +29,9 @@ func PrepareRoot(config *configc.Config) error {
 	// It's also possible to change nosuid, nodev, noexec, noatime, nodiratime and relatime VFS entry flags by "remount,bind" operation. It's impossible to change mount options recursively (for example with -o rbind,ro).
 	// 另一方面，还可以阻止文件被移动或者被链接
 	// It creates a boundary that files cannot be moved or linked across
+
+	// 可以让当前root的老root和新root不在同一个文件系统
+	// bind mount是把相同的内容换了一个挂载点的挂载方法
 	return unix.Mount(config.Rootfs, config.Rootfs, "bind", unix.MS_BIND|unix.MS_REC, "")
 }
 
@@ -66,6 +70,7 @@ func mount(m *configc.Mount, rootfs string) error {
 	if !strings.HasPrefix(dest, rootfs) {
 		dest = filepath.Join(rootfs, dest)
 	}
+	// mount -t device src dest
 	if err := unix.Mount(m.Source, dest, m.Device, uintptr(flags), m.Data); err != nil {
 		logrus.WithField("init", true).Errorf("mount failed, cause: %s", err.Error())
 		return err
@@ -93,4 +98,36 @@ func RemountReadonly(m *configc.Mount) error {
 */
 func SetRootfsReadonly() error {
 	return unix.Mount("/", "/", "bind", unix.MS_BIND|unix.MS_REMOUNT|unix.MS_RDONLY|unix.MS_REC, "")
+}
+
+/**
+将当前root文件系统改为rootfs目录下的文件系统
+把整个系统切换到一个新的root目录，而移除对之前root文件系统的依赖，这样就可以unmount原来的root文件系统
+原来系统的mount信息都会消失！
+并且ps命令返回的进程号也只有1号sh进程和ps -ef进程
+而chroot是针对某个进程，系统的其他部分依旧运行于老的root目录中
+*/
+func PivotRoot(rootfs string) error {
+	pivotDitName := ".pivot_root"
+	pivotDir := filepath.Join(rootfs, pivotDitName)
+	if err := os.Mkdir(pivotDir, 0777); err != nil {
+		return err
+	}
+	// new root, put old
+	// 老的root现在挂载在rootfs/.pivot_root上
+	// 挂载点目前仍然可以在mount命令中看到
+	if err := syscall.PivotRoot(rootfs, pivotDir); err != nil {
+		return err
+	}
+	//切换到新的目录
+	if err := syscall.Chdir("/"); err != nil {
+		return err
+	}
+	pivotDir = filepath.Join("/", pivotDitName)
+	// unmount
+	if err := syscall.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
+		return err
+	}
+	// 删除临时目录
+	return os.Remove(pivotDir)
 }
