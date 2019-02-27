@@ -36,10 +36,16 @@ func (p *ParentNoChildProcess) pid() int {
 	return p.initProcessPid
 }
 
+/**
+不需要实现
+*/
 func (p *ParentNoChildProcess) start() error {
 	panic("implement me")
 }
 
+/**
+不需要实现
+*/
 func (p *ParentNoChildProcess) terminate() error {
 	panic("implement me")
 }

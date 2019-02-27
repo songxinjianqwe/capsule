@@ -164,7 +164,6 @@ func newProcess(p specs.Process, init bool, detach bool) (*libcapsule.Process, e
 	libcapsuleProcess := &libcapsule.Process{
 		Args:   p.Args,
 		Env:    p.Env,
-		User:   fmt.Sprintf("%d:%d", p.User.UID, p.User.GID),
 		Cwd:    p.Cwd,
 		Init:   init,
 		Detach: detach,

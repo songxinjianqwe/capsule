@@ -24,16 +24,3 @@ func (s ContainerStatus) String() string {
 		return "Unknown"
 	}
 }
-
-func statusFromString(s string) ContainerStatus {
-	switch s {
-	case "Created":
-		return Created
-	case "Running":
-		return Running
-	case "Stopped":
-		return Stopped
-	default:
-		return -1
-	}
-}
