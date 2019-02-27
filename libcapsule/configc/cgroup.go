@@ -8,7 +8,7 @@ const (
 	Thawed    FreezerState = "THAWED"
 )
 
-type Cgroup struct {
+type CgroupConfig struct {
 	// Deprecated, use Path instead
 	Name string `json:"name,omitempty"`
 
@@ -39,9 +39,6 @@ type Resources struct {
 
 	// CPU shares (relative weight vs. other containers)
 	CpuShares uint64 `json:"cpu_shares"`
-
-	// CPU to use
-	CpusetCpus string `json:"cpuset_cpus"`
 
 	// set the freeze value for the process
 	Freezer FreezerState `json:"freezer"`

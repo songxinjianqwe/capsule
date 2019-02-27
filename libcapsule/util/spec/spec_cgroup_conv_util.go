@@ -108,9 +108,9 @@ var allowedDevices = []*configc.Device{
 	},
 }
 
-func createCgroupConfig(containerId string, spec *specs.Spec) (*configc.Cgroup, error) {
+func createCgroupConfig(containerId string, spec *specs.Spec) (*configc.CgroupConfig, error) {
 	logrus.Infof("creating cgroup config...")
-	c := &configc.Cgroup{
+	c := &configc.CgroupConfig{
 		Resources: &configc.Resources{},
 	}
 
@@ -171,9 +171,6 @@ func createCgroupConfig(containerId string, spec *specs.Spec) (*configc.Cgroup, 
 		if r.CPU != nil {
 			if r.CPU.Shares != nil {
 				c.Resources.CpuShares = *r.CPU.Shares
-			}
-			if r.CPU.Cpus != "" {
-				c.Resources.CpusetCpus = r.CPU.Cpus
 			}
 		}
 	}

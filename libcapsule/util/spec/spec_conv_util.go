@@ -66,8 +66,8 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 	if err != nil {
 		return nil, err
 	}
-	config.Cgroups = cgroupConfig
-	logrus.Infof("convert cgroup config complete, config.Cgroups: %#v", config.Cgroups)
+	config.CgroupConfig = cgroupConfig
+	logrus.Infof("convert cgroup config complete, config.CgroupConfig: %#v", config.CgroupConfig)
 
 	// Linux特有配置
 	if spec.Linux != nil {

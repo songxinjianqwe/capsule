@@ -22,7 +22,7 @@ type Device struct {
 	// Minor is the device's minor number.
 	Minor int64 `json:"minor"`
 
-	// Cgroup permissions format, rwm.
+	// CgroupConfig permissions format, rwm.
 	Permissions string `json:"permissions"`
 
 	// FileMode permission bits for the device.

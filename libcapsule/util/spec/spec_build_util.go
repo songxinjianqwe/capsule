@@ -7,6 +7,8 @@ import (
 // Example returns an example spec file, with many options set so a user can
 // see what a standard spec file looks like.
 func Example() *specs.Spec {
+	cpuShares := uint64(10)
+	mem := int64(512 * 1024)
 	return &specs.Spec{
 		Version: specs.Version,
 		Root: &specs.Root{
@@ -14,8 +16,6 @@ func Example() *specs.Spec {
 			Readonly: true,
 		},
 		Process: &specs.Process{
-			Terminal: true,
-			User:     specs.User{},
 			Args: []string{
 				"sh",
 			},
@@ -23,42 +23,7 @@ func Example() *specs.Spec {
 				"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 				"TERM=xterm",
 			},
-			Cwd:             "/",
-			NoNewPrivileges: true,
-			Capabilities: &specs.LinuxCapabilities{
-				Bounding: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-				Permitted: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-				Inheritable: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-				Ambient: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-				Effective: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-			},
-			Rlimits: []specs.POSIXRlimit{
-				{
-					Type: "RLIMIT_NOFILE",
-					Hard: uint64(1024),
-					Soft: uint64(1024),
-				},
-			},
+			Cwd: "/",
 		},
 		Hostname: "rune",
 		Mounts: []specs.Mount{
@@ -98,37 +63,20 @@ func Example() *specs.Spec {
 				Source:      "sysfs",
 				Options:     []string{"nosuid", "noexec", "nodev", "ro"},
 			},
-			//{
-			//	Destination: "/sys/fs/cgroup",
-			//	Type:        "cgroup",
-			//	Source:      "cgroup",
-			//	Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
-			//},
 		},
 		Linux: &specs.Linux{
-			MaskedPaths: []string{
-				"/proc/kcore",
-				"/proc/latency_stats",
-				"/proc/timer_list",
-				"/proc/timer_stats",
-				"/proc/sched_debug",
-				"/sys/firmware",
-				"/proc/scsi",
-			},
-			ReadonlyPaths: []string{
-				"/proc/asound",
-				"/proc/bus",
-				"/proc/fs",
-				"/proc/irq",
-				"/proc/sys",
-				"/proc/sysrq-trigger",
-			},
 			Resources: &specs.LinuxResources{
 				Devices: []specs.LinuxDeviceCgroup{
 					{
 						Allow:  false,
 						Access: "rwm",
 					},
+				},
+				CPU: &specs.LinuxCPU{
+					Shares: &cpuShares,
+				},
+				Memory: &specs.LinuxMemory{
+					Limit: &mem,
 				},
 			},
 			Namespaces: []specs.LinuxNamespace{

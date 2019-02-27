@@ -29,9 +29,9 @@ type Config struct {
 	// Routes can be specified to create entries in the route table as the container is started
 	Routes []*Route `json:"routes"`
 
-	// Cgroups specifies specific cgroup settings for the various subsystems that the container is
+	// CgroupConfig specifies specific cgroup settings for the various subsystems that the container is
 	// placed into to limit the resources the container has available
-	Cgroups *Cgroup `json:"cgroups"`
+	CgroupConfig *CgroupConfig `json:"cgroups"`
 
 	// Sysctl is a map of properties and their values. It is the equivalent of using
 	// sysctl -w my.property.name value in Linux.

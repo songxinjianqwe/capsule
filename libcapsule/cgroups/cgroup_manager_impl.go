@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-func NewCroupManager(config *configc.Cgroup) CgroupManager {
+func NewCroupManager(config *configc.CgroupConfig) CgroupManager {
 	return &LinuxCgroupManager{
 		Config: config,
 		Paths:  make(map[string]string),
@@ -15,7 +15,7 @@ func NewCroupManager(config *configc.Cgroup) CgroupManager {
 
 type LinuxCgroupManager struct {
 	mutex  sync.Mutex
-	Config *configc.Cgroup
+	Config *configc.CgroupConfig
 	Paths  map[string]string
 }
 
