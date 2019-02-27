@@ -27,12 +27,14 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 	if spec.Root == nil {
 		return nil, fmt.Errorf("root must be specified")
 	}
+
 	// rootfs path要么是绝对路径，要么是cwd+rootfs转为绝对路径
 	rootfsPath := spec.Root.Path
 	if !filepath.IsAbs(rootfsPath) {
 		rootfsPath = filepath.Join(cwd, rootfsPath)
 	}
 	logrus.Infof("rootfs path is %s", rootfsPath)
+
 	// 将annotations转为labels
 	var labels []string
 	for k, v := range spec.Annotations {

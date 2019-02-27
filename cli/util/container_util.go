@@ -170,13 +170,6 @@ func newProcess(p specs.Process, init bool, detach bool) (*libcapsule.Process, e
 		Init:            init,
 		Detach:          detach,
 	}
-	for _, posixResourceLimit := range p.Rlimits {
-		rl, err := specutil.CreateResourceLimit(posixResourceLimit)
-		if err != nil {
-			return nil, err
-		}
-		libcapsuleProcess.ResourceLimits = append(libcapsuleProcess.ResourceLimits, rl)
-	}
 	// 如果启用终端，则将进程的stdin等置为os的
 	if !detach {
 		libcapsuleProcess.Stdin = os.Stdin

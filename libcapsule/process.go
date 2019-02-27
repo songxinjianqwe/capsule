@@ -1,7 +1,6 @@
 package libcapsule
 
 import (
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"io"
 	"os"
 )
@@ -34,10 +33,6 @@ type Process struct {
 
 	// NoNewPrivileges controls whether processes can gain additional privileges.
 	NoNewPrivileges *bool
-
-	// ResourceLimits specifies the resource limits, such as max open files, to set in the container
-	// If ResourceLimits are not set, the container will inherit rlimits from the parent config
-	ResourceLimits []configc.ResourceLimit
 
 	// Init specifies whether the config is the first config in the container.
 	Init bool

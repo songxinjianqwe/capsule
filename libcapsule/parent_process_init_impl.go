@@ -59,9 +59,11 @@ func (p *ParentInitProcess) start() error {
 			p.container.cgroupManager.Destroy()
 		}
 	}()
+
 	if err = p.createNetworkInterfaces(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "creating network interfaces")
 	}
+
 	// init process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "sending config to init config")
@@ -70,11 +72,11 @@ func (p *ParentInitProcess) start() error {
 	if err = p.parentConfigPipe.Close(); err != nil {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
-	// set rlimits, this has to be done here because we lose permissions
-	// to raise the limits once we enter a user-namespace
+
 	if err := p.setupResourceLimits(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "setting rlimits for ready config")
 	}
+
 	// 等待init process到达在初始化之后，执行命令之前的状态
 	// 使用SIGUSR1信号
 	logrus.Info("start waiting init process ready(SIGUSR1) or fail(SIGCHLD) signal...")

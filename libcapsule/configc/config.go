@@ -1,13 +1,5 @@
 package configc
 
-type ResourceLimit struct {
-	Type int    `json:"type"`
-	Hard uint64 `json:"hard"`
-	Soft uint64 `json:"soft"`
-}
-
-// which are common across platforms, and those which are platform specific.
-// Config defines configuration options for executing a process inside a contained environment.
 type Config struct {
 	// Path to a directory containing the container's root filesystem.
 	Rootfs string `json:"rootfs"`
@@ -39,10 +31,6 @@ type Config struct {
 	// Cgroups specifies specific cgroup settings for the various subsystems that the container is
 	// placed into to limit the resources the container has available
 	Cgroups *Cgroup `json:"cgroups"`
-
-	// ResourceLimits specifies the resource limits, such as max open files, to set in the container
-	// If ResourceLimits are not set, the container will inherit rlimits from the parent process
-	ResourceLimits []ResourceLimit `json:"rlimits,omitempty"`
 
 	// Sysctl is a map of properties and their values. It is the equivalent of using
 	// sysctl -w my.property.name value in Linux.
