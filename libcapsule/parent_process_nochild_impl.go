@@ -20,7 +20,7 @@ func NewParentNoChildProcess(initProcessPid int, initProcessStartTime uint64, c 
 }
 
 /**
-ProcessWrapper接口的实现类，no child意味着我们现在启动的进程并不是容器init process的父进程，但仍是init process的代理
+ParentProcess接口的实现类，no child意味着我们现在启动的进程并不是容器init process的父进程，但仍是init process的代理
 */
 type ParentNoChildProcess struct {
 	initProcessPid       int

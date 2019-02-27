@@ -31,9 +31,6 @@ type Process struct {
 	// ExtraFiles specifies additional open files to be inherited by the container
 	ExtraFiles []*os.File
 
-	// NoNewPrivileges controls whether processes can gain additional privileges.
-	NoNewPrivileges *bool
-
 	// Init specifies whether the config is the first config in the container.
 	Init bool
 

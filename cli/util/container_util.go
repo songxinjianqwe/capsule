@@ -162,13 +162,12 @@ func LoadFactory() (libcapsule.Factory, error) {
 func newProcess(p specs.Process, init bool, detach bool) (*libcapsule.Process, error) {
 	logrus.Infof("converting specs.Process to libcapsule.Process")
 	libcapsuleProcess := &libcapsule.Process{
-		Args:            p.Args,
-		Env:             p.Env,
-		User:            fmt.Sprintf("%d:%d", p.User.UID, p.User.GID),
-		Cwd:             p.Cwd,
-		NoNewPrivileges: &p.NoNewPrivileges,
-		Init:            init,
-		Detach:          detach,
+		Args:   p.Args,
+		Env:    p.Env,
+		User:   fmt.Sprintf("%d:%d", p.User.UID, p.User.GID),
+		Cwd:    p.Cwd,
+		Init:   init,
+		Detach: detach,
 	}
 	// 如果启用终端，则将进程的stdin等置为os的
 	if !detach {

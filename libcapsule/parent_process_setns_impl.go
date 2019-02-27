@@ -17,7 +17,7 @@ func NewParentSetnsProcess(process *Process, cmd *exec.Cmd, parentConfigPipe *os
 }
 
 /**
-ProcessWrapper接口的实现类，包裹了SetnsProcess
+ParentProcess接口的实现类，包裹了SetnsProcess
 */
 type ParentSetnsProcess struct {
 	initProcessCmd   *exec.Cmd

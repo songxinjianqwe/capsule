@@ -26,7 +26,7 @@ func NewParentInitProcess(process *Process, cmd *exec.Cmd, parentConfigPipe *os.
 }
 
 /**
-ProcessWrapper接口的实现类，包裹了InitProcess，它返回的进程信息均为容器Init进程的信息
+ParentProcess接口的实现类，包裹了InitProcess，它返回的进程信息均为容器Init进程的信息
 */
 type ParentInitProcess struct {
 	initProcessCmd   *exec.Cmd
@@ -36,13 +36,13 @@ type ParentInitProcess struct {
 	process          *Process
 }
 
-func (p *ParentInitProcess) detach() bool {
-	return p.process.Detach
-}
-
 type InitConfig struct {
 	ContainerConfig configc.Config `json:"container_config"`
 	ProcessConfig   Process        `json:"process_config"`
+}
+
+func (p *ParentInitProcess) detach() bool {
+	return p.process.Detach
 }
 
 func (p *ParentInitProcess) start() error {

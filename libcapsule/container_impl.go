@@ -10,6 +10,7 @@ import (
 	"github.com/songxinjianqwe/rune/libcapsule/util/system"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -132,9 +133,9 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 2.2 child init, then wait config
 3. child wait parent config
 4. parent send config
-5.1 parent continue to init, then wait child SIGUSR1 signal
+5.1 parent continue to init, then wait child SIGUSR1/SIGCLD signal
 5.2 child continue to init, then send signal
-6. child init complete, send SIGUSR1 signal to parent
+6. child init complete/failed, send SIGUSR1/SIGCLD signal to parent
 7. parent received signal, then refresh state
 8. child wait parent SIGUSR2 signal
 9. if create, then parent exit; if run, then parent send SIGUSR2 signal to child
@@ -151,6 +152,10 @@ func (c *LinuxContainer) create(process *Process) error {
 	c.initProcess = parent
 	// 2、启动parent config,直至child表示自己初始化完毕，等待执行命令
 	if err := parent.start(); err != nil {
+		// 启动失败，则杀掉init process，如果是已经停止，则忽略。
+		if err := ignoreTerminateErrors(parent.terminate()); err != nil {
+			logrus.Warn(err)
+		}
 		return util.NewGenericErrorWithContext(err, util.SystemError, "starting container process")
 	}
 	if process.Init {
@@ -356,4 +361,20 @@ func (c *LinuxContainer) deleteFlagFileIfExists() error {
 		return os.Remove(flagFilePath)
 	}
 	return nil
+}
+
+// ****************************************************************************************************
+// util
+// ****************************************************************************************************
+// 如果init process已经停止，则忽略terminate异常
+func ignoreTerminateErrors(err error) error {
+	if err == nil {
+		return nil
+	}
+	s := err.Error()
+	switch {
+	case strings.Contains(s, "process already finished"), strings.Contains(s, "Wait was already called"):
+		return nil
+	}
+	return err
 }

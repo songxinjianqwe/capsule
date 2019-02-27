@@ -47,7 +47,6 @@ func NewFactory() (Factory, error) {
 type LinuxContainerFactory struct {
 	// Root directory for the factory to store state.
 	Root string
-
 	// Validator provides validation to container configurations.
 	Validator validate.Validator
 }
