@@ -71,39 +71,12 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 
 	// Linux特有配置
 	if spec.Linux != nil {
-		// 转换namespaces
-		for _, ns := range spec.Linux.Namespaces {
-			t, exists := namespaceMapping[ns.Type]
-			if !exists {
-				return nil, fmt.Errorf("namespace %q does not exist", ns)
-			}
-			if config.Namespaces.Contains(t) {
-				return nil, fmt.Errorf("malformed spec file: duplicated ns %q", ns)
-			}
-			config.Namespaces.Add(t, ns.Path)
-		}
-		if config.Namespaces.Contains(configc.NEWNET) && config.Namespaces.PathOf(configc.NEWNET) == "" {
-			config.Networks = []*configc.Network{
-				{
-					Type: "loopback",
-				},
-			}
+		if err := createNamespaces(config, spec); err != nil {
+			return nil, err
 		}
 		logrus.Infof("convert namespaces complete, config.Namespaces: %#v", config.Namespaces)
 		config.Sysctl = spec.Linux.Sysctl
 	}
 	config.Version = specs.Version
 	return config, nil
-}
-
-const wildcard = -1
-
-var namespaceMapping = map[specs.LinuxNamespaceType]configc.NamespaceType{
-	specs.PIDNamespace:     configc.NEWPID,
-	specs.NetworkNamespace: configc.NEWNET,
-	specs.MountNamespace:   configc.NEWNS,
-	specs.UserNamespace:    configc.NEWUSER,
-	specs.IPCNamespace:     configc.NEWIPC,
-	specs.UTSNamespace:     configc.NEWUTS,
-	specs.CgroupNamespace:  configc.NEWCGROUP,
 }

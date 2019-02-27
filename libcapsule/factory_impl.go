@@ -6,7 +6,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
-	"github.com/songxinjianqwe/rune/libcapsule/configc/validate"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 	"io/ioutil"
 	"os"
@@ -37,23 +36,16 @@ func NewFactory() (Factory, error) {
 	if err := os.MkdirAll(RuntimeRoot, 0700); err != nil {
 		return nil, util.NewGenericError(err, util.SystemError)
 	}
-	factory := LinuxContainerFactory{
-		Root:      RuntimeRoot,
-		Validator: validate.New(),
-	}
-	return &factory, nil
+	factory := &LinuxContainerFactory{}
+	return factory, nil
 }
 
 type LinuxContainerFactory struct {
-	// Root directory for the factory to store state.
-	Root string
-	// Validator provides validation to container configurations.
-	Validator validate.Validator
 }
 
 func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
-	containerRoot := filepath.Join(factory.Root, id)
+	containerRoot := filepath.Join(RuntimeRoot, id)
 	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错
 	if _, err := os.Stat(containerRoot); err == nil {
 		return nil, util.NewGenericError(fmt.Errorf("container with id exists: %v", id), util.SystemError)
@@ -76,7 +68,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) 
 }
 
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
-	containerRoot := filepath.Join(factory.Root, id)
+	containerRoot := filepath.Join(RuntimeRoot, id)
 	state, err := factory.loadContainerState(containerRoot, id)
 	if err != nil {
 		return nil, err
