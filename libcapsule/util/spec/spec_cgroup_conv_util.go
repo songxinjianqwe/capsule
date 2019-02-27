@@ -8,94 +8,6 @@ import (
 	"github.com/songxinjianqwe/rune/libcapsule/util"
 )
 
-func createCgroupConfig(cgroupName string, spec *specs.Spec) (*configc.Cgroup, error) {
-	logrus.Infof("creating cgroup config...")
-	var (
-		myCgroupPath string
-	)
-	c := &configc.Cgroup{
-		Resources: &configc.Resources{},
-	}
-
-	if spec.Linux != nil && spec.Linux.CgroupsPath != "" {
-		myCgroupPath = util.CleanPath(spec.Linux.CgroupsPath)
-	}
-
-	if myCgroupPath == "" {
-		c.Name = cgroupName
-	}
-	c.Path = myCgroupPath
-
-	// In rootless containers, any attempt to make cgroup changes is likely to fail.
-	// libcapsule will validate this but ignores the error.
-	if spec.Linux != nil {
-		r := spec.Linux.Resources
-		if r == nil {
-			return c, nil
-		}
-		for i, d := range spec.Linux.Resources.Devices {
-			var (
-				t     = "a"
-				major = int64(-1)
-				minor = int64(-1)
-			)
-			if d.Type != "" {
-				t = d.Type
-			}
-			if d.Major != nil {
-				major = *d.Major
-			}
-			if d.Minor != nil {
-				minor = *d.Minor
-			}
-			if d.Access == "" {
-				return nil, fmt.Errorf("device access at %d field cannot be empty", i)
-			}
-			dt, err := stringToCgroupDeviceRune(t)
-			if err != nil {
-				return nil, err
-			}
-			dd := &configc.Device{
-				Type:        dt,
-				Major:       major,
-				Minor:       minor,
-				Permissions: d.Access,
-				Allow:       d.Allow,
-			}
-			c.Resources.Devices = append(c.Resources.Devices, dd)
-		}
-		if r.Memory != nil {
-			if r.Memory.Limit != nil {
-				c.Resources.Memory = *r.Memory.Limit
-			}
-		}
-		if r.CPU != nil {
-			if r.CPU.Shares != nil {
-				c.Resources.CpuShares = *r.CPU.Shares
-			}
-			if r.CPU.Cpus != "" {
-				c.Resources.CpusetCpus = r.CPU.Cpus
-			}
-		}
-	}
-	// append the default allowed devices to the end of the list
-	c.Resources.Devices = append(c.Resources.Devices, allowedDevices...)
-	return c, nil
-}
-
-func stringToCgroupDeviceRune(s string) (rune, error) {
-	switch s {
-	case "a":
-		return 'a', nil
-	case "b":
-		return 'b', nil
-	case "c":
-		return 'c', nil
-	default:
-		return 0, fmt.Errorf("invalid cgroup device type %q", s)
-	}
-}
-
 var allowedDevices = []*configc.Device{
 	// allow mknod for any device
 	{
@@ -194,4 +106,91 @@ var allowedDevices = []*configc.Device{
 		Permissions: "rwm",
 		Allow:       true,
 	},
+}
+
+func createCgroupConfig(containerId string, spec *specs.Spec) (*configc.Cgroup, error) {
+	logrus.Infof("creating cgroup config...")
+	c := &configc.Cgroup{
+		Resources: &configc.Resources{},
+	}
+
+	var (
+		myCgroupPath string
+	)
+
+	if spec.Linux != nil && spec.Linux.CgroupsPath != "" {
+		myCgroupPath = util.CleanPath(spec.Linux.CgroupsPath)
+	}
+
+	if myCgroupPath == "" {
+		c.Name = containerId
+	}
+	c.Path = myCgroupPath
+
+	if spec.Linux != nil {
+		r := spec.Linux.Resources
+		if r == nil {
+			return c, nil
+		}
+		for i, d := range spec.Linux.Resources.Devices {
+			var (
+				t     = "a"
+				major = int64(-1)
+				minor = int64(-1)
+			)
+			if d.Type != "" {
+				t = d.Type
+			}
+			if d.Major != nil {
+				major = *d.Major
+			}
+			if d.Minor != nil {
+				minor = *d.Minor
+			}
+			if d.Access == "" {
+				return nil, fmt.Errorf("device access at %d field cannot be empty", i)
+			}
+			dt, err := stringToCgroupDeviceRune(t)
+			if err != nil {
+				return nil, err
+			}
+			dd := &configc.Device{
+				Type:        dt,
+				Major:       major,
+				Minor:       minor,
+				Permissions: d.Access,
+				Allow:       d.Allow,
+			}
+			c.Resources.Devices = append(c.Resources.Devices, dd)
+		}
+		if r.Memory != nil {
+			if r.Memory.Limit != nil {
+				c.Resources.Memory = *r.Memory.Limit
+			}
+		}
+		if r.CPU != nil {
+			if r.CPU.Shares != nil {
+				c.Resources.CpuShares = *r.CPU.Shares
+			}
+			if r.CPU.Cpus != "" {
+				c.Resources.CpusetCpus = r.CPU.Cpus
+			}
+		}
+	}
+	// append the default allowed devices to the end of the list
+	c.Resources.Devices = append(c.Resources.Devices, allowedDevices...)
+	return c, nil
+}
+
+func stringToCgroupDeviceRune(s string) (rune, error) {
+	switch s {
+	case "a":
+		return 'a', nil
+	case "b":
+		return 'b', nil
+	case "c":
+		return 'c', nil
+	default:
+		return 0, fmt.Errorf("invalid cgroup device type %q", s)
+	}
 }
