@@ -1,12 +1,12 @@
 package cgroups
 
 import (
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"strconv"
 )
 
 type CpuSubsystem struct {
-	AbstractSubsystem
 }
 
 func (subsys *CpuSubsystem) Name() string {
@@ -14,8 +14,10 @@ func (subsys *CpuSubsystem) Name() string {
 }
 
 func (subsys *CpuSubsystem) SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error {
+	logrus.Infof("process is setting config in %s subsystem", subsys.Name())
 	if cgroupConfig.CpuShares != 0 {
-		if err := subsys.WriteConfigEntry(cgroupName, "cpu.shares", []byte(strconv.FormatUint(cgroupConfig.CpuShares, 10))); err != nil {
+		logrus.Infof("config is cpushares: %d", cgroupConfig.CpuShares)
+		if err := writeConfigEntry(subsys.Name(), cgroupName, "cpu.shares", []byte(strconv.FormatUint(cgroupConfig.CpuShares, 10))); err != nil {
 			return err
 		}
 	}

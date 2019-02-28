@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -20,21 +21,35 @@ Join方法传入的为cgroup的name
 getCgroupAbsolutePath就是将subsystem name 映射为 相应的hierarchy root，然后与cgroup name拼接起来。
 */
 type Subsystem interface {
+	SubsystemSpecific
+	SubsystemCommon
+}
+
+type SubsystemSpecific interface {
 	// Name returns the name of the subsystem.
 	Name() string
-	// Removes the cgroup
-	Remove(cgroupName string) error
-	// Creates and joins the cgroup
-	Join(cgroupName string, pid int) (string, error)
 	// Set the cgroup represented by cgroup.
 	SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error
 }
 
+type SubsystemCommon interface {
+	// Removes the cgroup
+	Remove(cgroupName string) error
+	// Creates and joins the cgroup
+	Join(cgroupName string, pid int) (string, error)
+}
+
 var (
 	subSystems = []Subsystem{
-		&CpuSubsystem{},
-		&MemorySubsystem{},
-		&CpusetSubsystem{},
+		&SubsystemWrapper{
+			child: &CpuSubsystem{},
+		},
+		&SubsystemWrapper{
+			child: &MemorySubsystem{},
+		},
+		&SubsystemWrapper{
+			child: &CpusetSubsystem{},
+		},
 	}
 )
 
@@ -47,6 +62,7 @@ func createAndGetCgroupAbsolutePathIfNotExists(subsystemName string, cgroupName 
 	if _, err := os.Stat(cgroupAbsolutePath); err != nil {
 		// 目录不存在，则创建
 		if os.IsNotExist(err) {
+			logrus.Infof("cgroup path not found, then create it: %s", cgroupAbsolutePath)
 			if err := os.Mkdir(cgroupAbsolutePath, 0755); err != nil {
 				logrus.Errorf("create cgroup relative path %s failed, cause: %s", cgroupAbsolutePath, err.Error())
 				return "", err
@@ -88,4 +104,16 @@ func findCgroupMountpoint(subsystemName string) (string, error) {
 		return "", err
 	}
 	return "", fmt.Errorf("subsys %s's cgroup mountpoint not found", subsystemName)
+}
+
+func writeConfigEntry(subsystemName, cgroupName, configFilename string, data []byte) error {
+	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsystemName, cgroupName)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(path.Join(cgroupPath, configFilename),
+		data, 0644); err != nil {
+		return err
+	}
+	return nil
 }

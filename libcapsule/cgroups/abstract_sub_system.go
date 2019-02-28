@@ -1,20 +1,32 @@
 package cgroups
 
 import (
+	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
 )
 
-type AbstractSubsystem struct {
+/**
+模板方法模式
+父类组合子类
+如果使用子类继承父类的方式，那么在调用父类的Name方法时，会跳到父类的Name去执行，无法跳到子类重写的的Name。
+*/
+type SubsystemWrapper struct {
+	child SubsystemSpecific
 }
 
-func (subsys *AbstractSubsystem) Name() string {
-	panic("implement me")
+func (subsys *SubsystemWrapper) Name() string {
+	return subsys.child.Name()
 }
 
-func (subsys *AbstractSubsystem) Remove(cgroupName string) error {
+func (subsys *SubsystemWrapper) SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error {
+	return subsys.child.SetConfig(cgroupName, cgroupConfig)
+}
+
+func (subsys *SubsystemWrapper) Remove(cgroupName string) error {
 	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsys.Name(), cgroupName)
 	if err != nil {
 		return err
@@ -25,7 +37,8 @@ func (subsys *AbstractSubsystem) Remove(cgroupName string) error {
 	return nil
 }
 
-func (subsys *AbstractSubsystem) Join(cgroupName string, pid int) (string, error) {
+func (subsys *SubsystemWrapper) Join(cgroupName string, pid int) (string, error) {
+	logrus.Infof("process is joining %s subsystem", subsys.Name())
 	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsys.Name(), cgroupName)
 	if err != nil {
 		return "", err
@@ -38,16 +51,4 @@ func (subsys *AbstractSubsystem) Join(cgroupName string, pid int) (string, error
 		return "", err
 	}
 	return cgroupPath, nil
-}
-
-func (subsys *AbstractSubsystem) WriteConfigEntry(cgroupName, configFilename string, data []byte) error {
-	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsys.Name(), cgroupName)
-	if err != nil {
-		return err
-	}
-	if err := ioutil.WriteFile(path.Join(cgroupPath, configFilename),
-		data, 0644); err != nil {
-		return err
-	}
-	return nil
 }

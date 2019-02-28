@@ -32,7 +32,6 @@ func (m *LinuxCgroupManager) JoinCgroupSet(pid int) (err error) {
 			return err
 		}
 		m.Paths[subSystem.Name()] = cgroupPath
-
 	}
 	return nil
 }
