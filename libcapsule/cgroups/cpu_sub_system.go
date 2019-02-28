@@ -14,9 +14,9 @@ func (subsys *CpuSubsystem) Name() string {
 }
 
 func (subsys *CpuSubsystem) SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error {
-	logrus.Infof("process is setting config in %s subsystem", subsys.Name())
+	logrus.Infof("process is setting config in [%s] subsystem", subsys.Name())
 	if cgroupConfig.CpuShares != 0 {
-		logrus.Infof("config is cpushares: %d", cgroupConfig.CpuShares)
+		logrus.Infof("writing config, cpushares: %d", cgroupConfig.CpuShares)
 		if err := writeConfigEntry(subsys.Name(), cgroupName, "cpu.shares", []byte(strconv.FormatUint(cgroupConfig.CpuShares, 10))); err != nil {
 			return err
 		}

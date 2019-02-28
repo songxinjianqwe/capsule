@@ -1,7 +1,10 @@
 package util
 
 import (
+	"github.com/sirupsen/logrus"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -52,4 +55,16 @@ func GetAnnotations(labels []string) (bundle string, userAnnotations map[string]
 		}
 	}
 	return
+}
+
+func PrintSubsystemPids(subsystemName, cgroupName, context string, init bool) {
+	bytes, err := ioutil.ReadFile(path.Join("/sys/fs/cgroup", subsystemName, cgroupName, "tasks"))
+	if err != nil {
+		logrus.Errorf("read pids failed, cause: %s", err.Error())
+	}
+	if init {
+		logrus.WithField("init", true).Infof("[Pids of %s in %s]%s, context is %s", cgroupName, subsystemName, string(bytes), context)
+	} else {
+		logrus.Infof("[Pids of %s in %s]%s, context is %s", cgroupName, subsystemName, string(bytes), context)
+	}
 }

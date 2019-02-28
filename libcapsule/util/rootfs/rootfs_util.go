@@ -1,6 +1,7 @@
 package rootfs
 
 import (
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
@@ -8,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 func PrepareRoot(config *configc.Config) error {
@@ -22,13 +22,7 @@ func PrepareRoot(config *configc.Config) error {
 	logrus.WithField("init", true).Infof("mounting %s in bind fs...", config.Rootfs)
 	// https://unix.stackexchange.com/questions/424478/bind-mounting-source-to-itself
 	// 自己bind自己是为了后面的设置成read only，可以加一些mount的flag
-	// The alternative (classic) way to create a read-only bind mount is to use the remount operation, for example:
-	//      mount --bind olddir newdir
-	//      mount -o remount,bind,ro olddir newdir
-	// Note that a read-only bind will create a read-only mountpoint (VFS entry), but the original filesystem superblock will still be writable, meaning that the olddir will be writable, but the newdir will be read-only.
-	// It's also possible to change nosuid, nodev, noexec, noatime, nodiratime and relatime VFS entry flags by "remount,bind" operation. It's impossible to change mount options recursively (for example with -o rbind,ro).
 	// 另一方面，还可以阻止文件被移动或者被链接
-	// It creates a boundary that files cannot be moved or linked across
 
 	// 可以让当前root的老root和新root不在同一个文件系统
 	// bind mount是把相同的内容换了一个挂载点的挂载方法
@@ -40,20 +34,56 @@ func PrepareRoot(config *configc.Config) error {
 */
 func MountToRootfs(m *configc.Mount, rootfs string) error {
 	logrus.WithField("init", true).Infof("mount %#v to rootfs...", m)
+	const defaultMountFlags = unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	var (
 		dest = m.Destination
 	)
 	if !strings.HasPrefix(dest, rootfs) {
 		dest = filepath.Join(rootfs, dest)
 	}
-	_, err := os.Stat(dest)
-	if err != nil {
-		// 不存在，则创建
-		if err := os.MkdirAll(dest, 0755); err != nil {
+	if m.Device == "cgroup" {
+		binds, err := getCgroupMounts(m)
+		if err != nil {
 			return err
 		}
+		tmpfs := &configc.Mount{
+			Source:      "tmpfs",
+			Device:      "tmpfs",
+			Destination: m.Destination,
+			Flags:       defaultMountFlags,
+			Data:        "mode=755",
+		}
+		if err := MountToRootfs(tmpfs, rootfs); err != nil {
+			return err
+		}
+		for _, b := range binds {
+			if err := MountToRootfs(b, rootfs); err != nil {
+				return err
+			}
+		}
+		if m.Flags&unix.MS_RDONLY != 0 {
+			// remount cgroup root as readonly
+			mcgrouproot := &configc.Mount{
+				Source:      m.Destination,
+				Device:      "bind",
+				Destination: m.Destination,
+				Flags:       defaultMountFlags | unix.MS_RDONLY | unix.MS_BIND,
+			}
+			if err := RemountReadonly(mcgrouproot); err != nil {
+				return err
+			}
+		}
+		return nil
+	} else {
+		_, err := os.Stat(dest)
+		if err != nil {
+			// 不存在，则创建
+			if err := os.MkdirAll(dest, 0755); err != nil {
+				return err
+			}
+		}
+		return mount(m, rootfs)
 	}
-	return mount(m, rootfs)
 }
 
 /**
@@ -100,34 +130,35 @@ func SetRootfsReadonly() error {
 	return unix.Mount("/", "/", "bind", unix.MS_BIND|unix.MS_REMOUNT|unix.MS_RDONLY|unix.MS_REC, "")
 }
 
-/**
-将当前root文件系统改为rootfs目录下的文件系统
-把整个系统切换到一个新的root目录，而移除对之前root文件系统的依赖，这样就可以unmount原来的root文件系统
-原来系统的mount信息都会消失！
-并且ps命令返回的进程号也只有1号sh进程和ps -ef进程
-而chroot是针对某个进程，系统的其他部分依旧运行于老的root目录中
-*/
-func PivotRoot(rootfs string) error {
-	pivotDitName := ".pivot_root"
-	pivotDir := filepath.Join(rootfs, pivotDitName)
-	if err := os.Mkdir(pivotDir, 0777); err != nil {
-		return err
+func getCgroupMounts(m *configc.Mount) ([]*configc.Mount, error) {
+	mounts, err := cgroups.GetCgroupMounts(false)
+	if err != nil {
+		return nil, err
 	}
-	// new root, put old
-	// 老的root现在挂载在rootfs/.pivot_root上
-	// 挂载点目前仍然可以在mount命令中看到
-	if err := syscall.PivotRoot(rootfs, pivotDir); err != nil {
-		return err
+
+	cgroupPaths, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
+	if err != nil {
+		return nil, err
 	}
-	//切换到新的目录
-	if err := syscall.Chdir("/"); err != nil {
-		return err
+
+	var binds []*configc.Mount
+
+	for _, mm := range mounts {
+		dir, err := mm.GetOwnCgroup(cgroupPaths)
+		if err != nil {
+			return nil, err
+		}
+		relDir, err := filepath.Rel(mm.Root, dir)
+		if err != nil {
+			return nil, err
+		}
+		binds = append(binds, &configc.Mount{
+			Device:      "bind",
+			Source:      filepath.Join(mm.Mountpoint, relDir),
+			Destination: filepath.Join(m.Destination, filepath.Base(mm.Mountpoint)),
+			Flags:       unix.MS_BIND | unix.MS_REC | m.Flags,
+		})
 	}
-	pivotDir = filepath.Join("/", pivotDitName)
-	// unmount
-	if err := syscall.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
-		return err
-	}
-	// 删除临时目录
-	return os.Remove(pivotDir)
+
+	return binds, nil
 }

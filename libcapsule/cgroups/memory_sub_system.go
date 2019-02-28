@@ -15,7 +15,7 @@ func (subsys *MemorySubsystem) Name() string {
 
 func (subsys *MemorySubsystem) SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error {
 	if cgroupConfig.Memory > 0 {
-		logrus.Infof("config is memory: %d", cgroupConfig.Memory)
+		logrus.Infof("writing config, memory: %d", cgroupConfig.Memory)
 		if err := writeConfigEntry(subsys.Name(), cgroupName, "memory.limit_in_bytes", []byte(strconv.FormatInt(cgroupConfig.Memory, 10))); err != nil {
 			return err
 		}

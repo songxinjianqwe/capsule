@@ -16,7 +16,7 @@ import (
 
 func NewParentInitProcess(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, c *LinuxContainer) ParentProcess {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
-	logrus.Infof("new init process wrapper...")
+	logrus.Infof("new parent process...")
 	return &ParentInitProcess{
 		initProcessCmd:   cmd,
 		parentConfigPipe: parentConfigPipe,
@@ -39,6 +39,7 @@ type ParentInitProcess struct {
 type InitConfig struct {
 	ContainerConfig configc.Config `json:"container_config"`
 	ProcessConfig   Process        `json:"process_config"`
+	ID              string         `json:"id"`
 }
 
 func (p *ParentInitProcess) detach() bool {
@@ -62,7 +63,7 @@ func (p *ParentInitProcess) start() (err error) {
 	if err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init process command")
 	}
-
+	logrus.Infof("init process started, INIT_PROCESS_PID: [%d]", p.pid())
 	// 将pid加入到cgroup set中
 	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
@@ -71,7 +72,6 @@ func (p *ParentInitProcess) start() (err error) {
 	if err = p.container.cgroupManager.SetConfig(p.container.config.CgroupConfig); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "setting cgroup config for procHooks process")
 	}
-
 	// 创建网络接口，比如bridge
 	if err = p.createNetworkInterfaces(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "creating network interfaces")
@@ -95,6 +95,8 @@ func (p *ParentInitProcess) start() (err error) {
 	sig := <-receivedChan
 	if sig == syscall.SIGUSR1 {
 		logrus.Info("received SIGUSR1 signal")
+
+		util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
 	} else if sig == syscall.SIGCHLD {
 		logrus.Errorf("received SIGCHLD signal")
 		return fmt.Errorf("init process init failed")
@@ -156,6 +158,7 @@ func (p *ParentInitProcess) sendConfig() error {
 	initConfig := &InitConfig{
 		ContainerConfig: p.container.config,
 		ProcessConfig:   *p.process,
+		ID:              p.container.id,
 	}
 	// remove unnecessary fields, or init config will unmarshal it failed
 	initConfig.ProcessConfig.Stdin = nil

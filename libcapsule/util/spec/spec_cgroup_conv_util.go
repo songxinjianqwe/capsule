@@ -5,7 +5,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
 )
 
 var allowedDevices = []*configc.Device{
@@ -113,12 +112,6 @@ func createCgroupConfig(spec *specs.Spec) (*configc.CgroupConfig, error) {
 	c := &configc.CgroupConfig{
 		Resources: &configc.Resources{},
 	}
-
-	var myCgroupPath string
-	if spec.Linux != nil && spec.Linux.CgroupsPath != "" {
-		myCgroupPath = util.CleanPath(spec.Linux.CgroupsPath)
-	}
-	c.Path = myCgroupPath
 
 	if spec.Linux != nil {
 		r := spec.Linux.Resources

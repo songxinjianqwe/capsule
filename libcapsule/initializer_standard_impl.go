@@ -27,6 +27,7 @@ type InitializerStandardImpl struct {
 容器初始化
 */
 func (initializer *InitializerStandardImpl) Init() (err error) {
+	util.PrintSubsystemPids("memory", initializer.config.ID, "before initializer init", true)
 	logrus.WithField("init", true).Infof("InitializerStandardImpl create to Init()")
 	defer func() {
 		// 后面再出现err就不管了
@@ -59,6 +60,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 			return err
 		}
 	}
+	util.PrintSubsystemPids("memory", initializer.config.ID, "after rootfs set up", true)
 
 	// 初始化hostname
 	if hostname := initializer.config.ContainerConfig.Hostname; hostname != "" {
@@ -107,6 +109,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	logrus.WithField("init", true).Infof("syscall.Exec(name: %s, args: %v, env: %v)...", name, initializer.config.ProcessConfig.Args, os.Environ())
 	// 在执行这条命令后，当前进程的命令会变化，但pid不变，同时parent进程死掉，当前进程的父进程变为pid=1的进程
 	// 问题是在输入任何指令后，当前进程会立即结束，并且ssh结束/当前登录用户的会话结束
+	util.PrintSubsystemPids("memory", initializer.config.ID, "before exec", true)
 	if err := syscall.Exec(name, initializer.config.ProcessConfig.Args, os.Environ()); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "start user config")
 	}

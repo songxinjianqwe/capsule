@@ -44,10 +44,11 @@ func (subsys *SubsystemWrapper) Join(cgroupName string, pid int) (string, error)
 		return "", err
 	}
 	// write pid
+	logrus.Infof("writing pid [%d] to %s", pid, path.Join(cgroupPath, "tasks"))
 	if err := ioutil.WriteFile(
 		path.Join(cgroupPath, "tasks"),
 		[]byte(strconv.Itoa(pid)),
-		0644); err != nil {
+		0700); err != nil {
 		return "", err
 	}
 	return cgroupPath, nil
