@@ -47,9 +47,6 @@ var (
 		&SubsystemWrapper{
 			child: &MemorySubsystem{},
 		},
-		&SubsystemWrapper{
-			child: &CpusetSubsystem{},
-		},
 	}
 )
 

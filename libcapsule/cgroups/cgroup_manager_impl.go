@@ -50,6 +50,8 @@ func (m *LinuxCgroupManager) Destroy() (err error) {
 }
 
 func (m *LinuxCgroupManager) GetPaths() map[string]string {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	return m.Paths
 }
 
