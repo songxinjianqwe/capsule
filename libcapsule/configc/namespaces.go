@@ -8,13 +8,11 @@ import (
 type NamespaceType string
 
 const (
-	NEWNET    NamespaceType = "NEWNET"
-	NEWPID    NamespaceType = "NEWPID"
-	NEWNS     NamespaceType = "NEWNS"
-	NEWUTS    NamespaceType = "NEWUTS"
-	NEWIPC    NamespaceType = "NEWIPC"
-	NEWUSER   NamespaceType = "NEWUSER"
-	NEWCGROUP NamespaceType = "NEWCGROUP"
+	NEWNET NamespaceType = "NEWNET"
+	NEWPID NamespaceType = "NEWPID"
+	NEWNS  NamespaceType = "NEWNS"
+	NEWUTS NamespaceType = "NEWUTS"
+	NEWIPC NamespaceType = "NEWIPC"
 )
 
 // Namespace defines configuration for each namespace.  It specifies an
@@ -37,8 +35,6 @@ func (ns NamespaceType) NsName() string {
 		return "pid"
 	case NEWIPC:
 		return "ipc"
-	case NEWUSER:
-		return "user"
 	case NEWUTS:
 		return "uts"
 	}
@@ -56,8 +52,6 @@ func (ns NamespaceType) NsFlag() uintptr {
 		return syscall.CLONE_NEWPID
 	case NEWIPC:
 		return syscall.CLONE_NEWIPC
-	case NEWUSER:
-		return syscall.CLONE_NEWUSER
 	case NEWUTS:
 		return syscall.CLONE_NEWUTS
 	}

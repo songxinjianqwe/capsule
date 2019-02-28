@@ -12,10 +12,8 @@ var namespaceMapping = map[specs.LinuxNamespaceType]configc.NamespaceType{
 	specs.PIDNamespace:     configc.NEWPID,
 	specs.NetworkNamespace: configc.NEWNET,
 	specs.MountNamespace:   configc.NEWNS,
-	specs.UserNamespace:    configc.NEWUSER,
 	specs.IPCNamespace:     configc.NEWIPC,
 	specs.UTSNamespace:     configc.NEWUTS,
-	specs.CgroupNamespace:  configc.NEWCGROUP,
 }
 
 func createNamespaces(config *configc.Config, spec *specs.Spec) error {

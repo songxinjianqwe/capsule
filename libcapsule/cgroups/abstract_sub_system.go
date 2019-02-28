@@ -31,7 +31,7 @@ func (subsys *SubsystemWrapper) Remove(cgroupName string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(cgroupPath); err != nil {
+	if err := os.RemoveAll(cgroupPath); err != nil {
 		return err
 	}
 	return nil
