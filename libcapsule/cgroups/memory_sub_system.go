@@ -2,23 +2,22 @@ package cgroups
 
 import (
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"strconv"
 )
 
-type MemorySubSystem struct {
+type MemorySubsystem struct {
+	AbstractSubsystem
 }
 
-func (MemorySubSystem) Name() string {
+func (subsys *MemorySubsystem) Name() string {
 	return "memory"
 }
 
-func (MemorySubSystem) Remove(*CgroupData) error {
-	panic("implement me")
-}
-
-func (MemorySubSystem) JoinCgroup(*CgroupData) error {
-	panic("implement me")
-}
-
-func (MemorySubSystem) SetConfig(path string, cgroup *configc.CgroupConfig) error {
-	panic("implement me")
+func (subsys *MemorySubsystem) SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error {
+	if cgroupConfig.Memory > 0 {
+		if err := subsys.WriteConfigEntry(cgroupName, "memory.limit_in_bytes", []byte(strconv.FormatInt(cgroupConfig.Memory, 10))); err != nil {
+			return err
+		}
+	}
+	return nil
 }

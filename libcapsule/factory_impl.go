@@ -60,7 +60,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) 
 		id:            id,
 		root:          containerRoot,
 		config:        *config,
-		cgroupManager: cgroups.NewCroupManager(config.CgroupConfig),
+		cgroupManager: cgroups.NewCroupManager(id, make(map[string]string)),
 	}
 	container.statusBehavior = &StoppedStatusBehavior{c: container}
 	logrus.Infof("create container complete, container: %#v", container)
@@ -78,7 +78,7 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 		createdTime:   state.Created,
 		root:          containerRoot,
 		config:        state.Config,
-		cgroupManager: cgroups.NewCroupManager(state.Config.CgroupConfig),
+		cgroupManager: cgroups.NewCroupManager(id, state.CgroupPaths),
 	}
 	container.initProcess = NewParentNoChildProcess(state.InitProcessPid, state.InitProcessStartTime, container)
 	detectedStatus, err := container.detectContainerStatus()

@@ -96,6 +96,9 @@ func GetContainer(id string) (libcapsule.Container, error) {
 	return factory.Load(id)
 }
 
+/**
+查询所有的id
+*/
 func GetContainerIds() ([]string, error) {
 	var ids []string
 	if _, err := os.Stat(libcapsule.RuntimeRoot); err != nil {

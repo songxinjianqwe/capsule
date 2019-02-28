@@ -22,5 +22,5 @@ type CgroupManager interface {
 	GetPaths() map[string]string
 
 	// Sets the cgroup as configured.
-	SetConfig(config *configc.Config) error
+	SetConfig(cgroupConfig *configc.CgroupConfig) error
 }

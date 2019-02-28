@@ -45,21 +45,27 @@ func (p *ParentInitProcess) detach() bool {
 	return p.process.Detach
 }
 
-func (p *ParentInitProcess) start() error {
+func (p *ParentInitProcess) start() (err error) {
 	logrus.Infof("ParentInitProcess starting...")
-	err := p.initProcessCmd.Start()
+	err = p.initProcessCmd.Start()
 	if err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init process command")
 	}
-	if err := p.container.cgroupManager.Apply(p.pid()); err != nil {
+	// 将pid加入到cgroup set中
+	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
 	}
 	defer func() {
+		// 如果start方法出现任何异常，则必须销毁cgroup manager
 		if err != nil {
-			p.container.cgroupManager.Destroy()
+			destroyErr := p.container.cgroupManager.Destroy()
+			if destroyErr != nil {
+				logrus.Warnf("destroy failed, cause: %s", destroyErr.Error())
+			}
 		}
 	}()
 
+	// 创建网络接口，比如bridge
 	if err = p.createNetworkInterfaces(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "creating network interfaces")
 	}
@@ -71,10 +77,6 @@ func (p *ParentInitProcess) start() error {
 	// parent 写完就关
 	if err = p.parentConfigPipe.Close(); err != nil {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
-	}
-
-	if err := p.setupResourceLimits(); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "setting rlimits for ready config")
 	}
 
 	// 等待init process到达在初始化之后，执行命令之前的状态
@@ -160,9 +162,4 @@ func (p *ParentInitProcess) sendConfig() error {
 	}
 	_, err = p.parentConfigPipe.WriteString(string(bytes))
 	return err
-}
-
-func (p *ParentInitProcess) setupResourceLimits() error {
-	logrus.Infof("setting up resource limits")
-	return nil
 }

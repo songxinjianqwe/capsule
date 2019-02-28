@@ -3,10 +3,8 @@ package configc
 type CgroupConfig struct {
 	// Path specifies the path to cgroups that are created and/or joined by the container.
 	// The path is assumed to be relative to the host system cgroup mountpoint.
+	// root cgroup目录的当前cgroup节点的相对路径
 	Path string `json:"path"`
-
-	// ScopePrefix describes prefix for the scope name
-	ScopePrefix string `json:"scope_prefix"`
 
 	// Paths represent the absolute cgroups paths to join.
 	// This takes precedence over Path.

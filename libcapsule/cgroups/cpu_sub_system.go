@@ -1,22 +1,23 @@
 package cgroups
 
-import "github.com/songxinjianqwe/rune/libcapsule/configc"
+import (
+	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"strconv"
+)
 
-type CpuSubSystem struct {
+type CpuSubsystem struct {
+	AbstractSubsystem
 }
 
-func (CpuSubSystem) Name() string {
+func (subsys *CpuSubsystem) Name() string {
 	return "cpu"
 }
 
-func (CpuSubSystem) Remove(*CgroupData) error {
-	panic("implement me")
-}
-
-func (CpuSubSystem) JoinCgroup(*CgroupData) error {
-	panic("implement me")
-}
-
-func (CpuSubSystem) SetConfig(path string, cgroup *configc.CgroupConfig) error {
-	panic("implement me")
+func (subsys *CpuSubsystem) SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error {
+	if cgroupConfig.CpuShares != 0 {
+		if err := subsys.WriteConfigEntry(cgroupName, "cpu.shares", []byte(strconv.FormatUint(cgroupConfig.CpuShares, 10))); err != nil {
+			return err
+		}
+	}
+	return nil
 }
