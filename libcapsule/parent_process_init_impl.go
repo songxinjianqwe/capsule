@@ -118,12 +118,12 @@ func (p *ParentInitProcess) terminate() error {
 }
 
 func (p *ParentInitProcess) wait() error {
-	logrus.Infof("starting to wait init config exit")
+	logrus.Infof("starting to wait init process exit")
 	err := p.initProcessCmd.Wait()
 	if err != nil {
 		return err
 	}
-	logrus.Infof("wait init config exit complete")
+	logrus.Infof("wait init process exit complete")
 	return nil
 }
 

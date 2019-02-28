@@ -75,7 +75,9 @@ func createAndGetCgroupAbsolutePathIfNotExists(subsystemName string, cgroupName 
 
 func findCgroupMountpoint(subsystemName string) (string, error) {
 	// cat /proc/self/mountinfo 拿到当前进程的相关mount信息
+	// example:
 	// 29 26 0:26 / /sys/fs/cgroup/memory rw,nosuid,nodev,noexec,relatime shared:10 - cgroup cgroup rw,seclabel,memory
+	//
 	// 文件里都是这种格式一行一行存储的
 	// 注意，最后是rw,memory，而memory是我们的subsystemName
 	// 按照空格split的话，我们需要的路径信息为[4]

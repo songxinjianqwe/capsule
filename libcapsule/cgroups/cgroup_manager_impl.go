@@ -37,10 +37,11 @@ func (m *LinuxCgroupManager) JoinCgroupSet(pid int) (err error) {
 }
 
 func (m *LinuxCgroupManager) Destroy() (err error) {
-	logrus.Infof("destroying cgroup set %s", m.CgroupName)
+	logrus.Infof("destroying cgroup set %s...", m.CgroupName)
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	for _, subSystem := range subSystems {
+		logrus.Infof("removing subsys %s", subSystem.Name())
 		if err = subSystem.Remove(m.CgroupName); err != nil {
 			logrus.Warnf("remove subsys %s failed, cause: %s", m.CgroupName, err.Error())
 		}

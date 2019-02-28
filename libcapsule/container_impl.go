@@ -189,6 +189,10 @@ func (c *LinuxContainer) start() error {
 	if err := c.deleteFlagFileIfExists(); err != nil {
 		return err
 	}
+	logrus.Infof("refreshing container status...")
+	if err := c.refreshStatus(); err != nil {
+		return err
+	}
 	// 对于前台进程来说，这里必须wait，否则在仅有容器进程存活情况下，它在输入任何命令后立即退出，并且ssh进程退出/登录用户注销
 	if !c.initProcess.detach() {
 		logrus.Infof("wait child process exit...")
@@ -196,10 +200,6 @@ func (c *LinuxContainer) start() error {
 			return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
 		}
 		logrus.Infof("child process exited")
-		logrus.Infof("refreshing container status...")
-		if err := c.refreshStatus(); err != nil {
-			return err
-		}
 	}
 	return nil
 }
