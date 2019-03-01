@@ -1,7 +1,6 @@
 package rootfs
 
 import (
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/rune/libcapsule/configc"
 	"github.com/songxinjianqwe/rune/libcapsule/util"
@@ -33,7 +32,7 @@ func PrepareRoot(config *configc.Config) error {
 挂载
 */
 func MountToRootfs(m *configc.Mount, rootfs string) error {
-	logrus.WithField("init", true).Infof("mount %#v to rootfs...", m)
+	logrus.WithField("init", true).Infof("mounting %#v to rootfs...", m)
 	const defaultMountFlags = unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	var (
 		dest = m.Destination
@@ -41,49 +40,15 @@ func MountToRootfs(m *configc.Mount, rootfs string) error {
 	if !strings.HasPrefix(dest, rootfs) {
 		dest = filepath.Join(rootfs, dest)
 	}
-	if m.Device == "cgroup" {
-		binds, err := getCgroupMounts(m)
-		if err != nil {
+
+	_, err := os.Stat(dest)
+	if err != nil {
+		// 不存在，则创建
+		if err := os.MkdirAll(dest, 0755); err != nil {
 			return err
 		}
-		tmpfs := &configc.Mount{
-			Source:      "tmpfs",
-			Device:      "tmpfs",
-			Destination: m.Destination,
-			Flags:       defaultMountFlags,
-			Data:        "mode=755",
-		}
-		if err := MountToRootfs(tmpfs, rootfs); err != nil {
-			return err
-		}
-		for _, b := range binds {
-			if err := MountToRootfs(b, rootfs); err != nil {
-				return err
-			}
-		}
-		if m.Flags&unix.MS_RDONLY != 0 {
-			// remount cgroup root as readonly
-			mcgrouproot := &configc.Mount{
-				Source:      m.Destination,
-				Device:      "bind",
-				Destination: m.Destination,
-				Flags:       defaultMountFlags | unix.MS_RDONLY | unix.MS_BIND,
-			}
-			if err := RemountReadonly(mcgrouproot); err != nil {
-				return err
-			}
-		}
-		return nil
-	} else {
-		_, err := os.Stat(dest)
-		if err != nil {
-			// 不存在，则创建
-			if err := os.MkdirAll(dest, 0755); err != nil {
-				return err
-			}
-		}
-		return mount(m, rootfs)
 	}
+	return mount(m, rootfs)
 }
 
 /**
@@ -128,37 +93,4 @@ func RemountReadonly(m *configc.Mount) error {
 */
 func SetRootfsReadonly() error {
 	return unix.Mount("/", "/", "bind", unix.MS_BIND|unix.MS_REMOUNT|unix.MS_RDONLY|unix.MS_REC, "")
-}
-
-func getCgroupMounts(m *configc.Mount) ([]*configc.Mount, error) {
-	mounts, err := cgroups.GetCgroupMounts(false)
-	if err != nil {
-		return nil, err
-	}
-
-	cgroupPaths, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
-	if err != nil {
-		return nil, err
-	}
-
-	var binds []*configc.Mount
-
-	for _, mm := range mounts {
-		dir, err := mm.GetOwnCgroup(cgroupPaths)
-		if err != nil {
-			return nil, err
-		}
-		relDir, err := filepath.Rel(mm.Root, dir)
-		if err != nil {
-			return nil, err
-		}
-		binds = append(binds, &configc.Mount{
-			Device:      "bind",
-			Source:      filepath.Join(mm.Mountpoint, relDir),
-			Destination: filepath.Join(m.Destination, filepath.Base(mm.Mountpoint)),
-			Flags:       unix.MS_BIND | unix.MS_REC | m.Flags,
-		})
-	}
-
-	return binds, nil
 }

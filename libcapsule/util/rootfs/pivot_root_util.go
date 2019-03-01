@@ -1,6 +1,7 @@
 package rootfs
 
 import (
+	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -14,6 +15,7 @@ import (
 而chroot是针对某个进程，系统的其他部分依旧运行于老的root目录中
 */
 func PivotRoot(rootfs string) error {
+	logrus.Infof("pivot root...")
 	pivotDitName := ".pivot_root"
 	pivotDir := filepath.Join(rootfs, pivotDitName)
 	if err := os.Mkdir(pivotDir, 0777); err != nil {
@@ -23,6 +25,7 @@ func PivotRoot(rootfs string) error {
 	// 老的root现在挂载在rootfs/.pivot_root上
 	// 挂载点目前仍然可以在mount命令中看到
 	if err := syscall.PivotRoot(rootfs, pivotDir); err != nil {
+		logrus.Errorf("pivot root failed, cause: %s", err.Error())
 		return err
 	}
 	//切换到新的目录
