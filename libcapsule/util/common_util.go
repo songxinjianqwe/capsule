@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bufio"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
@@ -60,11 +61,23 @@ func GetAnnotations(labels []string) (bundle string, userAnnotations map[string]
 func PrintSubsystemPids(subsystemName, cgroupName, context string, init bool) {
 	bytes, err := ioutil.ReadFile(path.Join("/sys/fs/cgroup", subsystemName, cgroupName, "tasks"))
 	if err != nil {
-		logrus.Errorf("read pids failed, cause: %s", err.Error())
+		logrus.Warnf("read pids failed, cause: %s", err.Error())
 	}
 	if init {
-		logrus.WithField("init", true).Infof("[Pids of %s in %s]%s, context is %s", cgroupName, subsystemName, string(bytes), context)
+		logrus.WithField("init", true).Warnf("[Pids of %s in %s]%s, context is %s", cgroupName, subsystemName, string(bytes), context)
 	} else {
-		logrus.Infof("[Pids of %s in %s]%s, context is %s", cgroupName, subsystemName, string(bytes), context)
+		logrus.Warnf("[Pids of %s in %s]%s, context is %s", cgroupName, subsystemName, string(bytes), context)
+	}
+}
+
+func WaitUserEnterGo() {
+	scanner := bufio.NewScanner(os.Stdin)
+	logrus.Warnf("【ATTENTION】Enter go to continue")
+	scanner.Scan()
+	ans := scanner.Text()
+	for ans != "go" {
+		logrus.Warnf("【ATTENTION】Enter go to continue")
+		scanner.Scan()
+		ans = scanner.Text()
 	}
 }

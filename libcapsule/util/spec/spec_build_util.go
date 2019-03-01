@@ -8,7 +8,7 @@ import (
 // see what a standard spec file looks like.
 func Example() *specs.Spec {
 	cpuShares := uint64(10)
-	mem := int64(512 * 1024)
+	mem := int64(100 * 1024)
 	return &specs.Spec{
 		Version: specs.Version,
 		Root: &specs.Root{
@@ -63,12 +63,6 @@ func Example() *specs.Spec {
 				Source:      "sysfs",
 				Options:     []string{"nosuid", "noexec", "nodev", "ro"},
 			},
-			{
-				Destination: "/sys/fs/cgroup",
-				Type:        "cgroup",
-				Source:      "cgroup",
-				Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
-			},
 		},
 		Linux: &specs.Linux{
 			Resources: &specs.LinuxResources{
@@ -80,7 +74,6 @@ func Example() *specs.Spec {
 				},
 				CPU: &specs.LinuxCPU{
 					Shares: &cpuShares,
-					Cpus:   "1",
 				},
 				Memory: &specs.LinuxMemory{
 					Limit: &mem,

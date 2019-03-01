@@ -65,6 +65,8 @@ func (p *ParentInitProcess) start() (err error) {
 	}
 	logrus.Infof("init process started, INIT_PROCESS_PID: [%d]", p.pid())
 
+	util.WaitUserEnterGo()
+
 	// 设置cgroup config
 	if err = p.container.cgroupManager.SetConfig(p.container.config.CgroupConfig); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "setting cgroup config for procHooks process")
@@ -98,7 +100,7 @@ func (p *ParentInitProcess) start() (err error) {
 	sig := <-receivedChan
 	if sig == syscall.SIGUSR1 {
 		logrus.Info("received SIGUSR1 signal")
-
+		util.PrintSubsystemPids("memory", p.container.id, "after init process ready", false)
 	} else if sig == syscall.SIGCHLD {
 		logrus.Errorf("received SIGCHLD signal")
 		return fmt.Errorf("init process init failed")

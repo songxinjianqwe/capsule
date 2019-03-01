@@ -107,13 +107,10 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	// syscall.Exec与cmd.Start不同，后者是启动一个新的进程来执行命令
 	// 而前者会在覆盖当前进程的镜像、数据、堆栈等信息，包括PID。
 	logrus.WithField("init", true).Infof("syscall.Exec(name: %s, args: %v, env: %v)...", name, initializer.config.ProcessConfig.Args, os.Environ())
-	// 在执行这条命令后，当前进程的命令会变化，但pid不变，同时parent进程死掉，当前进程的父进程变为pid=1的进程
-	// 问题是在输入任何指令后，当前进程会立即结束，并且ssh结束/当前登录用户的会话结束
-	util.PrintSubsystemPids("memory", "", "before exec", true)
+
 	if err := syscall.Exec(name, initializer.config.ProcessConfig.Args, os.Environ()); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "start user config")
 	}
-
 	return nil
 }
 
@@ -137,14 +134,12 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 	if err := rootfs.PrepareRoot(&initializer.config.ContainerConfig); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "preparing root")
 	}
-	util.PrintSubsystemPids("memory", initializer.config.ID, "after prepare root", true)
 	// 挂载
 	for _, m := range initializer.config.ContainerConfig.Mounts {
 		if err := rootfs.MountToRootfs(m, initializer.config.ContainerConfig.Rootfs); err != nil {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
 		}
 	}
-	util.PrintSubsystemPids("memory", initializer.config.ID, "after mounts", true)
 
 	// pivot root放在mount之前的话，会报错invalid argument
 	// 如果使用了Mount的namespace，则使用pivot_root命令
@@ -153,7 +148,6 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 			return err
 		}
 	}
-	util.PrintSubsystemPids("memory", initializer.config.ID, "after pivot root", true)
 	return nil
 }
 

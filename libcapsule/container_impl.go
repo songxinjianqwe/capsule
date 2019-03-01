@@ -180,7 +180,12 @@ func (c *LinuxContainer) create(process *Process) error {
 
 // 让init process开始执行真正的cmd
 func (c *LinuxContainer) start() error {
+	logrus.Infof("container starting...")
 	// 目前一定是Created状态
+	util.PrintSubsystemPids("memory", c.id, "before container start", false)
+
+	util.WaitUserEnterGo()
+
 	logrus.Infof("send SIGUSR2 to child process...")
 	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
 		return err
@@ -193,13 +198,17 @@ func (c *LinuxContainer) start() error {
 	if err := c.refreshStatus(); err != nil {
 		return err
 	}
+	util.PrintSubsystemPids("memory", c.id, "after signal child SIGUSR2", false)
 	// 对于前台进程来说，这里必须wait，否则在仅有容器进程存活情况下，它在输入任何命令后立即退出，并且ssh进程退出/登录用户注销
 	if !c.initProcess.detach() {
 		logrus.Infof("wait child process exit...")
+		util.PrintSubsystemPids("memory", c.id, "before waiting init process", false)
 		if err := c.initProcess.wait(); err != nil {
+			util.PrintSubsystemPids("memory", c.id, "after init process exit exceptionally", false)
 			return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
 		}
 		logrus.Infof("child process exited")
+		util.PrintSubsystemPids("memory", c.id, "after init process exit", false)
 	}
 	return nil
 }
