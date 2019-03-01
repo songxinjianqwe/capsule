@@ -133,7 +133,7 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 2.2 child init, then wait config
 3. child wait parent config
 4. parent send config
-5.1 parent continue to init, then wait child SIGUSR1/SIGCLD signal
+5.1 parent continue to init, then wait child SIGUSR1/SIGCHLD signal
 5.2 child continue to init, then send signal
 6. child init complete/failed, send SIGUSR1/SIGCLD signal to parent
 7. parent received signal, then refresh state
@@ -184,13 +184,11 @@ func (c *LinuxContainer) start() error {
 	// 目前一定是Created状态
 	util.PrintSubsystemPids("memory", c.id, "before container start", false)
 
-	util.WaitUserEnterGo()
-
 	logrus.Infof("send SIGUSR2 to child process...")
 	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
 		return err
 	}
-	// 这里不好判断是否是之前在运行的是否是init process，索性就有就删，没有就算了
+	// 这里不好判断是否是之前在运行的是否是init process，索性就 有就删，没有就算了
 	if err := c.deleteFlagFileIfExists(); err != nil {
 		return err
 	}
@@ -202,13 +200,11 @@ func (c *LinuxContainer) start() error {
 	// 对于前台进程来说，这里必须wait，否则在仅有容器进程存活情况下，它在输入任何命令后立即退出，并且ssh进程退出/登录用户注销
 	if !c.initProcess.detach() {
 		logrus.Infof("wait child process exit...")
-		util.PrintSubsystemPids("memory", c.id, "before waiting init process", false)
 		if err := c.initProcess.wait(); err != nil {
 			util.PrintSubsystemPids("memory", c.id, "after init process exit exceptionally", false)
 			return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
 		}
 		logrus.Infof("child process exited")
-		util.PrintSubsystemPids("memory", c.id, "after init process exit", false)
 	}
 	return nil
 }

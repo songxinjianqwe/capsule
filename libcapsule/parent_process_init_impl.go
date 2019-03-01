@@ -10,7 +10,6 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
-	"os/signal"
 	"syscall"
 )
 
@@ -65,18 +64,6 @@ func (p *ParentInitProcess) start() (err error) {
 	}
 	logrus.Infof("init process started, INIT_PROCESS_PID: [%d]", p.pid())
 
-	util.WaitUserEnterGo()
-
-	// 设置cgroup config
-	if err = p.container.cgroupManager.SetConfig(p.container.config.CgroupConfig); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "setting cgroup config for procHooks process")
-	}
-	// 将pid加入到cgroup set中
-	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
-	}
-	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
-
 	// 创建网络接口，比如bridge
 	if err = p.createNetworkInterfaces(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "creating network interfaces")
@@ -92,15 +79,26 @@ func (p *ParentInitProcess) start() (err error) {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
 
+	util.WaitSignal(syscall.SIGUSR1)
+	// 将pid加入到cgroup set中
+	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
+		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
+	}
+	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
+	// 设置cgroup config
+	if err = p.container.cgroupManager.SetConfig(p.container.config.CgroupConfig); err != nil {
+		return util.NewGenericErrorWithContext(err, util.SystemError, "setting cgroup config for procHooks process")
+	}
+	if err = util.SyncSignal(p.pid(), syscall.SIGUSR1); err != nil {
+		return err
+	}
+
 	// 等待init process到达在初始化之后，执行命令之前的状态
 	// 使用SIGUSR1信号
 	logrus.Info("start waiting init process ready(SIGUSR1) or fail(SIGCHLD) signal...")
-	receivedChan := make(chan os.Signal, 1)
-	signal.Notify(receivedChan, syscall.SIGUSR1, syscall.SIGCHLD)
-	sig := <-receivedChan
+	sig := util.WaitSignal(syscall.SIGUSR1, syscall.SIGCHLD)
 	if sig == syscall.SIGUSR1 {
 		logrus.Info("received SIGUSR1 signal")
-		util.PrintSubsystemPids("memory", p.container.id, "after init process ready", false)
 	} else if sig == syscall.SIGCHLD {
 		logrus.Errorf("received SIGCHLD signal")
 		return fmt.Errorf("init process init failed")

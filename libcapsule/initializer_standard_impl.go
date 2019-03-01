@@ -9,7 +9,6 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
-	"os/signal"
 	"syscall"
 )
 
@@ -76,7 +75,6 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("write sysctl key %s", key))
 		}
 	}
-
 	// 初始化namespace
 	if err = initializer.finalizeNamespace(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/finalize namespace")
@@ -92,22 +90,19 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	logrus.WithField("init", true).Infof("sync parent ready...")
 	// child --------------> parent
 	// 告诉parent，init process已经初始化完毕，马上要执行命令了
-	if err := unix.Kill(initializer.parentPid, syscall.SIGUSR1); err != nil {
+	if err := util.SyncSignal(initializer.parentPid, syscall.SIGUSR1); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "init config/sync parent ready")
 	}
 	// child <-------------- parent
 	// 等待parent给一个继续执行命令，即exec的信号
 	logrus.WithField("init", true).Info("start waiting parent continue(SIGUSR2) signal...")
-	receivedChan := make(chan os.Signal, 1)
-	signal.Notify(receivedChan, syscall.SIGUSR2)
-	<-receivedChan
+	util.WaitSignal(syscall.SIGUSR2)
 	logrus.WithField("init", true).Info("received parent continue(SIGUSR2) signal")
 
 	logrus.WithField("init", true).Info("execute real command and cover rune init config")
 	// syscall.Exec与cmd.Start不同，后者是启动一个新的进程来执行命令
 	// 而前者会在覆盖当前进程的镜像、数据、堆栈等信息，包括PID。
 	logrus.WithField("init", true).Infof("syscall.Exec(name: %s, args: %v, env: %v)...", name, initializer.config.ProcessConfig.Args, os.Environ())
-
 	if err := syscall.Exec(name, initializer.config.ProcessConfig.Args, os.Environ()); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "start user config")
 	}
@@ -140,7 +135,10 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
 		}
 	}
-
+	if err := util.SyncSignal(initializer.parentPid, syscall.SIGUSR1); err != nil {
+		return err
+	}
+	util.WaitSignal(syscall.SIGUSR1)
 	// pivot root放在mount之前的话，会报错invalid argument
 	// 如果使用了Mount的namespace，则使用pivot_root命令
 	if initializer.config.ContainerConfig.Namespaces.Contains(configc.NEWNS) {

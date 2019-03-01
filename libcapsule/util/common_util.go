@@ -3,11 +3,14 @@ package util
 import (
 	"bufio"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // CleanPath makes a path safe for use with filepath.Join. This is done by not
@@ -39,9 +42,6 @@ func CleanPath(path string) string {
 	return filepath.Clean(path)
 }
 
-// GetAnnotations returns the bundle path and user defined annotations from the
-// libcapsule state.  We need to remove the bundle because that is a label
-// added by libcapsule.
 func GetAnnotations(labels []string) (bundle string, userAnnotations map[string]string) {
 	userAnnotations = make(map[string]string)
 	for _, l := range labels {
@@ -62,6 +62,15 @@ func PrintSubsystemPids(subsystemName, cgroupName, context string, init bool) {
 	bytes, err := ioutil.ReadFile(path.Join("/sys/fs/cgroup", subsystemName, cgroupName, "tasks"))
 	if err != nil {
 		logrus.Warnf("read pids failed, cause: %s", err.Error())
+		return
+	}
+	if len(bytes) == 0 {
+		if init {
+			logrus.WithField("init", true).Warnf("[Pids of %s in %s] is EMPTY", cgroupName, subsystemName)
+		} else {
+			logrus.Warnf("[Pids of %s in %s] is EMPTY", cgroupName, subsystemName)
+		}
+		return
 	}
 	if init {
 		logrus.WithField("init", true).Warnf("[Pids of %s in %s]%s, context is %s", cgroupName, subsystemName, string(bytes), context)
@@ -80,4 +89,15 @@ func WaitUserEnterGo() {
 		scanner.Scan()
 		ans = scanner.Text()
 	}
+}
+
+func SyncSignal(pid int, signal syscall.Signal) error {
+	return unix.Kill(pid, signal)
+}
+
+func WaitSignal(sigs ...os.Signal) syscall.Signal {
+	receivedChan := make(chan os.Signal, 1)
+	signal.Notify(receivedChan, sigs...)
+	received := <-receivedChan
+	return received.(syscall.Signal)
 }

@@ -44,9 +44,11 @@ func (subsys *SubsystemWrapper) Join(cgroupName string, pid int) (string, error)
 		return "", err
 	}
 	// write pid
-	logrus.Infof("writing pid [%d] to %s", pid, path.Join(cgroupPath, "tasks"))
+	// tasks文件一般情况下cgroup控制无效，会在init process执行syscall.Exec后tasks文件被清空，暂不清楚原因
+	// cgroup.procs一定有效
+	logrus.Infof("writing pid [%d] to %s", pid, path.Join(cgroupPath, "cgroup.procs"))
 	if err := ioutil.WriteFile(
-		path.Join(cgroupPath, "tasks"),
+		path.Join(cgroupPath, "cgroup.procs"),
 		[]byte(strconv.Itoa(pid)),
 		0700); err != nil {
 		return "", err

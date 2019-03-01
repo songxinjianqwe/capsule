@@ -8,7 +8,7 @@ import (
 // see what a standard spec file looks like.
 func Example() *specs.Spec {
 	cpuShares := uint64(10)
-	mem := int64(100 * 1024)
+	mem := int64(100 * 1024 * 1024)
 	return &specs.Spec{
 		Version: specs.Version,
 		Root: &specs.Root{

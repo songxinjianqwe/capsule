@@ -1,10 +1,6 @@
 package configc
 
 type CgroupConfig struct {
-	// Paths represent the absolute cgroups paths to join.
-	// This takes precedence over Path.
-	Paths map[string]string
-
 	// Resources contains various cgroups settings to apply
 	// 继承
 	*Resources
