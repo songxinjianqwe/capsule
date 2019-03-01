@@ -135,10 +135,6 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 			return util.NewGenericErrorWithContext(err, util.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
 		}
 	}
-	if err := util.SyncSignal(initializer.parentPid, syscall.SIGUSR1); err != nil {
-		return err
-	}
-	util.WaitSignal(syscall.SIGUSR1)
 	// pivot root放在mount之前的话，会报错invalid argument
 	// 如果使用了Mount的namespace，则使用pivot_root命令
 	if initializer.config.ContainerConfig.Namespaces.Contains(configc.NEWNS) {

@@ -63,7 +63,15 @@ func (p *ParentInitProcess) start() (err error) {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init process command")
 	}
 	logrus.Infof("init process started, INIT_PROCESS_PID: [%d]", p.pid())
-
+	// 将pid加入到cgroup set中
+	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
+		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
+	}
+	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
+	// 设置cgroup config
+	if err = p.container.cgroupManager.SetConfig(p.container.config.CgroupConfig); err != nil {
+		return util.NewGenericErrorWithContext(err, util.SystemError, "setting cgroup config for procHooks process")
+	}
 	// 创建网络接口，比如bridge
 	if err = p.createNetworkInterfaces(); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "creating network interfaces")
@@ -77,20 +85,6 @@ func (p *ParentInitProcess) start() (err error) {
 	// parent 写完就关
 	if err = p.parentConfigPipe.Close(); err != nil {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
-	}
-
-	util.WaitSignal(syscall.SIGUSR1)
-	// 将pid加入到cgroup set中
-	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
-	}
-	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
-	// 设置cgroup config
-	if err = p.container.cgroupManager.SetConfig(p.container.config.CgroupConfig); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "setting cgroup config for procHooks process")
-	}
-	if err = util.SyncSignal(p.pid(), syscall.SIGUSR1); err != nil {
-		return err
 	}
 
 	// 等待init process到达在初始化之后，执行命令之前的状态
