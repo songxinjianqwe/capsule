@@ -9,10 +9,10 @@ import (
 )
 
 const (
-	AppName    = "rune"
+	AppName    = "capsule"
 	AppVersion = "0.0.1"
 	Usage      = `Open Container Initiative runtime
-rune is a command line client for running applications packaged according to
+capsule is a command line client for running applications packaged according to
 the Open Container Initiative (OCI) format and is a compliant implementation of the
 Open Container Initiative specification.`
 )

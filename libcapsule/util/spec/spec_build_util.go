@@ -25,7 +25,7 @@ func Example() *specs.Spec {
 			},
 			Cwd: "/",
 		},
-		Hostname: "rune",
+		Hostname: "capsule",
 		Mounts: []specs.Mount{
 			{
 				Destination: "/proc",
