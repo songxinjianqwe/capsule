@@ -7,7 +7,7 @@ import (
 // Example returns an example spec file, with many options set so a user can
 // see what a standard spec file looks like.
 func Example() *specs.Spec {
-	cpuShares := uint64(10)
+	cpuShares := uint64(512)
 	mem := int64(100 * 1024 * 1024)
 	return &specs.Spec{
 		Version: specs.Version,
