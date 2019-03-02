@@ -17,7 +17,12 @@ var LogCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
-		logFilename := path.Join(libcapsule.LogRoot, ctx.Args().First(), libcapsule.ContainerLogFilename)
+		containerId := ctx.Args().First()
+		_, err := util.GetContainer(containerId)
+		if err != nil {
+			return err
+		}
+		logFilename := path.Join(libcapsule.RuntimeRoot, containerId, libcapsule.ContainerLogFilename)
 		file, err := os.Open(logFilename)
 		if err != nil {
 			return err

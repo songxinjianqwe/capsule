@@ -26,8 +26,6 @@ const (
 	ContainerInitArgs = "init"
 	// 运行时文件的存放目录
 	RuntimeRoot = "/run/capsule"
-	// 日志文件的存放目录
-	LogRoot = "/var/run/capsule"
 	// 容器配置文件，存放在运行capsule的cwd下
 	ContainerConfigFilename = "config.json"
 	ContainerLogFilename    = "container.log"
@@ -37,10 +35,6 @@ func NewFactory() (Factory, error) {
 	logrus.Infof("new container factory ...")
 	logrus.Infof("mkdir RuntimeRoot if not exists: %s", RuntimeRoot)
 	if err := os.MkdirAll(RuntimeRoot, 0700); err != nil {
-		return nil, exception.NewGenericError(err, exception.SystemError)
-	}
-	logrus.Infof("mkdir LogRoot if not exists: %s", LogRoot)
-	if err := os.MkdirAll(LogRoot, 0700); err != nil {
 		return nil, exception.NewGenericError(err, exception.SystemError)
 	}
 	factory := &LinuxContainerFactory{}
