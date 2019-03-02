@@ -1,4 +1,4 @@
-package configc
+package configs
 
 type Mount struct {
 	// Source path for the mount.

@@ -3,7 +3,7 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/rootfs"
 	"golang.org/x/sys/unix"
@@ -54,7 +54,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	}
 
 	// 如果有设置Mount的Namespace，则设置rootfs与mount为read only（如果需要的话）
-	if initializer.config.ContainerConfig.Namespaces.Contains(configc.NEWNS) {
+	if initializer.config.ContainerConfig.Namespaces.Contains(configs.NEWNS) {
 		if err := initializer.SetRootfsReadOnlyIfNeed(); err != nil {
 			return err
 		}
@@ -137,7 +137,7 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 	}
 	// pivot root放在mount之前的话，会报错invalid argument
 	// 如果使用了Mount的namespace，则使用pivot_root命令
-	if initializer.config.ContainerConfig.Namespaces.Contains(configc.NEWNS) {
+	if initializer.config.ContainerConfig.Namespaces.Contains(configs.NEWNS) {
 		if err := rootfs.PivotRoot(initializer.config.ContainerConfig.Rootfs); err != nil {
 			return err
 		}

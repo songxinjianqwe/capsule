@@ -1,4 +1,4 @@
-package configc
+package configs
 
 // Network defines configuration for a container's networking stack
 //

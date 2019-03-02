@@ -2,11 +2,11 @@ package libcapsule
 
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"os"
 )
 
-// Container is a libcapsule container object.
+// Container is a container object.
 // Each container is thread-safe within the same config. Since a container can
 // be destroyed by a separate config, any function may return that the container
 // was not found.
@@ -26,13 +26,13 @@ type Container interface {
 	// SystemError - System util.
 	OCIState() (*specs.State, error)
 
-	// Returns the current configc of the container.
-	Config() configc.ContainerConfig
+	// Returns the current configs of the container.
+	Config() configs.ContainerConfig
 
 	// 创建但不运行cmd
 	// errors:
 	// ContainerNotExists - Container no longer exists,
-	// ConfigInvalid - configc is invalid,
+	// ConfigInvalid - configs is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
 	Create(process *Process) (err error)
@@ -40,7 +40,7 @@ type Container interface {
 	// Create + Start
 	// errors:
 	// ContainerNotExists - Container no longer exists,
-	// ConfigInvalid - configc is invalid,
+	// ConfigInvalid - configs is invalid,
 	// ContainerPaused - Container is paused,
 	// SystemError - System util.
 	Run(process *Process) (err error)

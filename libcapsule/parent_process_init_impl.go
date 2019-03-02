@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/system"
 	"golang.org/x/sys/unix"
@@ -36,7 +36,7 @@ type ParentInitProcess struct {
 }
 
 type InitConfig struct {
-	ContainerConfig configc.ContainerConfig `json:"container_config"`
+	ContainerConfig configs.ContainerConfig `json:"container_config"`
 	ProcessConfig   Process                 `json:"process_config"`
 	ID              string                  `json:"id"`
 }

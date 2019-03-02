@@ -1,7 +1,7 @@
 package libcapsule
 
 import (
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"time"
 )
 
@@ -20,7 +20,7 @@ type StateStorage struct {
 	Created time.Time `json:"create_time"`
 
 	// ContainerConfig is the container's configuration.
-	Config configc.ContainerConfig `json:"config"`
+	Config configs.ContainerConfig `json:"config"`
 
 	// Path to all the cgroups setup for a container. Key is cgroup subsystem name
 	// with the value as the path.
@@ -28,5 +28,5 @@ type StateStorage struct {
 
 	// NamespacePaths are filepaths to the container's namespaces. Key is the namespace type
 	// with the value as the path.
-	NamespacePaths map[configc.NamespaceType]string `json:"namespace_paths"`
+	NamespacePaths map[configs.NamespaceType]string `json:"namespace_paths"`
 }

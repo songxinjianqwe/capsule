@@ -5,7 +5,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/system"
 	"os"
@@ -24,7 +24,7 @@ const (
 type LinuxContainer struct {
 	id             string
 	root           string
-	config         configc.ContainerConfig
+	config         configs.ContainerConfig
 	cgroupManager  cgroups.CgroupManager
 	initProcess    ParentProcess
 	statusBehavior ContainerStatusBehavior
@@ -58,7 +58,7 @@ func (c *LinuxContainer) OCIState() (*specs.State, error) {
 	return c.currentOCIState()
 }
 
-func (c *LinuxContainer) Config() configc.ContainerConfig {
+func (c *LinuxContainer) Config() configs.ContainerConfig {
 	return c.config
 }
 
@@ -225,7 +225,7 @@ func (c *LinuxContainer) currentState() (*StateStorage, error) {
 		InitProcessStartTime: initProcessStartTime,
 		Created:              c.createdTime,
 		CgroupPaths:          c.cgroupManager.GetPaths(),
-		NamespacePaths:       make(map[configc.NamespaceType]string),
+		NamespacePaths:       make(map[configs.NamespaceType]string),
 	}
 	if initProcessPid > 0 {
 		for _, ns := range c.config.Namespaces {

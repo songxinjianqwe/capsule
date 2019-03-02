@@ -1,7 +1,7 @@
 package cgroups
 
 import (
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 )
 
 type CgroupManager interface {
@@ -22,5 +22,5 @@ type CgroupManager interface {
 	GetPaths() map[string]string
 
 	// Sets the cgroup as configured.
-	SetConfig(cgroupConfig *configc.Cgroup) error
+	SetConfig(cgroupConfig *configs.Cgroup) error
 }

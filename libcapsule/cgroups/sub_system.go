@@ -1,7 +1,7 @@
 package cgroups
 
 import (
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 )
 
 /**
@@ -22,7 +22,7 @@ type SubsystemSpecific interface {
 	// Name returns the name of the subsystem.
 	Name() string
 	// Set the cgroup represented by cgroup.
-	SetConfig(cgroupName string, cgroupConfig *configc.Cgroup) error
+	SetConfig(cgroupName string, cgroupConfig *configs.Cgroup) error
 }
 
 type SubsystemCommon interface {

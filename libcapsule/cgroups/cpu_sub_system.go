@@ -2,7 +2,7 @@ package cgroups
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"strconv"
 )
 
@@ -16,7 +16,7 @@ func (subsys *CpuSubsystem) Name() string {
 /**
 cpu share
 */
-func (subsys *CpuSubsystem) SetConfig(cgroupName string, cgroupConfig *configc.Cgroup) error {
+func (subsys *CpuSubsystem) SetConfig(cgroupName string, cgroupConfig *configs.Cgroup) error {
 	logrus.Infof("process is setting config in [%s] subsystem", subsys.Name())
 	if cgroupConfig.CpuShares != 0 {
 		logrus.Infof("writing config, cpushares: %d", cgroupConfig.CpuShares)

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 )
 
-var allowedDevices = []*configc.Device{
+var allowedDevices = []*configs.Device{
 	// allow mknod for any device
 	{
 		Type:        'c',
@@ -107,10 +107,10 @@ var allowedDevices = []*configc.Device{
 	},
 }
 
-func createCgroupConfig(spec *specs.Spec) (*configc.Cgroup, error) {
+func createCgroupConfig(spec *specs.Spec) (*configs.Cgroup, error) {
 	logrus.Infof("creating cgroup config...")
-	c := &configc.Cgroup{
-		Resources: &configc.Resources{},
+	c := &configs.Cgroup{
+		Resources: &configs.Resources{},
 	}
 
 	if spec.Linux != nil {
@@ -140,7 +140,7 @@ func createCgroupConfig(spec *specs.Spec) (*configc.Cgroup, error) {
 			if err != nil {
 				return nil, err
 			}
-			device := &configc.Device{
+			device := &configs.Device{
 				Type:        dt,
 				Major:       major,
 				Minor:       minor,

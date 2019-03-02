@@ -1,4 +1,4 @@
-package configc
+package configs
 
 type Cgroup struct {
 	// Resources contains various cgroups settings to apply

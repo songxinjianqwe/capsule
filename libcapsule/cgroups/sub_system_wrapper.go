@@ -2,7 +2,7 @@ package cgroups
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -22,7 +22,7 @@ func (subsys *SubsystemWrapper) Name() string {
 	return subsys.child.Name()
 }
 
-func (subsys *SubsystemWrapper) SetConfig(cgroupName string, cgroupConfig *configc.Cgroup) error {
+func (subsys *SubsystemWrapper) SetConfig(cgroupName string, cgroupConfig *configs.Cgroup) error {
 	return subsys.child.SetConfig(cgroupName, cgroupConfig)
 }
 

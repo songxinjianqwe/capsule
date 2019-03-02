@@ -2,7 +2,7 @@ package rootfs
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"golang.org/x/sys/unix"
 	"os"
@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func PrepareRoot(config *configc.ContainerConfig) error {
+func PrepareRoot(config *configs.ContainerConfig) error {
 	logrus.WithField("init", true).Info("preparing root...")
 	flag := unix.MS_SLAVE | unix.MS_REC
 	logrus.WithField("init", true).Info("mounting / in \"\" fs...")
@@ -31,7 +31,7 @@ func PrepareRoot(config *configc.ContainerConfig) error {
 /**
 挂载
 */
-func MountToRootfs(m *configc.Mount, rootfs string) error {
+func MountToRootfs(m *configs.Mount, rootfs string) error {
 	logrus.WithField("init", true).Infof("mounting %#v to rootfs...", m)
 	const defaultMountFlags = unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	var (
@@ -54,7 +54,7 @@ func MountToRootfs(m *configc.Mount, rootfs string) error {
 /**
 真正执行挂载
 */
-func mount(m *configc.Mount, rootfs string) error {
+func mount(m *configs.Mount, rootfs string) error {
 	var (
 		flags = m.Flags
 		dest  = m.Destination
@@ -76,7 +76,7 @@ func mount(m *configc.Mount, rootfs string) error {
 /**
 将该mount置为read only
 */
-func RemountReadonly(m *configc.Mount) error {
+func RemountReadonly(m *configs.Mount) error {
 	var (
 		dest  = m.Destination
 		flags = m.Flags

@@ -1,4 +1,4 @@
-package configc
+package configs
 
 type ContainerConfig struct {
 	// Path to a directory containing the container's root filesystem.

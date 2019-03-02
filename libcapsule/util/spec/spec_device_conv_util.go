@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"os"
 )
 
@@ -23,10 +23,10 @@ func stringToDeviceRune(s string) (rune, error) {
 	}
 }
 
-func createDevices(spec *specs.Spec, config *configc.ContainerConfig) error {
+func createDevices(spec *specs.Spec, config *configs.ContainerConfig) error {
 	logrus.Infof("creating devices...")
 	// add whitelisted devices
-	config.Devices = []*configc.Device{
+	config.Devices = []*configs.Device{
 		{
 			Type:     'c',
 			Path:     "/dev/null",
@@ -101,7 +101,7 @@ func createDevices(spec *specs.Spec, config *configc.ContainerConfig) error {
 			if d.FileMode != nil {
 				filemode = *d.FileMode
 			}
-			device := &configc.Device{
+			device := &configs.Device{
 				Type:     dt,
 				Path:     d.Path,
 				Major:    d.Major,

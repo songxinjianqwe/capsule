@@ -3,20 +3,20 @@ package spec
 import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 )
 
 const wildcard = -1
 
-var namespaceMapping = map[specs.LinuxNamespaceType]configc.NamespaceType{
-	specs.PIDNamespace:     configc.NEWPID,
-	specs.NetworkNamespace: configc.NEWNET,
-	specs.MountNamespace:   configc.NEWNS,
-	specs.IPCNamespace:     configc.NEWIPC,
-	specs.UTSNamespace:     configc.NEWUTS,
+var namespaceMapping = map[specs.LinuxNamespaceType]configs.NamespaceType{
+	specs.PIDNamespace:     configs.NEWPID,
+	specs.NetworkNamespace: configs.NEWNET,
+	specs.MountNamespace:   configs.NEWNS,
+	specs.IPCNamespace:     configs.NEWIPC,
+	specs.UTSNamespace:     configs.NEWUTS,
 }
 
-func createNamespaces(config *configc.ContainerConfig, spec *specs.Spec) error {
+func createNamespaces(config *configs.ContainerConfig, spec *specs.Spec) error {
 	// 转换namespaces
 	for _, ns := range spec.Linux.Namespaces {
 		t, exists := namespaceMapping[ns.Type]
@@ -28,8 +28,8 @@ func createNamespaces(config *configc.ContainerConfig, spec *specs.Spec) error {
 		}
 		config.Namespaces.Add(t, ns.Path)
 	}
-	if config.Namespaces.Contains(configc.NEWNET) && config.Namespaces.PathOf(configc.NEWNET) == "" {
-		config.Networks = []*configc.Network{
+	if config.Namespaces.Contains(configs.NEWNET) && config.Namespaces.PathOf(configs.NEWNET) == "" {
+		config.Networks = []*configs.Network{
 			{
 				Type: "loopback",
 			},

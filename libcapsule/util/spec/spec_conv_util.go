@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"os"
 	"path/filepath"
 )
@@ -12,7 +12,7 @@ import (
 /*
 将specs.Spec转为libcapsule.ContainerConfig
 */
-func CreateContainerConfig(id string, spec *specs.Spec) (*configc.ContainerConfig, error) {
+func CreateContainerConfig(id string, spec *specs.Spec) (*configs.ContainerConfig, error) {
 	logrus.Infof("converting specs.Spec to libcapsule.ContainerConfig...")
 	// runc's cwd will always be the bundle path
 	rcwd, err := os.Getwd()
@@ -40,7 +40,7 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.ContainerConfi
 	for k, v := range spec.Annotations {
 		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
 	}
-	config := &configc.ContainerConfig{
+	config := &configs.ContainerConfig{
 		Rootfs:     rootfsPath,
 		Readonlyfs: spec.Root.Readonly,
 		Hostname:   spec.Hostname,
@@ -61,7 +61,7 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.ContainerConfi
 	}
 	logrus.Infof("convert devices complete, config.Devices: %#v", config.Devices)
 
-	// 转换cgroups
+	// 转换cgroup
 	cgroupConfig, err := createCgroupConfig(spec)
 	if err != nil {
 		return nil, err

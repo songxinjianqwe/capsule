@@ -2,7 +2,7 @@ package cgroups
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"sync"
 )
 
@@ -56,7 +56,7 @@ func (m *LinuxCgroupManager) GetPaths() map[string]string {
 	return m.Paths
 }
 
-func (m *LinuxCgroupManager) SetConfig(cgroupConfig *configc.Cgroup) error {
+func (m *LinuxCgroupManager) SetConfig(cgroupConfig *configs.Cgroup) error {
 	logrus.Infof("set cgroup set %s config", m.CgroupName)
 	m.mutex.Lock()
 	defer m.mutex.Unlock()

@@ -3,7 +3,7 @@ package spec
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"golang.org/x/sys/unix"
 	"path/filepath"
 	"strings"
@@ -48,8 +48,8 @@ var flags = map[string]struct {
 	"sync":          {false, unix.MS_SYNCHRONOUS},
 }
 
-func createMount(cwd string, specMount specs.Mount) *configc.Mount {
-	logrus.Infof("converting specs.mount to configc.Mount...")
+func createMount(cwd string, specMount specs.Mount) *configs.Mount {
+	logrus.Infof("converting specs.mount to configs.Mount...")
 	flags, data := parseMountOptions(specMount.Options)
 	source := specMount.Source
 	device := specMount.Type
@@ -61,7 +61,7 @@ func createMount(cwd string, specMount specs.Mount) *configc.Mount {
 			source = filepath.Join(cwd, specMount.Source)
 		}
 	}
-	return &configc.Mount{
+	return &configs.Mount{
 		// device是type，比如proc、tmpfs
 		Device:      device,
 		Source:      source,

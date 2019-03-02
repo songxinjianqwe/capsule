@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
-	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"io/ioutil"
 	"os"
@@ -43,7 +43,7 @@ func NewFactory() (Factory, error) {
 type LinuxContainerFactory struct {
 }
 
-func (factory *LinuxContainerFactory) Create(id string, config *configc.ContainerConfig) (Container, error) {
+func (factory *LinuxContainerFactory) Create(id string, config *configs.ContainerConfig) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
 	containerRoot := filepath.Join(RuntimeRoot, id)
 	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错
