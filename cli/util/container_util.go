@@ -171,11 +171,5 @@ func newProcess(p specs.Process, init bool, detach bool) (*libcapsule.Process, e
 		Init:   init,
 		Detach: detach,
 	}
-	// 如果启用终端，则将进程的stdin等置为os的
-	if !detach {
-		libcapsuleProcess.Stdin = os.Stdin
-		libcapsuleProcess.Stdout = os.Stdout
-		libcapsuleProcess.Stderr = os.Stderr
-	}
 	return libcapsuleProcess, nil
 }

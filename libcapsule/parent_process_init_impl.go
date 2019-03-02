@@ -159,12 +159,6 @@ func (p *ParentInitProcess) sendConfig() error {
 		ProcessConfig:   *p.process,
 		ID:              p.container.id,
 	}
-	// remove unnecessary fields, or init config will unmarshal it failed
-	initConfig.ProcessConfig.Stdin = nil
-	initConfig.ProcessConfig.Stdout = nil
-	initConfig.ProcessConfig.Stderr = nil
-	initConfig.ProcessConfig.ExtraFiles = nil
-
 	logrus.Infof("sending config: %#v", initConfig)
 	bytes, err := json.Marshal(initConfig)
 	if err != nil {

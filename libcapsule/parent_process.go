@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
+	"path"
 	"syscall"
 )
 
@@ -74,8 +75,24 @@ func buildCommand(container *LinuxContainer, process *Process, childConfigPipe *
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf(EnvConfigPipe+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
 	)
-	cmd.Stdin = process.Stdin
-	cmd.Stdout = process.Stdout
-	cmd.Stderr = process.Stderr
+	// 如果后台运行，则将stdout输出到日志文件中
+	if process.Detach {
+		logDir := path.Join(LogRoot, container.id)
+		if err := os.Mkdir(logDir, 0622); err != nil {
+			return nil, err
+		}
+		logFileName := path.Join(logDir, ContainerLogFilename)
+		file, err := os.Create(logFileName)
+		if err != nil {
+			return nil, err
+		}
+		// 输出重定向
+		cmd.Stdout = file
+	} else {
+		// 如果启用终端，则将进程的stdin等置为os的
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 	return cmd, nil
 }
