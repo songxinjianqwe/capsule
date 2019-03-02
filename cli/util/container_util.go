@@ -5,7 +5,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule"
-	"github.com/songxinjianqwe/capsule/libcapsule/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	specutil "github.com/songxinjianqwe/capsule/libcapsule/util/spec"
 	"io/ioutil"
 	"os"
@@ -66,9 +66,9 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init b
 	if containerErr != nil {
 		if err := container.Destroy(); err != nil {
 			logrus.Errorf(fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
-			return -1, util.NewGenericErrorWithContext(
+			return -1, exception.NewGenericErrorWithContext(
 				err,
-				util.SystemError,
+				exception.SystemError,
 				fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
 		}
 		return -1, containerErr

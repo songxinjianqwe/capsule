@@ -1,4 +1,4 @@
-package system
+package proc
 
 import (
 	"fmt"

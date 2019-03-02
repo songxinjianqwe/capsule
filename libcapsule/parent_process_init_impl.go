@@ -6,7 +6,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
-	"github.com/songxinjianqwe/capsule/libcapsule/util/system"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
@@ -60,26 +61,28 @@ func (p *ParentInitProcess) start() (err error) {
 
 	err = p.initProcessCmd.Start()
 	if err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "starting init process command")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting init process command")
 	}
 	logrus.Infof("init process started, INIT_PROCESS_PID: [%d]", p.pid())
+
 	// 将pid加入到cgroup set中
 	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "applying cgroup configuration for process")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "applying cgroup configuration for process")
 	}
 	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
 	// 设置cgroup config
 	if err = p.container.cgroupManager.SetConfig(p.container.config.Cgroup); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "setting cgroup config for procHooks process")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "setting cgroup config for procHooks process")
 	}
+
 	// 创建网络接口，比如bridge
 	if err = p.createNetworkInterfaces(); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "creating network interfaces")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "creating network interfaces")
 	}
 
 	// init process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "sending config to init config")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending config to init config")
 	}
 
 	// parent 写完就关
@@ -126,7 +129,7 @@ func (p *ParentInitProcess) wait() error {
 }
 
 func (p *ParentInitProcess) startTime() (uint64, error) {
-	stat, err := system.GetProcessStat(p.pid())
+	stat, err := proc.GetProcessStat(p.pid())
 	if err != nil {
 		return 0, err
 	}
@@ -136,7 +139,7 @@ func (p *ParentInitProcess) startTime() (uint64, error) {
 func (p *ParentInitProcess) signal(sig os.Signal) error {
 	s, ok := sig.(syscall.Signal)
 	if !ok {
-		return util.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), util.SystemError)
+		return exception.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), exception.SystemError)
 	}
 	return unix.Kill(p.pid(), s)
 }

@@ -7,7 +7,8 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
-	"github.com/songxinjianqwe/capsule/libcapsule/util/system"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,11 +117,11 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 	// to avoid a PID reuse attack
 	if status == Running || status == Created {
 		if err := c.initProcess.signal(s); err != nil {
-			return util.NewGenericErrorWithContext(err, util.SystemError, "signaling init process")
+			return exception.NewGenericErrorWithContext(err, exception.SystemError, "signaling init process")
 		}
 		return nil
 	}
-	return util.NewGenericErrorWithContext(err, util.ContainerNotRunning, "signaling init process")
+	return exception.NewGenericErrorWithContext(err, exception.ContainerNotRunning, "signaling init process")
 }
 
 // ************************************************************************************************
@@ -146,7 +147,7 @@ func (c *LinuxContainer) create(process *Process) error {
 	// 1、创建parent config
 	parent, err := NewParentProcess(c, process)
 	if err != nil {
-		return util.NewGenericErrorWithContext(err, util.SystemError, "creating new parent process")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "creating new parent process")
 	}
 	logrus.Infof("new parent process complete, parent config: %#v", parent)
 	c.initProcess = parent
@@ -157,7 +158,7 @@ func (c *LinuxContainer) create(process *Process) error {
 		if err := ignoreTerminateErrors(parent.terminate()); err != nil {
 			logrus.Warn(err)
 		}
-		return util.NewGenericErrorWithContext(err, util.SystemError, "starting container process")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting container process")
 	}
 	if process.Init {
 		// 3、更新容器状态
@@ -202,7 +203,7 @@ func (c *LinuxContainer) start() error {
 		logrus.Infof("wait child process exit...")
 		if err := c.initProcess.wait(); err != nil {
 			util.PrintSubsystemPids("memory", c.id, "after init process exit exceptionally", false)
-			return util.NewGenericErrorWithContext(err, util.SystemError, "waiting child process exit")
+			return exception.NewGenericErrorWithContext(err, exception.SystemError, "waiting child process exit")
 		}
 		logrus.Infof("child process exited")
 	}
@@ -281,12 +282,12 @@ func (c *LinuxContainer) detectContainerStatus() (ContainerStatus, error) {
 		return Stopped, nil
 	}
 	pid := c.initProcess.pid()
-	processState, err := system.GetProcessStat(pid)
+	processState, err := proc.GetProcessStat(pid)
 	if err != nil {
 		return Stopped, nil
 	}
 	initProcessStartTime, _ := c.initProcess.startTime()
-	if processState.StartTime != initProcessStartTime || processState.Status == system.Zombie || processState.Status == system.Dead {
+	if processState.StartTime != initProcessStartTime || processState.Status == proc.Zombie || processState.Status == proc.Dead {
 		return Stopped, nil
 	}
 	// 容器进程存在的话，会有两种情况：一种是调用完create方法，容器进程阻塞在cmd之前；一种是容器进程解除阻塞，执行了cmd

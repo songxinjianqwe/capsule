@@ -2,7 +2,7 @@ package libcapsule
 
 import (
 	"fmt"
-	"github.com/songxinjianqwe/capsule/libcapsule/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 )
 
 // ******************************************************************************************
@@ -24,7 +24,7 @@ func (behavior *RunningStatusBehavior) transition(s ContainerStatusBehavior) err
 			return err
 		}
 		if t == Running {
-			return util.NewGenericError(fmt.Errorf("container still running"), util.ContainerNotStopped)
+			return exception.NewGenericError(fmt.Errorf("container still running"), exception.ContainerNotStopped)
 		}
 		behavior.c.statusBehavior = s
 		return nil
@@ -40,7 +40,7 @@ func (behavior *RunningStatusBehavior) destroy() error {
 		return err
 	}
 	if t == Running {
-		return util.NewGenericError(fmt.Errorf("container is not destroyed"), util.ContainerNotStopped)
+		return exception.NewGenericError(fmt.Errorf("container is still running, cant be destroyed"), exception.ContainerNotStopped)
 	}
 	return destroy(behavior.c)
 }

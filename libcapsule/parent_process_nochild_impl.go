@@ -1,10 +1,11 @@
 package libcapsule
 
 import (
+	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/util"
-	"github.com/songxinjianqwe/capsule/libcapsule/util/system"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
 	"golang.org/x/sys/unix"
 	"os"
 	"syscall"
@@ -40,14 +41,14 @@ func (p *ParentNoChildProcess) pid() int {
 不需要实现
 */
 func (p *ParentNoChildProcess) start() error {
-	panic("implement me")
+	return errors.New("should not be called")
 }
 
 /**
 不需要实现
 */
 func (p *ParentNoChildProcess) terminate() error {
-	panic("implement me")
+	return errors.New("should not be called")
 }
 
 func (p *ParentNoChildProcess) wait() error {
@@ -57,13 +58,13 @@ func (p *ParentNoChildProcess) wait() error {
 	// 如果该文件不存在，则说明进程已停止
 	for {
 		<-time.After(time.Millisecond * 100)
-		stat, err := system.GetProcessStat(p.pid())
+		stat, err := proc.GetProcessStat(p.pid())
 		// 如果出现err，或者进程已经成为僵尸进程，则退出循环
 		if os.IsNotExist(err) {
 			logrus.Infof("%d process exited(/proc/%d/stat not exists)", p.pid(), p.pid())
 			return nil
 		}
-		if err != nil || stat.Status == system.Zombie {
+		if err != nil || stat.Status == proc.Zombie {
 			return err
 		}
 	}
@@ -76,7 +77,8 @@ func (p *ParentNoChildProcess) startTime() (uint64, error) {
 func (p *ParentNoChildProcess) signal(sig os.Signal) error {
 	s, ok := sig.(syscall.Signal)
 	if !ok {
-		return util.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), util.SystemError)
+		return exception.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), exception.SystemError)
 	}
+	logrus.Infof("send %s to %d", sig, p.pid())
 	return unix.Kill(p.pid(), s)
 }
