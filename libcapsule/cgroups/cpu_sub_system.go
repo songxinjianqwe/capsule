@@ -13,7 +13,10 @@ func (subsys *CpuSubsystem) Name() string {
 	return "cpu"
 }
 
-func (subsys *CpuSubsystem) SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error {
+/**
+cpu share
+*/
+func (subsys *CpuSubsystem) SetConfig(cgroupName string, cgroupConfig *configc.Cgroup) error {
 	logrus.Infof("process is setting config in [%s] subsystem", subsys.Name())
 	if cgroupConfig.CpuShares != 0 {
 		logrus.Infof("writing config, cpushares: %d", cgroupConfig.CpuShares)

@@ -10,10 +10,10 @@ import (
 )
 
 /*
-将specs.Spec转为libcapsule.Config
+将specs.Spec转为libcapsule.ContainerConfig
 */
-func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error) {
-	logrus.Infof("converting specs.Spec to libcapsule.Config...")
+func CreateContainerConfig(id string, spec *specs.Spec) (*configc.ContainerConfig, error) {
+	logrus.Infof("converting specs.Spec to libcapsule.ContainerConfig...")
 	// runc's cwd will always be the bundle path
 	rcwd, err := os.Getwd()
 	if err != nil {
@@ -40,7 +40,7 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 	for k, v := range spec.Annotations {
 		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
 	}
-	config := &configc.Config{
+	config := &configc.ContainerConfig{
 		Rootfs:     rootfsPath,
 		Readonlyfs: spec.Root.Readonly,
 		Hostname:   spec.Hostname,
@@ -66,8 +66,8 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configc.Config, error)
 	if err != nil {
 		return nil, err
 	}
-	config.CgroupConfig = cgroupConfig
-	logrus.Infof("convert cgroup config complete, config.CgroupConfig: %#v", config.CgroupConfig)
+	config.Cgroup = cgroupConfig
+	logrus.Infof("convert cgroup config complete, config.Cgroup: %#v", config.Cgroup)
 
 	// Linux特有配置
 	if spec.Linux != nil {

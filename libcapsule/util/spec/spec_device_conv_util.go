@@ -23,7 +23,7 @@ func stringToDeviceRune(s string) (rune, error) {
 	}
 }
 
-func createDevices(spec *specs.Spec, config *configc.Config) error {
+func createDevices(spec *specs.Spec, config *configc.ContainerConfig) error {
 	logrus.Infof("creating devices...")
 	// add whitelisted devices
 	config.Devices = []*configc.Device{

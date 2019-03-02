@@ -1,6 +1,6 @@
 package configc
 
-type CgroupConfig struct {
+type Cgroup struct {
 	// Resources contains various cgroups settings to apply
 	// 继承
 	*Resources

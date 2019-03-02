@@ -22,7 +22,7 @@ func (subsys *SubsystemWrapper) Name() string {
 	return subsys.child.Name()
 }
 
-func (subsys *SubsystemWrapper) SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error {
+func (subsys *SubsystemWrapper) SetConfig(cgroupName string, cgroupConfig *configc.Cgroup) error {
 	return subsys.child.SetConfig(cgroupName, cgroupConfig)
 }
 

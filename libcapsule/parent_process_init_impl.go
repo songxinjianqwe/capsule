@@ -36,9 +36,9 @@ type ParentInitProcess struct {
 }
 
 type InitConfig struct {
-	ContainerConfig configc.Config `json:"container_config"`
-	ProcessConfig   Process        `json:"process_config"`
-	ID              string         `json:"id"`
+	ContainerConfig configc.ContainerConfig `json:"container_config"`
+	ProcessConfig   Process                 `json:"process_config"`
+	ID              string                  `json:"id"`
 }
 
 func (p *ParentInitProcess) detach() bool {
@@ -69,7 +69,7 @@ func (p *ParentInitProcess) start() (err error) {
 	}
 	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
 	// 设置cgroup config
-	if err = p.container.cgroupManager.SetConfig(p.container.config.CgroupConfig); err != nil {
+	if err = p.container.cgroupManager.SetConfig(p.container.config.Cgroup); err != nil {
 		return util.NewGenericErrorWithContext(err, util.SystemError, "setting cgroup config for procHooks process")
 	}
 	// 创建网络接口，比如bridge

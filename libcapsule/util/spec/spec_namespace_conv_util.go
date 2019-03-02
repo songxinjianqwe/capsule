@@ -16,7 +16,7 @@ var namespaceMapping = map[specs.LinuxNamespaceType]configc.NamespaceType{
 	specs.UTSNamespace:     configc.NEWUTS,
 }
 
-func createNamespaces(config *configc.Config, spec *specs.Spec) error {
+func createNamespaces(config *configc.ContainerConfig, spec *specs.Spec) error {
 	// 转换namespaces
 	for _, ns := range spec.Linux.Namespaces {
 		t, exists := namespaceMapping[ns.Type]

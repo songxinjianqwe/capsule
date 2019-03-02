@@ -27,7 +27,7 @@ type Container interface {
 	OCIState() (*specs.State, error)
 
 	// Returns the current configc of the container.
-	Config() configc.Config
+	Config() configc.ContainerConfig
 
 	// 创建但不运行cmd
 	// errors:

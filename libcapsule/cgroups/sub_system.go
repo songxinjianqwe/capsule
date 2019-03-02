@@ -22,7 +22,7 @@ type SubsystemSpecific interface {
 	// Name returns the name of the subsystem.
 	Name() string
 	// Set the cgroup represented by cgroup.
-	SetConfig(cgroupName string, cgroupConfig *configc.CgroupConfig) error
+	SetConfig(cgroupName string, cgroupConfig *configc.Cgroup) error
 }
 
 type SubsystemCommon interface {

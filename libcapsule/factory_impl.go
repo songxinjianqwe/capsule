@@ -43,7 +43,7 @@ func NewFactory() (Factory, error) {
 type LinuxContainerFactory struct {
 }
 
-func (factory *LinuxContainerFactory) Create(id string, config *configc.Config) (Container, error) {
+func (factory *LinuxContainerFactory) Create(id string, config *configc.ContainerConfig) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
 	containerRoot := filepath.Join(RuntimeRoot, id)
 	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错

@@ -24,7 +24,7 @@ const (
 type LinuxContainer struct {
 	id             string
 	root           string
-	config         configc.Config
+	config         configc.ContainerConfig
 	cgroupManager  cgroups.CgroupManager
 	initProcess    ParentProcess
 	statusBehavior ContainerStatusBehavior
@@ -58,7 +58,7 @@ func (c *LinuxContainer) OCIState() (*specs.State, error) {
 	return c.currentOCIState()
 }
 
-func (c *LinuxContainer) Config() configc.Config {
+func (c *LinuxContainer) Config() configc.ContainerConfig {
 	return c.config
 }
 
@@ -135,7 +135,7 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 4. parent send config
 5.1 parent continue to init, then wait child SIGUSR1/SIGCHLD signal
 5.2 child continue to init, then send signal
-6. child init complete/failed, send SIGUSR1/SIGCLD signal to parent
+6. child init complete/failed, send SIGUSR1/SIGCHLD signal to parent
 7. parent received signal, then refresh state
 8. child wait parent SIGUSR2 signal
 9. if create, then parent exit; if run, then parent send SIGUSR2 signal to child

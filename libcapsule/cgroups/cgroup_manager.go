@@ -13,14 +13,14 @@ type CgroupManager interface {
 
 	// The option func SystemdCgroups() and Cgroupfs() require following attributes:
 	// 	Paths   map[string]string
-	// 	CgroupConfig *configs.CgroupConfig
+	// 	Cgroup *configs.Cgroup
 	// Paths maps cgroup subsystem to path at which it is mounted.
-	// CgroupConfig specifies specific cgroup settings for the various subsystems
+	// Cgroup specifies specific cgroup settings for the various subsystems
 
 	// Returns cgroup paths to save in a state file and to be able to
 	// restore the object later.
 	GetPaths() map[string]string
 
 	// Sets the cgroup as configured.
-	SetConfig(cgroupConfig *configc.CgroupConfig) error
+	SetConfig(cgroupConfig *configc.Cgroup) error
 }

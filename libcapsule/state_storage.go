@@ -19,8 +19,8 @@ type StateStorage struct {
 	// Created is the unix timestamp for the creation time of the container in UTC
 	Created time.Time `json:"create_time"`
 
-	// Config is the container's configuration.
-	Config configc.Config `json:"config"`
+	// ContainerConfig is the container's configuration.
+	Config configc.ContainerConfig `json:"config"`
 
 	// Path to all the cgroups setup for a container. Key is cgroup subsystem name
 	// with the value as the path.

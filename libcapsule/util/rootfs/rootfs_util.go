@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func PrepareRoot(config *configc.Config) error {
+func PrepareRoot(config *configc.ContainerConfig) error {
 	logrus.WithField("init", true).Info("preparing root...")
 	flag := unix.MS_SLAVE | unix.MS_REC
 	logrus.WithField("init", true).Info("mounting / in \"\" fs...")

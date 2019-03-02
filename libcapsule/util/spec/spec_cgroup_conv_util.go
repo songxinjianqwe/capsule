@@ -107,9 +107,9 @@ var allowedDevices = []*configc.Device{
 	},
 }
 
-func createCgroupConfig(spec *specs.Spec) (*configc.CgroupConfig, error) {
+func createCgroupConfig(spec *specs.Spec) (*configc.Cgroup, error) {
 	logrus.Infof("creating cgroup config...")
-	c := &configc.CgroupConfig{
+	c := &configc.Cgroup{
 		Resources: &configc.Resources{},
 	}
 
