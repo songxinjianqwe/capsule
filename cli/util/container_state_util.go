@@ -1,8 +1,8 @@
 package util
 
 import (
-	"github.com/songxinjianqwe/rune/libcapsule"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
+	"github.com/songxinjianqwe/capsule/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"time"
 )
 

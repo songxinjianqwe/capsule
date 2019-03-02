@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/songxinjianqwe/rune",
+	"ImportPath": "github.com/songxinjianqwe/capsule",
 	"GoVersion": "go1.11",
 	"GodepVersion": "v80",
 	"Deps": [

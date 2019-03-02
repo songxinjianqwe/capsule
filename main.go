@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	runeCli "github.com/songxinjianqwe/rune/cli/command"
+	capsuleCli "github.com/songxinjianqwe/capsule/cli/command"
 	"github.com/urfave/cli"
 	"os"
 )
@@ -26,18 +26,18 @@ func main() {
 	app.Version = AppVersion
 	app.Usage = Usage
 	app.Commands = []cli.Command{
-		runeCli.CreateCommand,
-		runeCli.StartCommand,
-		runeCli.RunCommand,
-		runeCli.ListCommand,
-		runeCli.DeleteCommand,
-		runeCli.ExecCommand,
-		runeCli.InitCommand,
-		runeCli.KillCommand,
-		runeCli.PsCommand,
-		runeCli.StateCommand,
-		runeCli.SpecCommand,
-		runeCli.LogCommand,
+		capsuleCli.CreateCommand,
+		capsuleCli.StartCommand,
+		capsuleCli.RunCommand,
+		capsuleCli.ListCommand,
+		capsuleCli.DeleteCommand,
+		capsuleCli.ExecCommand,
+		capsuleCli.InitCommand,
+		capsuleCli.KillCommand,
+		capsuleCli.PsCommand,
+		capsuleCli.StateCommand,
+		capsuleCli.SpecCommand,
+		capsuleCli.LogCommand,
 	}
 	// 日志是放在文件中的，而fmt.Printf是给用户看的
 	// 暂时将日志输出到stdout中

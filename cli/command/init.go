@@ -2,7 +2,7 @@ package command
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule"
 	"github.com/urfave/cli"
 	"os"
 )

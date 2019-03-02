@@ -3,7 +3,7 @@ package spec
 import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
 )
 
 const wildcard = -1

@@ -1,7 +1,7 @@
 package libcapsule
 
 import (
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
 	"time"
 )
 

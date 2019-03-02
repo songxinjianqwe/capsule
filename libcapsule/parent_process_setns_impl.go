@@ -2,7 +2,7 @@ package libcapsule
 
 import (
 	"fmt"
-	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
+	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
 	"os"
 	"os/exec"
 )

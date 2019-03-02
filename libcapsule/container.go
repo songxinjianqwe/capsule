@@ -2,7 +2,7 @@ package libcapsule
 
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
 	"os"
 )
 

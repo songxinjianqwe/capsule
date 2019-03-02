@@ -2,7 +2,7 @@ package cgroups
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
 	"io/ioutil"
 	"os"
 	"path"

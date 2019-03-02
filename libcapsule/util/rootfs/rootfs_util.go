@@ -2,8 +2,8 @@ package rootfs
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"

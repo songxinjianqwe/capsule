@@ -3,9 +3,9 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
-	"github.com/songxinjianqwe/rune/libcapsule/util/rootfs"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/rootfs"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
@@ -99,7 +99,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	util.WaitSignal(syscall.SIGUSR2)
 	logrus.WithField("init", true).Info("received parent continue(SIGUSR2) signal")
 
-	logrus.WithField("init", true).Info("execute real command and cover rune init config")
+	logrus.WithField("init", true).Info("execute real command and cover capsule init config")
 	// syscall.Exec与cmd.Start不同，后者是启动一个新的进程来执行命令
 	// 而前者会在覆盖当前进程的镜像、数据、堆栈等信息，包括PID。
 	logrus.WithField("init", true).Infof("syscall.Exec(name: %s, args: %v, env: %v)...", name, initializer.config.ProcessConfig.Args, os.Environ())

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/cgroups"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -20,12 +20,12 @@ const (
 	// 存放在 $RuntimeRoot/$containerId/下
 	StateFilename       = "state.json"
 	NotExecFlagFilename = "not_exec.flag"
-	// 重新执行本应用的command，相当于 重新执行./rune
+	// 重新执行本应用的command，相当于 重新执行./capsule
 	ContainerInitCmd = "/proc/self/exe"
 	// 运行容器init进程的命令
 	ContainerInitArgs = "init"
 	// 运行时文件的存放目录
-	RuntimeRoot = "/run/rune"
+	RuntimeRoot = "/run/capsule"
 	// 容器配置文件，存放在运行rune的cwd下
 	ContainerConfigFilename = "config.json"
 )

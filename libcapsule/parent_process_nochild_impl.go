@@ -3,8 +3,8 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
-	"github.com/songxinjianqwe/rune/libcapsule/util/system"
+	"github.com/songxinjianqwe/capsule/libcapsule/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/system"
 	"golang.org/x/sys/unix"
 	"os"
 	"syscall"

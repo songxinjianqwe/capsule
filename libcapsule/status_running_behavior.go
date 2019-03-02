@@ -2,7 +2,7 @@ package libcapsule
 
 import (
 	"fmt"
-	"github.com/songxinjianqwe/rune/libcapsule/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/util"
 )
 
 // ******************************************************************************************

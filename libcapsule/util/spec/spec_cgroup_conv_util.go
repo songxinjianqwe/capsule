@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
 )
 
 var allowedDevices = []*configc.Device{

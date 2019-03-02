@@ -1,7 +1,7 @@
 package command
 
 import (
-	"github.com/songxinjianqwe/rune/cli/util"
+	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/urfave/cli"
 )
 

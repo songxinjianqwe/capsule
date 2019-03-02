@@ -1,7 +1,7 @@
 package cgroups
 
 import (
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
 )
 
 type CgroupManager interface {

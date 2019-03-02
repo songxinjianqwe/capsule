@@ -3,7 +3,7 @@ package spec
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/rune/libcapsule/configc"
+	"github.com/songxinjianqwe/capsule/libcapsule/configc"
 	"golang.org/x/sys/unix"
 	"path/filepath"
 	"strings"

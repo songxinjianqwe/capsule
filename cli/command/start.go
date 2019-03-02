@@ -3,8 +3,8 @@ package command
 import (
 	"errors"
 	"fmt"
-	"github.com/songxinjianqwe/rune/cli/util"
-	"github.com/songxinjianqwe/rune/libcapsule"
+	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/songxinjianqwe/capsule/libcapsule"
 	"github.com/urfave/cli"
 )
 
