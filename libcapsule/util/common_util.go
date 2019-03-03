@@ -99,5 +99,6 @@ func WaitSignal(sigs ...os.Signal) syscall.Signal {
 	receivedChan := make(chan os.Signal, 1)
 	signal.Notify(receivedChan, sigs...)
 	received := <-receivedChan
+	signal.Reset(sigs...)
 	return received.(syscall.Signal)
 }

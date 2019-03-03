@@ -2,13 +2,9 @@ package libcapsule
 
 import (
 	"errors"
-	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
-	"golang.org/x/sys/unix"
 	"os"
-	"syscall"
 	"time"
 )
 
@@ -75,10 +71,10 @@ func (p *ParentNoChildProcess) startTime() (uint64, error) {
 }
 
 func (p *ParentNoChildProcess) signal(sig os.Signal) error {
-	s, ok := sig.(syscall.Signal)
-	if !ok {
-		return exception.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), exception.SystemError)
+	process, err := os.FindProcess(p.pid())
+	if err != nil {
+		return err
 	}
 	logrus.Infof("send %s to %d", sig, p.pid())
-	return unix.Kill(p.pid(), s)
+	return process.Signal(sig)
 }
