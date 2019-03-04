@@ -14,17 +14,6 @@ import (
 	"syscall"
 )
 
-func NewParentInitProcess(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File, c *LinuxContainer) ParentProcess {
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
-	logrus.Infof("new parent process...")
-	return &ParentInitProcess{
-		initProcessCmd:   cmd,
-		parentConfigPipe: parentConfigPipe,
-		container:        c,
-		process:          process,
-	}
-}
-
 /**
 ParentProcess接口的实现类，包裹了InitProcess，它返回的进程信息均为容器Init进程的信息
 */

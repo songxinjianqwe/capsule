@@ -1,29 +1,37 @@
 package libcapsule
 
 import (
-	"fmt"
-	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
+	"encoding/json"
+	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"os"
 	"os/exec"
 )
-
-func NewParentSetnsProcess(process *Process, cmd *exec.Cmd, parentConfigPipe *os.File) ParentProcess {
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(SetnsInitializer)))
-	return &ParentSetnsProcess{
-		initProcessCmd:   cmd,
-		parentConfigPipe: parentConfigPipe,
-		process:          process,
-	}
-}
 
 /**
 ParentProcess接口的实现类，包裹了SetnsProcess
 */
 type ParentSetnsProcess struct {
-	initProcessCmd   *exec.Cmd
+	execProcessCmd   *exec.Cmd
 	parentConfigPipe *os.File
+	parentExecPipe   *os.File
+	container        *LinuxContainer
 	process          *Process
-	cgroupManger     *cgroups.CgroupManager
+}
+
+func (p *ParentSetnsProcess) start() error {
+	logrus.Infof("ParentSetnsProcess starting...")
+	err := p.execProcessCmd.Start()
+	if err != nil {
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting init process command")
+	}
+	logrus.Infof("exec process started, EXEC_PROCESS_PID: [%d]", p.pid())
+	// exec process会在启动后阻塞，直至收到config
+	if err = p.sendConfig(); err != nil {
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending config to init config")
+	}
+
+	return nil
 }
 
 func (p *ParentSetnsProcess) detach() bool {
@@ -31,15 +39,18 @@ func (p *ParentSetnsProcess) detach() bool {
 }
 
 func (p *ParentSetnsProcess) pid() int {
-	panic("implement me")
-}
-
-func (p *ParentSetnsProcess) start() error {
-	panic("implement me")
+	return p.execProcessCmd.Process.Pid
 }
 
 func (p *ParentSetnsProcess) terminate() error {
-	panic("implement me")
+	if p.execProcessCmd.Process == nil {
+		return nil
+	}
+	err := p.execProcessCmd.Process.Kill()
+	if err := p.wait(); err == nil {
+		return err
+	}
+	return err
 }
 
 func (p *ParentSetnsProcess) wait() error {
@@ -52,4 +63,19 @@ func (p *ParentSetnsProcess) startTime() (uint64, error) {
 
 func (p *ParentSetnsProcess) signal(os.Signal) error {
 	panic("implement me")
+}
+
+func (p *ParentSetnsProcess) sendConfig() error {
+	initConfig := &InitConfig{
+		ContainerConfig: p.container.config,
+		ProcessConfig:   *p.process,
+		ID:              p.container.id,
+	}
+	logrus.Infof("sending config: %#v", initConfig)
+	bytes, err := json.Marshal(initConfig)
+	if err != nil {
+		return err
+	}
+	_, err = p.parentConfigPipe.WriteString(string(bytes))
+	return err
 }

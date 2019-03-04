@@ -1,6 +1,7 @@
 package libcapsule
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"os"
 )
@@ -45,8 +46,22 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 		return nil, err
 	}
 	if process.Init {
-		return NewParentInitProcess(process, cmd, parentConfigPipe, container), nil
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
+		logrus.Infof("new parent init process...")
+		return &ParentInitProcess{
+			initProcessCmd:   cmd,
+			parentConfigPipe: parentConfigPipe,
+			container:        container,
+			process:          process,
+		}, nil
 	} else {
-		return NewParentSetnsProcess(process, cmd, parentConfigPipe), nil
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(SetnsInitializer)))
+		logrus.Infof("new parent setns process...")
+		return &ParentSetnsProcess{
+			execProcessCmd:   cmd,
+			parentConfigPipe: parentConfigPipe,
+			container:        container,
+			process:          process,
+		}, nil
 	}
 }

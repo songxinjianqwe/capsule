@@ -64,6 +64,7 @@ func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd 
 	if containerErr != nil {
 		return handleContainerErr(container, containerErr)
 	}
+	// 无论是否是daemon运行，在执行完exec process后，都不会销毁容器。
 	return nil
 }
 

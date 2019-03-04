@@ -21,7 +21,7 @@ type Factory interface {
 	// System util
 	Load(id string) (Container, error)
 
-	// 用于init进程初始化
+	// 用于init/exec进程初始化
 	// Errors:
 	// Pipe connection util
 	// System util

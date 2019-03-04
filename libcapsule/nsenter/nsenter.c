@@ -3,10 +3,6 @@ int setns(int fd, int nstype)
 	return syscall(SYS_setns, fd, nstype);
 }
 
-void nsenter(void) {
-
-}
-
 void join_namespaces(char *nslist)
 {
 	int num = 0, i;
@@ -54,13 +50,6 @@ void join_namespaces(char *nslist)
 		ns->path[PATH_MAX - 1] = '\0';
 	} while ((namespace = strtok_r(NULL, ",", &saveptr)) != NULL);
 
-	/*
-	 * The ordering in which we join namespaces is important. We should
-	 * always join the user namespace *first*. This is all guaranteed
-	 * from the container_linux.go side of this, so we're just going to
-	 * follow the order given to us.
-	 */
-
 	for (i = 0; i < num; i++) {
 		struct namespace_t ns = namespaces[i];
 
@@ -71,4 +60,8 @@ void join_namespaces(char *nslist)
 	}
 
 	free(namespaces);
+}
+
+void nsenter(void) {
+    //
 }
