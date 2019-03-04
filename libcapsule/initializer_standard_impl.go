@@ -94,6 +94,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	if err := util.SyncSignal(initializer.parentPid, syscall.SIGUSR1); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init config/sync parent ready")
 	}
+
 	// child <-------------- parent
 	// 等待parent给一个继续执行命令，即exec的信号
 	logrus.WithField("init", true).Info("start waiting parent continue(SIGUSR2) signal...")
@@ -136,8 +137,8 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
 		}
 	}
-	// pivot root放在mount之前的话，会报错invalid argument
 	// 如果使用了Mount的namespace，则使用pivot_root命令
+	// pivot root放在mount之前的话，会报错invalid argument
 	if initializer.config.ContainerConfig.Namespaces.Contains(configs.NEWNS) {
 		if err := rootfs.PivotRoot(initializer.config.ContainerConfig.Rootfs); err != nil {
 			return err

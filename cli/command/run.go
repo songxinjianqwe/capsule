@@ -3,7 +3,6 @@ package command
 import (
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/urfave/cli"
-	"os"
 )
 
 /**
@@ -31,12 +30,9 @@ var RunCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		status, err := util.LaunchContainer(ctx.Args().First(), spec, util.ContainerActRun, true, ctx.Bool("detach"))
-		if err != nil {
+		if err := util.CreateOrRunContainer(ctx.Args().First(), spec, util.ContainerActRun, ctx.Bool("detach")); err != nil {
 			return err
 		}
-		// 正常返回0，异常返回-1
-		os.Exit(status)
 		return nil
 	},
 }

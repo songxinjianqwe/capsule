@@ -2,6 +2,7 @@ package libcapsule
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
@@ -10,6 +11,8 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -20,6 +23,11 @@ import (
 const (
 	EnvConfigPipe      = "_LIBCAPSULE_CONFIG_PIPE"
 	EnvInitializerType = "_LIBCAPSULE_INITIALIZER_TYPE"
+	/**
+	一个进程默认有三个文件描述符，stdin、stdout、stderr
+	外带的文件描述符在这三个fd之后
+	*/
+	DefaultStdFdCount = 3
 )
 
 type LinuxContainer struct {
@@ -384,4 +392,34 @@ func ignoreTerminateErrors(err error) error {
 		return nil
 	}
 	return err
+}
+
+/**
+构造一个command对象
+*/
+func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
+	cmd := exec.Command(ContainerInitCmd, ContainerInitArgs)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: c.config.Namespaces.CloneFlags(),
+	}
+	cmd.Dir = c.config.Rootfs
+	cmd.ExtraFiles = append(cmd.ExtraFiles, childConfigPipe)
+	cmd.Env = append(cmd.Env,
+		fmt.Sprintf(EnvConfigPipe+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
+	)
+	// 如果后台运行，则将stdout输出到日志文件中
+	if process.Detach {
+		logFile, err := os.Create(path.Join(RuntimeRoot, c.id, ContainerLogFilename))
+		if err != nil {
+			return nil, err
+		}
+		// 输出重定向
+		cmd.Stdout = logFile
+	} else {
+		// 如果启用终端，则将进程的stdin等置为os的
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+	return cmd, nil
 }

@@ -3,7 +3,6 @@ package command
 import (
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/urfave/cli"
-	"os"
 )
 
 var CreateCommand = cli.Command{
@@ -20,12 +19,9 @@ var CreateCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		status, err := util.LaunchContainer(ctx.Args().First(), spec, util.ContainerActCreate, true, false)
-		if err != nil {
+		if err := util.CreateOrRunContainer(ctx.Args().First(), spec, util.ContainerActCreate, false); err != nil {
 			return err
 		}
-		// 正常返回0，异常返回-1
-		os.Exit(status)
 		return nil
 	},
 }

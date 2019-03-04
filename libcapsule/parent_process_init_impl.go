@@ -70,6 +70,7 @@ func (p *ParentInitProcess) start() (err error) {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "applying cgroup configuration for process")
 	}
 	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
+
 	// 设置cgroup config
 	if err = p.container.cgroupManager.SetConfig(p.container.config.Cgroup); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "setting cgroup config for procHooks process")

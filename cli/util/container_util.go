@@ -31,28 +31,60 @@ func (action ContainerAction) String() string {
 }
 
 /**
+进入容器执行一个Process
+*/
+func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd string, env []string) error {
+	logrus.Infof("exec container: %s, action: %s", id)
+	container, err := GetContainer(id)
+	containerStatus, err := container.Status()
+	if err != nil {
+		return err
+	}
+	// init=false,ContainerActRun时,先检查容器状态是否为Stopped
+	if containerStatus == libcapsule.Stopped {
+		return fmt.Errorf("cant exec in a stopped container ")
+	}
+	if err != nil {
+		return err
+	}
+	// 构造一个Process，由命令行输入的参数会覆盖spec中的Init Process Config
+	process, err := newProcess(spec.Process, false, detach)
+	if err != nil {
+		return err
+	}
+	// override
+	process.Args = args
+	if cwd != "" {
+		process.Cwd = cwd
+	}
+	process.Env = append(process.Env, env...)
+
+	logrus.Infof("new exec process complete, libcapsule.Process: %#v", process)
+	containerErr := container.Run(process)
+	if containerErr != nil {
+		return handleContainerErr(container, containerErr)
+	}
+	return nil
+}
+
+/**
 创建或启动容器
 create
 or
 create and start
+Process一定为Init Process
 */
-func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init bool, detach bool) (int, error) {
-	logrus.Infof("launching container: %s, action: %s", id, action)
-	var container libcapsule.Container
-	var err error
-	if init {
-		container, err = CreateContainer(id, spec)
-	} else {
-		container, err = GetContainer(id)
-	}
+func CreateOrRunContainer(id string, spec *specs.Spec, action ContainerAction, detach bool) error {
+	logrus.Infof("create or run container: %s, action: %s", id, action)
+	container, err := CreateContainer(id, spec)
 	if err != nil {
-		return -1, err
+		return err
 	}
 	// 将specs.Process转为libcapsule.Process
-	process, err := newProcess(*spec.Process, init, detach)
-	logrus.Infof("new process complete, libcapsule.Process: %#v", process)
+	process, err := newProcess(spec.Process, true, detach)
+	logrus.Infof("new init process complete, libcapsule.Process: %#v", process)
 	if err != nil {
-		return -1, err
+		return err
 	}
 	var containerErr error
 	switch action {
@@ -64,22 +96,26 @@ func LaunchContainer(id string, spec *specs.Spec, action ContainerAction, init b
 		containerErr = container.Run(process)
 	}
 	if containerErr != nil {
-		if err := container.Destroy(); err != nil {
-			logrus.Errorf(fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
-			return -1, exception.NewGenericErrorWithContext(
-				err,
-				exception.SystemError,
-				fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
-		}
-		return -1, containerErr
+		return handleContainerErr(container, containerErr)
 	}
 	// 如果是Run命令运行容器吗，并且是前台运行，那么Run结束，即为容器进程结束，则删除容器
 	if action == ContainerActRun && !detach {
 		if err := container.Destroy(); err != nil {
-			return -1, err
+			return err
 		}
 	}
-	return 0, nil
+	return nil
+}
+
+func handleContainerErr(container libcapsule.Container, containerErr error) error {
+	if err := container.Destroy(); err != nil {
+		logrus.Errorf(fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
+		return exception.NewGenericErrorWithContext(
+			err,
+			exception.SystemError,
+			fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
+	}
+	return containerErr
 }
 
 /**
@@ -162,7 +198,7 @@ func LoadFactory() (libcapsule.Factory, error) {
 /*
 将specs.Process转为libcapsule.Process
 */
-func newProcess(p specs.Process, init bool, detach bool) (*libcapsule.Process, error) {
+func newProcess(p *specs.Process, init, detach bool) (*libcapsule.Process, error) {
 	logrus.Infof("converting specs.Process to libcapsule.Process")
 	libcapsuleProcess := &libcapsule.Process{
 		Args:   p.Args,
