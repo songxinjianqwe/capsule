@@ -27,8 +27,7 @@ type InitializerStandardImpl struct {
 容器初始化
 */
 func (initializer *InitializerStandardImpl) Init() (err error) {
-	util.PrintSubsystemPids("memory", initializer.config.ID, "before initializer init", true)
-	logrus.WithField("init", true).Infof("InitializerStandardImpl create to Init()")
+	logrus.WithField("init", true).Infof("InitializerStandardImpl Init()")
 	defer func() {
 		// 后面再出现err就不管了
 		if err != nil {
@@ -41,17 +40,17 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	}()
 	// 初始化网络
 	if err = initializer.setUpNetwork(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init config/set up network")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/set up network")
 	}
 
 	// 初始化路由
 	if err = initializer.setUpRoute(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init config/set up route")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/set up route")
 	}
 
 	// 初始化rootfs
 	if err = initializer.setUpRootfs(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init config/prepare rootfs")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/prepare rootfs")
 	}
 
 	// 如果有设置Mount的Namespace，则设置rootfs与mount为read only（如果需要的话）
@@ -60,31 +59,31 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 			return err
 		}
 	}
-	util.PrintSubsystemPids("memory", initializer.config.ID, "after rootfs set up", true)
+	util.PrintSubsystemPids("memory", initializer.config.ID, "init process/after rootfs set up", true)
 
 	// 初始化hostname
 	if hostname := initializer.config.ContainerConfig.Hostname; hostname != "" {
-		logrus.WithField("init", true).Infof("setting hostname: %s", hostname)
+		logrus.WithField("init", true).Infof("init process/setting hostname: %s", hostname)
 		if err = unix.Sethostname([]byte(hostname)); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, "init config/set hostname")
+			return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/set hostname")
 		}
 	}
 
 	// 初始化环境变量
 	for key, value := range initializer.config.ContainerConfig.Sysctl {
 		if err = writeSystemProperty(key, value); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("write sysctl key %s", key))
+			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("init process/write sysctl key %s", key))
 		}
 	}
 	// 初始化namespace
 	if err = initializer.finalizeNamespace(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init config/finalize namespace")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/finalize namespace")
 	}
 
 	// look path 可以在系统的PATH里面寻找命令的绝对路径
 	name, err := exec.LookPath(initializer.config.ProcessConfig.Args[0])
 	if err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init config/look path cmd")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/look path cmd")
 	}
 	logrus.WithField("init", true).Infof("look path: %s", name)
 
@@ -92,7 +91,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	// child --------------> parent
 	// 告诉parent，init process已经初始化完毕，马上要执行命令了
 	if err := util.SyncSignal(initializer.parentPid, syscall.SIGUSR1); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init config/sync parent ready")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/sync parent ready")
 	}
 
 	// child <-------------- parent
@@ -106,7 +105,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	// 而前者会在覆盖当前进程的镜像、数据、堆栈等信息，包括PID。
 	logrus.WithField("init", true).Infof("syscall.Exec(name: %s, args: %v, env: %v)...", name, initializer.config.ProcessConfig.Args, os.Environ())
 	if err := syscall.Exec(name, initializer.config.ProcessConfig.Args, os.Environ()); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "start user config")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "start init process")
 	}
 	return nil
 }

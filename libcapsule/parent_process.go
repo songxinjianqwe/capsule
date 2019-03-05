@@ -1,8 +1,10 @@
 package libcapsule
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"os"
 )
 
@@ -65,4 +67,23 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 			process:          process,
 		}, nil
 	}
+}
+
+// **************************************************************************************************
+// util
+// **************************************************************************************************
+
+func sendConfig(containerConfig configs.ContainerConfig, process Process, id string, pipe *os.File) error {
+	initConfig := &InitConfig{
+		ContainerConfig: containerConfig,
+		ProcessConfig:   process,
+		ID:              id,
+	}
+	logrus.Infof("sending config: %#v", initConfig)
+	bytes, err := json.Marshal(initConfig)
+	if err != nil {
+		return err
+	}
+	_, err = pipe.WriteString(string(bytes))
+	return err
 }

@@ -1,7 +1,6 @@
 package libcapsule
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
@@ -20,7 +19,6 @@ ParentProcess接口的实现类，包裹了InitProcess，它返回的进程信�
 type ParentInitProcess struct {
 	initProcessCmd   *exec.Cmd
 	parentConfigPipe *os.File
-	parentExecPipe   *os.File
 	container        *LinuxContainer
 	process          *Process
 }
@@ -144,16 +142,5 @@ func (p *ParentInitProcess) createNetworkInterfaces() error {
 }
 
 func (p *ParentInitProcess) sendConfig() error {
-	initConfig := &InitConfig{
-		ContainerConfig: p.container.config,
-		ProcessConfig:   *p.process,
-		ID:              p.container.id,
-	}
-	logrus.Infof("sending config: %#v", initConfig)
-	bytes, err := json.Marshal(initConfig)
-	if err != nil {
-		return err
-	}
-	_, err = p.parentConfigPipe.WriteString(string(bytes))
-	return err
+	return sendConfig(p.container.config, *p.process, p.container.id, p.parentConfigPipe)
 }

@@ -1,10 +1,10 @@
 package libcapsule
 
 import (
-	"encoding/json"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,11 +16,13 @@ ParentProcess接口的实现类，包裹了SetnsProcess
 type ParentSetnsProcess struct {
 	execProcessCmd   *exec.Cmd
 	parentConfigPipe *os.File
-	parentExecPipe   *os.File
 	container        *LinuxContainer
 	process          *Process
 }
 
+/**
+对于Setns/Exec来说，start返回后，非daemon的进程已经结束了。
+*/
 func (p *ParentSetnsProcess) start() error {
 	logrus.Infof("ParentSetnsProcess starting...")
 	err := p.execProcessCmd.Start()
@@ -41,8 +43,7 @@ func (p *ParentSetnsProcess) start() error {
 	if err = p.parentConfigPipe.Close(); err != nil {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
-
-	return nil
+	return p.wait()
 }
 
 func (p *ParentSetnsProcess) detach() bool {
@@ -53,8 +54,17 @@ func (p *ParentSetnsProcess) pid() int {
 	return p.execProcessCmd.Process.Pid
 }
 
+func (p *ParentSetnsProcess) startTime() (uint64, error) {
+	stat, err := proc.GetProcessStat(p.pid())
+	if err != nil {
+		return 0, err
+	}
+	return stat.StartTime, err
+}
+
 func (p *ParentSetnsProcess) terminate() error {
 	if p.execProcessCmd.Process == nil {
+		logrus.Warnf("exec process is nil, cant be terminated")
 		return nil
 	}
 	err := p.execProcessCmd.Process.Kill()
@@ -65,30 +75,17 @@ func (p *ParentSetnsProcess) terminate() error {
 }
 
 func (p *ParentSetnsProcess) wait() error {
-	panic("implement me")
-}
-
-func (p *ParentSetnsProcess) startTime() (uint64, error) {
-	panic("implement me")
+	logrus.Infof("starting to wait exex process exit")
+	err := p.execProcessCmd.Wait()
+	if err != nil {
+		return err
+	}
+	logrus.Infof("wait exec process exit complete")
+	return nil
 }
 
 func (p *ParentSetnsProcess) signal(os.Signal) error {
 	panic("implement me")
-}
-
-func (p *ParentSetnsProcess) sendConfig() error {
-	initConfig := &InitConfig{
-		ContainerConfig: p.container.config,
-		ProcessConfig:   *p.process,
-		ID:              p.container.id,
-	}
-	logrus.Infof("sending config: %#v", initConfig)
-	bytes, err := json.Marshal(initConfig)
-	if err != nil {
-		return err
-	}
-	_, err = p.parentConfigPipe.WriteString(string(bytes))
-	return err
 }
 
 func (p *ParentSetnsProcess) sendNamespaces() error {
@@ -109,4 +106,8 @@ func (p *ParentSetnsProcess) sendNamespaces() error {
 		return err
 	}
 	return nil
+}
+
+func (p *ParentSetnsProcess) sendConfig() error {
+	return sendConfig(p.container.config, *p.process, p.container.id, p.parentConfigPipe)
 }
