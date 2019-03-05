@@ -2,6 +2,8 @@ package util
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	"io/ioutil"
@@ -101,4 +103,21 @@ func WaitSignal(sigs ...os.Signal) syscall.Signal {
 	received := <-receivedChan
 	signal.Reset(sigs...)
 	return received.(syscall.Signal)
+}
+
+func Int32ToBytes(n int32) ([]byte, error) {
+	x := int32(n)
+	bytesBuffer := bytes.NewBuffer([]byte{})
+	if err := binary.Write(bytesBuffer, binary.BigEndian, x); err != nil {
+		return nil, err
+	}
+	return bytesBuffer.Bytes(), nil
+}
+
+func ReadIntFromFile(file *os.File) (int, error) {
+	var x int32
+	if err := binary.Read(file, binary.BigEndian, &x); err != nil {
+		return 0, err
+	}
+	return int(x), nil
 }

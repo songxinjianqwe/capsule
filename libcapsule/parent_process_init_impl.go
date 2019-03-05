@@ -72,7 +72,7 @@ func (p *ParentInitProcess) start() (err error) {
 
 	// init process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending config to init config")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending config to init process")
 	}
 
 	// parent 写完就关

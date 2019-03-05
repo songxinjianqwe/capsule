@@ -41,12 +41,12 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 	logrus.Infof("create config pipe complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
 
 	cmd, err := container.buildCommand(process, childConfigPipe)
-	logrus.Infof("build command complete, command: %#v", cmd)
 	if err != nil {
 		return nil, err
 	}
 	if process.Init {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
+		logrus.Infof("build command complete, command: %#v", cmd)
 		logrus.Infof("new parent init process...")
 		return &ParentInitProcess{
 			initProcessCmd:   cmd,
@@ -56,6 +56,7 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 		}, nil
 	} else {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(SetnsInitializer)))
+		logrus.Infof("build command complete, command: %#v", cmd)
 		logrus.Infof("new parent setns process...")
 		return &ParentSetnsProcess{
 			execProcessCmd:   cmd,

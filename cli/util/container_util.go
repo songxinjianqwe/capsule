@@ -34,7 +34,7 @@ func (action ContainerAction) String() string {
 进入容器执行一个Process
 */
 func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd string, env []string) error {
-	logrus.Infof("exec container: %s, action: %s", id)
+	logrus.Infof("exec container: %s, detach: %t, args: %v, cwd: %s, env: %v", id, detach, args, cwd, env)
 	container, err := GetContainer(id)
 	containerStatus, err := container.Status()
 	if err != nil {
