@@ -33,7 +33,7 @@ type ParentProcess interface {
 
 /**
 创建一个ParentProcess实例，用于启动容器进程
-有可能是InitParentProcess，也有可能是SetnsParentProcess
+有可能是InitParentProcess，也有可能是ExecParentProcess
 */
 func NewParentProcess(container *LinuxContainer, process *Process) (ParentProcess, error) {
 	logrus.Infof("new parent process...")
@@ -57,10 +57,10 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 			process:          process,
 		}, nil
 	} else {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(SetnsInitializer)))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(ExecInitializer)))
 		logrus.Infof("build command complete, command: %#v", cmd)
-		logrus.Infof("new parent setns process...")
-		return &ParentSetnsProcess{
+		logrus.Infof("new parent exec process...")
+		return &ParentExecProcess{
 			execProcessCmd:   cmd,
 			parentConfigPipe: parentConfigPipe,
 			container:        container,

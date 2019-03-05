@@ -36,6 +36,9 @@ func (action ContainerAction) String() string {
 func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd string, env []string) error {
 	logrus.Infof("exec container: %s, detach: %t, args: %v, cwd: %s, env: %v", id, detach, args, cwd, env)
 	container, err := GetContainer(id)
+	if err != nil {
+		return err
+	}
 	containerStatus, err := container.Status()
 	if err != nil {
 		return err
@@ -60,12 +63,8 @@ func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd 
 	process.Env = append(process.Env, env...)
 
 	logrus.Infof("new exec process complete, libcapsule.Process: %#v", process)
-	containerErr := container.Run(process)
-	if containerErr != nil {
-		return handleContainerErr(container, containerErr)
-	}
 	// 无论是否是daemon运行，在执行完exec process后，都不会销毁容器。
-	return nil
+	return container.Run(process)
 }
 
 /**

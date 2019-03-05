@@ -20,7 +20,7 @@ func createAndGetCgroupAbsolutePathIfNotExists(subsystemName string, cgroupName 
 		// 目录不存在，则创建
 		if os.IsNotExist(err) {
 			logrus.Infof("cgroup path not found, then create it: %s", cgroupAbsolutePath)
-			if err := os.Mkdir(cgroupAbsolutePath, 0755); err != nil {
+			if err := os.Mkdir(cgroupAbsolutePath, 0644); err != nil {
 				logrus.Errorf("create cgroup relative path %s failed, cause: %s", cgroupAbsolutePath, err.Error())
 				return "", err
 			}
@@ -72,7 +72,7 @@ func writeConfigEntry(subsystemName, cgroupName, configFilename string, data []b
 	}
 	logrus.Infof("write to [%s]: %s", path.Join(cgroupPath, configFilename), string(data))
 	if err := ioutil.WriteFile(path.Join(cgroupPath, configFilename),
-		data, 0700); err != nil {
+		data, 0644); err != nil {
 		return err
 	}
 	return nil

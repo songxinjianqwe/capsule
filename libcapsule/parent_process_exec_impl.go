@@ -11,9 +11,9 @@ import (
 )
 
 /**
-ParentProcess接口的实现类，包裹了SetnsProcess
+ParentProcess接口的实现类，包裹了ExecProcess
 */
-type ParentSetnsProcess struct {
+type ParentExecProcess struct {
 	execProcessCmd   *exec.Cmd
 	parentConfigPipe *os.File
 	container        *LinuxContainer
@@ -21,10 +21,10 @@ type ParentSetnsProcess struct {
 }
 
 /**
-对于Setns/Exec来说，start返回后，非daemon的进程已经结束了。
+对于Exec来说，start返回后，非daemon的进程已经结束了。
 */
-func (p *ParentSetnsProcess) start() error {
-	logrus.Infof("ParentSetnsProcess starting...")
+func (p *ParentExecProcess) start() error {
+	logrus.Infof("ParentExecProcess starting...")
 	err := p.execProcessCmd.Start()
 	if err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting init process command")
@@ -46,15 +46,15 @@ func (p *ParentSetnsProcess) start() error {
 	return p.wait()
 }
 
-func (p *ParentSetnsProcess) detach() bool {
+func (p *ParentExecProcess) detach() bool {
 	return p.process.Detach
 }
 
-func (p *ParentSetnsProcess) pid() int {
+func (p *ParentExecProcess) pid() int {
 	return p.execProcessCmd.Process.Pid
 }
 
-func (p *ParentSetnsProcess) startTime() (uint64, error) {
+func (p *ParentExecProcess) startTime() (uint64, error) {
 	stat, err := proc.GetProcessStat(p.pid())
 	if err != nil {
 		return 0, err
@@ -62,7 +62,7 @@ func (p *ParentSetnsProcess) startTime() (uint64, error) {
 	return stat.StartTime, err
 }
 
-func (p *ParentSetnsProcess) terminate() error {
+func (p *ParentExecProcess) terminate() error {
 	if p.execProcessCmd.Process == nil {
 		logrus.Warnf("exec process is nil, cant be terminated")
 		return nil
@@ -74,8 +74,8 @@ func (p *ParentSetnsProcess) terminate() error {
 	return err
 }
 
-func (p *ParentSetnsProcess) wait() error {
-	logrus.Infof("starting to wait exex process exit")
+func (p *ParentExecProcess) wait() error {
+	logrus.Infof("starting to wait exec process exit")
 	err := p.execProcessCmd.Wait()
 	if err != nil {
 		return err
@@ -84,14 +84,18 @@ func (p *ParentSetnsProcess) wait() error {
 	return nil
 }
 
-func (p *ParentSetnsProcess) signal(os.Signal) error {
+func (p *ParentExecProcess) signal(os.Signal) error {
 	panic("implement me")
 }
 
-func (p *ParentSetnsProcess) sendNamespaces() error {
+func (p *ParentExecProcess) sendNamespaces() error {
+	initProcessPid, err := p.container.loadContainerInitProcessPid()
+	if err != nil {
+		return err
+	}
 	var namespacePaths []string
 	for _, ns := range p.container.config.Namespaces {
-		namespacePaths = append(namespacePaths, ns.GetPath(p.pid()))
+		namespacePaths = append(namespacePaths, ns.GetPath(initProcessPid))
 	}
 	logrus.Infof("sending config: %#v", namespacePaths)
 	data := []byte(strings.Join(namespacePaths, ","))
@@ -108,6 +112,6 @@ func (p *ParentSetnsProcess) sendNamespaces() error {
 	return nil
 }
 
-func (p *ParentSetnsProcess) sendConfig() error {
+func (p *ParentExecProcess) sendConfig() error {
 	return sendConfig(p.container.config, *p.process, p.container.id, p.parentConfigPipe)
 }

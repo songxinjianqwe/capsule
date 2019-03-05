@@ -56,7 +56,7 @@ func destroy(c *LinuxContainer) (err error) {
 		logrus.Warnf("remove container root runtime files failed, cause: %s", err.Error())
 		err = removeErr
 	}
-	c.initProcess = nil
+	c.parentProcess = nil
 	c.statusBehavior = &StoppedStatusBehavior{c: c}
 	logrus.Infof("destroy container complete")
 	return err

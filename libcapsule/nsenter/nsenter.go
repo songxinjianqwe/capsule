@@ -26,7 +26,7 @@ func init() {
 		return
 	}
 	initializerType := libcapsule.InitializerType(envInitializerType)
-	if initializerType != libcapsule.SetnsInitializer {
+	if initializerType != libcapsule.ExecInitializer {
 		return
 	}
 	logrus.WithField("init", true).Infof("got initializer type: %s", initializerType)

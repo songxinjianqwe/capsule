@@ -8,13 +8,13 @@ import (
 	"syscall"
 )
 
-type InitializerSetnsImpl struct {
+type InitializerExecImpl struct {
 	config    *InitConfig
 	childPipe *os.File
 }
 
-func (initializer *InitializerSetnsImpl) Init() error {
-	logrus.WithField("exec", true).Infof("InitializerSetnsImpl Init()")
+func (initializer *InitializerExecImpl) Init() error {
+	logrus.WithField("exec", true).Infof("InitializerExecImpl Init()")
 	// look path 可以在系统的PATH里面寻找命令的绝对路径
 	name, err := exec.LookPath(initializer.config.ProcessConfig.Args[0])
 	if err != nil {

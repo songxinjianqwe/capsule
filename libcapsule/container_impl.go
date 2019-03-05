@@ -35,7 +35,7 @@ type LinuxContainer struct {
 	root           string
 	config         configs.ContainerConfig
 	cgroupManager  cgroups.CgroupManager
-	initProcess    ParentProcess
+	parentProcess  ParentProcess
 	statusBehavior ContainerStatusBehavior
 	createdTime    time.Time
 	mutex          sync.Mutex
@@ -124,7 +124,7 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 	}
 	// to avoid a PID reuse attack
 	if status == Running || status == Created {
-		if err := c.initProcess.signal(s); err != nil {
+		if err := c.parentProcess.signal(s); err != nil {
 			return exception.NewGenericErrorWithContext(err, exception.SystemError, "signaling init process")
 		}
 		return nil
@@ -158,7 +158,7 @@ func (c *LinuxContainer) create(process *Process) error {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "creating new parent process")
 	}
 	logrus.Infof("new parent process complete, parent config: %#v", parent)
-	c.initProcess = parent
+	c.parentProcess = parent
 	// 2、启动parent config,直至child表示自己初始化完毕，等待执行命令
 	if err := parent.start(); err != nil {
 		// 启动失败，则杀掉init process，如果是已经停止，则忽略。
@@ -194,7 +194,7 @@ func (c *LinuxContainer) start() error {
 	util.PrintSubsystemPids("memory", c.id, "before container start", false)
 
 	logrus.Infof("send SIGUSR2 to child process...")
-	if err := c.initProcess.signal(syscall.SIGUSR2); err != nil {
+	if err := c.parentProcess.signal(syscall.SIGUSR2); err != nil {
 		return err
 	}
 	// 这里不好判断是否是之前在运行的是否是init process，索性就 有就删，没有就算了
@@ -207,9 +207,9 @@ func (c *LinuxContainer) start() error {
 	}
 	util.PrintSubsystemPids("memory", c.id, "after signal child SIGUSR2", false)
 	// 对于前台进程来说，这里必须wait，否则在仅有容器进程存活情况下，它在输入任何命令后立即退出，并且ssh进程退出/登录用户注销
-	if !c.initProcess.detach() {
+	if !c.parentProcess.detach() {
 		logrus.Infof("wait child process exit...")
-		if err := c.initProcess.wait(); err != nil {
+		if err := c.parentProcess.wait(); err != nil {
 			util.PrintSubsystemPids("memory", c.id, "after init process exit exceptionally", false)
 			return exception.NewGenericErrorWithContext(err, exception.SystemError, "waiting child process exit")
 		}
@@ -223,9 +223,12 @@ func (c *LinuxContainer) currentState() (*StateStorage, error) {
 		initProcessPid       = -1
 		initProcessStartTime uint64
 	)
-	if c.initProcess != nil {
-		initProcessPid = c.initProcess.pid()
-		initProcessStartTime, _ = c.initProcess.startTime()
+	if c.parentProcess != nil {
+		// 如果不是exec类型的，那么都是ok的
+		if _, ok := interface{}(c.parentProcess).(ParentExecProcess); !ok {
+			initProcessPid = c.parentProcess.pid()
+			initProcessStartTime, _ = c.parentProcess.startTime()
+		}
 	}
 	state := &StateStorage{
 		ID:                   c.ID(),
@@ -258,8 +261,8 @@ func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
 	}
 	state.Status = status.String()
 	if status != Stopped {
-		if c.initProcess != nil {
-			state.Pid = c.initProcess.pid()
+		if c.parentProcess != nil {
+			state.Pid = c.parentProcess.pid()
 		}
 	}
 	return state, err
@@ -286,15 +289,15 @@ func (c *LinuxContainer) currentStatus() (ContainerStatus, error) {
 4. parent process在启动容器之后会删除该文件。
 */
 func (c *LinuxContainer) detectContainerStatus() (ContainerStatus, error) {
-	if c.initProcess == nil {
+	if c.parentProcess == nil {
 		return Stopped, nil
 	}
-	pid := c.initProcess.pid()
+	pid := c.parentProcess.pid()
 	processState, err := proc.GetProcessStat(pid)
 	if err != nil {
 		return Stopped, nil
 	}
-	initProcessStartTime, _ := c.initProcess.startTime()
+	initProcessStartTime, _ := c.parentProcess.startTime()
 	if processState.StartTime != initProcessStartTime || processState.Status == proc.Zombie || processState.Status == proc.Dead {
 		return Stopped, nil
 	}
@@ -422,4 +425,21 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 		cmd.Stderr = os.Stderr
 	}
 	return cmd, nil
+}
+
+func (c *LinuxContainer) loadContainerInitProcessPid() (int, error) {
+	stateFilePath := filepath.Join(c.root, StateFilename)
+	f, err := os.Open(stateFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return -1, exception.NewGenericError(fmt.Errorf("container %s does not exist", c.id), exception.ContainerNotExists)
+		}
+		return -1, exception.NewGenericError(err, exception.SystemError)
+	}
+	defer f.Close()
+	var state *StateStorage
+	if err := json.NewDecoder(f).Decode(&state); err != nil {
+		return -1, exception.NewGenericError(err, exception.SystemError)
+	}
+	return state.InitProcessPid, nil
 }

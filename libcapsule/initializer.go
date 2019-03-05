@@ -9,7 +9,7 @@ import (
 type InitializerType string
 
 const (
-	SetnsInitializer    InitializerType = "setns"
+	ExecInitializer     InitializerType = "exec"
 	StandardInitializer InitializerType = "standard"
 )
 
@@ -25,8 +25,8 @@ func NewInitializer(initializerType InitializerType, config *InitConfig, configP
 			configPipe: configPipe,
 			parentPid:  unix.Getppid(),
 		}, nil
-	case SetnsInitializer:
-		return &InitializerSetnsImpl{
+	case ExecInitializer:
+		return &InitializerExecImpl{
 			config:    config,
 			childPipe: configPipe,
 		}, nil
