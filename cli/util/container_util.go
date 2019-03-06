@@ -195,7 +195,7 @@ var (
 */
 func LoadFactory() (libcapsule.Factory, error) {
 	once.Do(func() {
-		singletonFactory, singletonFactoryErr = libcapsule.NewFactory()
+		singletonFactory, singletonFactoryErr = libcapsule.NewFactory(true)
 	})
 	return singletonFactory, singletonFactoryErr
 }

@@ -162,7 +162,7 @@ func (c *LinuxContainer) create(process *Process) error {
 	// 2、启动parent config,直至child表示自己初始化完毕，等待执行命令
 	if err := parent.start(); err != nil {
 		// 启动失败，则杀掉init process，如果是已经停止，则忽略。
-		logrus.Warnf("parent process init failed, killing init/exec process...")
+		logrus.Warnf("parent process init/exec failed, killing init/exec process...")
 		if err := ignoreTerminateErrors(parent.terminate()); err != nil {
 			logrus.Warn(err)
 		}

@@ -29,15 +29,24 @@ const (
 	// 容器配置文件，存放在运行capsule的cwd下
 	ContainerConfigFilename = "config.json"
 	// 容器Init进程的日志
-	ContainerInitLogFilename        = "container.log"
+	ContainerInitLogFilename = "container.log"
+	// 容器Exec进程的日志名模板
 	ContainerExecLogFilenamePattern = "exec_%s.log"
 )
 
-func NewFactory() (Factory, error) {
+func NewFactory(init bool) (Factory, error) {
 	logrus.Infof("new container factory ...")
-	logrus.Infof("mkdir RuntimeRoot if not exists: %s", RuntimeRoot)
-	if err := os.MkdirAll(RuntimeRoot, 0700); err != nil {
-		return nil, exception.NewGenericError(err, exception.SystemError)
+	if init {
+		if _, err := os.Stat(RuntimeRoot); err != nil {
+			if os.IsNotExist(err) {
+				logrus.Infof("mkdir RuntimeRoot if not exists: %s", RuntimeRoot)
+				if err := os.MkdirAll(RuntimeRoot, 0700); err != nil {
+					return nil, exception.NewGenericError(err, exception.SystemError)
+				}
+			} else {
+				return nil, err
+			}
+		}
 	}
 	factory := &LinuxContainerFactory{}
 	return factory, nil

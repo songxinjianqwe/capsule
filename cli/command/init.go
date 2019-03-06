@@ -5,7 +5,6 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule"
 	_ "github.com/songxinjianqwe/capsule/libcapsule/nsenter"
 	"github.com/urfave/cli"
-	"os"
 )
 
 /**
@@ -15,10 +14,12 @@ var InitCommand = cli.Command{
 	Name:  "init",
 	Usage: "init a container(execute init/exec process)",
 	Action: func(ctx *cli.Context) error {
-		factory, _ := libcapsule.NewFactory()
+		factory, err := libcapsule.NewFactory(false)
+		if err != nil {
+			return err
+		}
 		if err := factory.StartInitialization(); err != nil {
 			logrus.WithField("init", true).Errorf("init failed, err: %s", err.Error())
-			os.Exit(1)
 		}
 		return nil
 	},
