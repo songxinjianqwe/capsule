@@ -402,8 +402,11 @@ func ignoreTerminateErrors(err error) error {
 */
 func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
 	cmd := exec.Command(ContainerInitCmd, ContainerInitArgs)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: c.config.Namespaces.CloneFlags(),
+	// 注意！Exec进程不需要新建namespace，而是进入已有的namespace
+	if process.Init {
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Cloneflags: c.config.Namespaces.CloneFlags(),
+		}
 	}
 	cmd.Dir = c.config.Rootfs
 	cmd.ExtraFiles = append(cmd.ExtraFiles, childConfigPipe)
