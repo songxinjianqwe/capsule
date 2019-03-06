@@ -412,12 +412,17 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 	)
 	// 如果后台运行，则将stdout输出到日志文件中
 	if process.Detach {
-		logFile, err := os.Create(path.Join(RuntimeRoot, c.id, ContainerLogFilename))
-		if err != nil {
-			return nil, err
-		}
 		// 输出重定向
-		cmd.Stdout = logFile
+		if process.Init {
+			logFile, err := os.Create(path.Join(RuntimeRoot, c.id, ContainerLogFilename))
+			if err != nil {
+				return nil, err
+			}
+			cmd.Stdout = logFile
+		} else {
+
+		}
+
 	} else {
 		// 如果启用终端，则将进程的stdin等置为os的
 		cmd.Stdin = os.Stdin

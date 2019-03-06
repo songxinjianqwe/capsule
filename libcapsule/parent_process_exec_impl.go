@@ -97,12 +97,13 @@ func (p *ParentExecProcess) sendNamespaces() error {
 	for _, ns := range p.container.config.Namespaces {
 		namespacePaths = append(namespacePaths, ns.GetPath(initProcessPid))
 	}
-	logrus.Infof("sending config: %#v", namespacePaths)
+	logrus.Infof("sending namespaces: %#v", namespacePaths)
 	data := []byte(strings.Join(namespacePaths, ","))
 	lenInBytes, err := util.Int32ToBytes(int32(len(data)))
 	if err != nil {
 		return err
 	}
+	logrus.Infof("write length of namespaces: %v", lenInBytes)
 	if _, err := p.parentConfigPipe.Write(lenInBytes); err != nil {
 		return err
 	}

@@ -33,7 +33,6 @@ func PrepareRoot(config *configs.ContainerConfig) error {
 */
 func MountToRootfs(m *configs.Mount, rootfs string) error {
 	logrus.WithField("init", true).Infof("mounting %#v to rootfs...", m)
-	const defaultMountFlags = unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 	var (
 		dest = m.Destination
 	)

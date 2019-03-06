@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
@@ -50,8 +51,12 @@ func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd 
 	if err != nil {
 		return err
 	}
+	execId, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
 	// 构造一个Process，由命令行输入的参数会覆盖spec中的Init Process Config
-	process, err := newProcess(spec.Process, false, detach)
+	process, err := newProcess(execId.String(), spec.Process, false, detach)
 	if err != nil {
 		return err
 	}
@@ -81,7 +86,7 @@ func CreateOrRunContainer(id string, spec *specs.Spec, action ContainerAction, d
 		return err
 	}
 	// 将specs.Process转为libcapsule.Process
-	process, err := newProcess(spec.Process, true, detach)
+	process, err := newProcess(id, spec.Process, true, detach)
 	logrus.Infof("new init process complete, libcapsule.Process: %#v", process)
 	if err != nil {
 		return err
@@ -198,9 +203,10 @@ func LoadFactory() (libcapsule.Factory, error) {
 /*
 将specs.Process转为libcapsule.Process
 */
-func newProcess(p *specs.Process, init, detach bool) (*libcapsule.Process, error) {
+func newProcess(id string, p *specs.Process, init, detach bool) (*libcapsule.Process, error) {
 	logrus.Infof("converting specs.Process to libcapsule.Process")
 	libcapsuleProcess := &libcapsule.Process{
+		ID:     id,
 		Args:   p.Args,
 		Env:    p.Env,
 		Cwd:    p.Cwd,

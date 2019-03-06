@@ -41,7 +41,7 @@ func (ns NamespaceType) NsName() string {
 	return ""
 }
 
-// NsName converts the namespace type to its filename
+// NsFlag converts the namespace type to its flag
 func (ns NamespaceType) NsFlag() uintptr {
 	switch ns {
 	case NEWNET:
