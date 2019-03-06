@@ -22,7 +22,7 @@ var LogCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		logFilename := path.Join(libcapsule.RuntimeRoot, containerId, libcapsule.ContainerLogFilename)
+		logFilename := path.Join(libcapsule.RuntimeRoot, containerId, libcapsule.ContainerInitLogFilename)
 		file, err := os.Open(logFilename)
 		if err != nil {
 			return err

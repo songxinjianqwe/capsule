@@ -28,7 +28,9 @@ const (
 	RuntimeRoot = "/run/capsule"
 	// 容器配置文件，存放在运行capsule的cwd下
 	ContainerConfigFilename = "config.json"
-	ContainerLogFilename    = "container.log"
+	// 容器Init进程的日志
+	ContainerInitLogFilename        = "container.log"
+	ContainerExecLogFilenamePattern = "exec_%s.log"
 )
 
 func NewFactory() (Factory, error) {
