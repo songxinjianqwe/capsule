@@ -9,13 +9,14 @@
 			"Rev": "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
 		},
 		{
-			"ImportPath": "github.com/mrunalp/fileutils",
-			"Rev": "7d4729fb36185a7c1719923406c9d40e54fb93c7"
-		},
-		{
 			"ImportPath": "github.com/opencontainers/runtime-spec/specs-go",
 			"Comment": "v1.0.1-57-g1722abf",
 			"Rev": "1722abf79c2f8f2675f47367f827c6491472cf27"
+		},
+		{
+			"ImportPath": "github.com/satori/go.uuid",
+			"Comment": "v1.2.0-12-gb2ce238",
+			"Rev": "b2ce2384e17bbe0c6d34077efa39dbab3e09123b"
 		},
 		{
 			"ImportPath": "github.com/sirupsen/logrus",
