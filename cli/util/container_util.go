@@ -44,12 +44,9 @@ func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd 
 	if err != nil {
 		return err
 	}
-	// init=false,ContainerActRun时,先检查容器状态是否为Stopped
+	// exec时,先检查容器状态是否为Stopped
 	if containerStatus == libcapsule.Stopped {
 		return fmt.Errorf("cant exec in a stopped container ")
-	}
-	if err != nil {
-		return err
 	}
 	execId, err := uuid.NewV4()
 	if err != nil {

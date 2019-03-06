@@ -30,6 +30,7 @@ func (p *ParentExecProcess) start() error {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting init process command")
 	}
 	logrus.Infof("exec process started, EXEC_PROCESS_PID: [%d]", p.pid())
+
 	// exec process会在启动后阻塞，直至收到namespaces
 	if err := p.sendNamespaces(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending namespaces to init process")

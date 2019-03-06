@@ -16,7 +16,7 @@ const int ERROR 					= 1;
 
 // __attribute__((constructor))：在main函数之前执行某个函数
 // https://stackoverflow.com/questions/25704661/calling-setns-from-go-returns-einval-for-mnt-namespace
-__attribute__((constructor)) void ns_init(void) {
+__attribute__((constructor)) void init(void) {
 	const char* type = getenv(ENV_INITIALIZER_TYPE);
 	if (!type || strcmp(type, EXEC_INITIALIZER) != 0) {
 		return;
@@ -56,6 +56,7 @@ __attribute__((constructor)) void ns_init(void) {
 		}
         printf("%s current namespace_path is %s\n",PRINT_PREFIX, ns);
         int result = nsenter(ns);
+        printf("\n");
         //if (result < 0) {
 		//	exit(ERROR);
         //}
@@ -66,11 +67,12 @@ __attribute__((constructor)) void ns_init(void) {
 
 int nsenter(char* namespace_path) {
     printf("%s entering namespace_path %s ...\n", PRINT_PREFIX, namespace_path);
-    int fd = open(namespace_path, O_RDONLY, 0644);
-    printf("%s open %s, got fd: %d \n", PRINT_PREFIX, namespace_path, fd);
+    int fd = open(namespace_path, O_RDONLY);
     if (fd < 0) {
-        printf("%s open %s failed, got fd: %d \n", PRINT_PREFIX, namespace_path, fd);
+        printf("%s open %s failed, cause: %s\n", PRINT_PREFIX, namespace_path, strerror(errno));
+        return -1;
     }
+    printf("%s open %s, got fd: %d \n", PRINT_PREFIX, namespace_path, fd);
     // int setns(int fd, int nstype)
     // 参数fd表示我们要加入的namespace的文件描述符,它是一个指向/proc/[pid]/ns目录的文件描述符，可以通过直接打开该目录下的链接或者打开一个挂载了该目录下链接的文件得到。
     // 参数nstype让调用者可以去检查fd指向的namespace类型是否符合我们实际的要求。如果填0表示不检查。
@@ -83,8 +85,8 @@ int nsenter(char* namespace_path) {
     } else {
         close(fd);
         printf("%s enter namespace %s succeeded\n", PRINT_PREFIX, namespace_path);
+    	return 0;
     }
-    return 0;
 }
 
 */
