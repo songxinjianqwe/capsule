@@ -1,12 +1,15 @@
 package nsenter
 
 /*
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sched.h>
+
 const char* LOG_PREFIX 	   			= "[EXEC]";
 const char* ENV_CONFIG_PIPE      	= "_LIBCAPSULE_CONFIG_PIPE";
 const char* ENV_INITIALIZER_TYPE 	= "_LIBCAPSULE_INITIALIZER_TYPE";
@@ -20,54 +23,88 @@ void read_namespces_and_enter_them();
 // https://lists.linux-foundation.org/pipermail/containers/2013-January/031565.html
 
 __attribute__((constructor)) void init(void) {
-	read_namespces_and_enter_them();
+	nsexec(NULL);
 }
 
-void read_namespces_and_enter_them() {
-	const char* type = getenv(ENV_INITIALIZER_TYPE);
-	if (!type || strcmp(type, EXEC_INITIALIZER) != 0) {
+char child_stack[4096];
+
+int nsexec(void* args) {
+	if (args && *(int*)args == 1) {
+		printf("%s Go to Go Runtime\n", LOG_PREFIX);
+		const char* type = getenv(ENV_INITIALIZER_TYPE);
+		printf("%s read type env: %s\n", LOG_PREFIX, type);
 		return;
-	}
-	printf("%s start to read namespaces\n", LOG_PREFIX);
-	const char* config_pipe_env = getenv(ENV_CONFIG_PIPE);
-	printf("%s read config pipe env: %s\n", LOG_PREFIX, config_pipe_env);
-	int config_pipe_fd = atoi(config_pipe_env);
-	printf("%s config pipe fd: %d\n", LOG_PREFIX, config_pipe_fd);
-	if (config_pipe_fd <= 0) {
-		printf("%s converting config pipe to int failed\n", LOG_PREFIX);
-		exit(ERROR);
-	}
-	// 读出长度
-	char lenBuffer[4];
-	if (read(config_pipe_fd, lenBuffer, 4) < 0) {
-		printf("%s lenBuffer: %s\n", LOG_PREFIX, lenBuffer);
-		printf("%s read namespace length failed\n", LOG_PREFIX);
-		exit(ERROR);
-	}
-
-	// big endian
-	int len = (lenBuffer[0] << 24) + (lenBuffer[1] << 16) + (lenBuffer[2] << 8) + lenBuffer[3];
-	printf("%s read namespace len: %d\n", LOG_PREFIX, len);
-
-	// 再读出namespaces
-	char namespaces[len];
-	if (read(config_pipe_fd, namespaces, len) < 0) {
-		printf("%s read namespaces failed\n", LOG_PREFIX);
-		exit(ERROR);
-	}
-	namespaces[len] = '\0';
-	printf("%s read namespaces: %s\n", LOG_PREFIX, namespaces);
-	char* ns = strtok(namespaces, NS_DELIMETER);
-	while(ns) {
-        printf("%s current namespace_path is %s\n", LOG_PREFIX, ns);
-        int result = nsenter(ns);
-        printf("\n");
-        if (result < 0) {
+	} else {
+		const char* type = getenv(ENV_INITIALIZER_TYPE);
+		if (!type || strcmp(type, EXEC_INITIALIZER) != 0) {
+			return;
+		}
+		printf("%s start to read namespaces\n", LOG_PREFIX);
+		const char* config_pipe_env = getenv(ENV_CONFIG_PIPE);
+		printf("%s read config pipe env: %s\n", LOG_PREFIX, config_pipe_env);
+		int config_pipe_fd = atoi(config_pipe_env);
+		printf("%s config pipe fd: %d\n", LOG_PREFIX, config_pipe_fd);
+		if (config_pipe_fd <= 0) {
+			printf("%s converting config pipe to int failed\n", LOG_PREFIX);
 			exit(ERROR);
-        }
-		ns = strtok(NULL, NS_DELIMETER);
+		}
+		// 读出长度
+		char intBuffer[4];
+		if (read(config_pipe_fd, intBuffer, 4) < 0) {
+			printf("%s lenBuffer: %s\n", LOG_PREFIX, intBuffer);
+			printf("%s read namespace length failed\n", LOG_PREFIX);
+			exit(ERROR);
+		}
+
+		// big endian
+		int len = byte4_to_int(intBuffer);
+		printf("%s read namespace len: %d\n", LOG_PREFIX, len);
+
+		// 再读出namespaces
+		char namespaces[len];
+		if (read(config_pipe_fd, namespaces, len) < 0) {
+			printf("%s read namespaces failed\n", LOG_PREFIX);
+			exit(ERROR);
+		}
+		namespaces[len] = '\0';
+		printf("%s read namespaces: %s\n", LOG_PREFIX, namespaces);
+		char* ns = strtok(namespaces, NS_DELIMETER);
+		while(ns) {
+			printf("%s current namespace_path is %s\n", LOG_PREFIX, ns);
+			int result = nsenter(ns);
+			printf("\n");
+			if (result < 0) {
+				exit(ERROR);
+			}
+			ns = strtok(NULL, NS_DELIMETER);
+		}
+		printf("%s enter namespaces succeeded\n", LOG_PREFIX);
+		int go = 1;
+		int child_pid = clone(nsexec, child_stack, CLONE_PARENT, &go);
+		if (child_pid < 0) {
+			printf("%s clone child failed, child pid is %d\n", LOG_PREFIX, child_pid);
+			exit(ERROR);
+		}
+		printf("%s clone child succeeded, child pid is %d\n", LOG_PREFIX, child_pid);
+		int_to_byte_4(intBuffer, child_pid);
+		if (write(config_pipe_fd, intBuffer, 4) < 0) {
+			printf("%s read namespaces failed\n", LOG_PREFIX);
+			exit(ERROR);
+		}
+		printf("%s write child pid to parent pipe succeeded\n", LOG_PREFIX);
+		exit(0);
 	}
-	printf("%s enter namespaces succeeded\n", LOG_PREFIX);
+}
+
+int byte4_to_int(char buffer[4]) {
+	return (buffer[0] << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
+}
+
+void int_to_byte_4(char* buffer, int i) {
+	buffer[0] = i >> 24;
+	buffer[1] = i >> 16;
+	buffer[2] = i >> 8;
+	buffer[3] = i;
 }
 
 int nsenter(char* namespace_path) {

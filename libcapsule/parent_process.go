@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"os"
 )
 
@@ -39,9 +40,11 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 	logrus.Infof("new parent process...")
 	logrus.Infof("creating pipes...")
 	// Config: parent 写，child(init process)读
-	childConfigPipe, parentConfigPipe, err := os.Pipe()
-	logrus.Infof("create config pipe complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
-
+	parentConfigPipe, childConfigPipe, err := util.NewSocketPair("config")
+	if err != nil {
+		return nil, err
+	}
+	logrus.Infof("create config socket pair complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
 	cmd, err := container.buildCommand(process, childConfigPipe)
 	if err != nil {
 		return nil, err

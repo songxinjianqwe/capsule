@@ -96,14 +96,14 @@ func (p *ParentInitProcess) pid() int {
 }
 
 func (p *ParentInitProcess) terminate() error {
-	if p.initProcessCmd.Process == nil {
-		return nil
-	}
-	err := p.initProcessCmd.Process.Kill()
-	if err := p.wait(); err == nil {
+	logrus.Infof("starting to kill init process")
+	if err := p.initProcessCmd.Process.Kill(); err != nil {
 		return err
 	}
-	return err
+	if err := p.wait(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *ParentInitProcess) wait() error {

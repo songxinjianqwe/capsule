@@ -33,12 +33,24 @@ func (p *ParentExecProcess) start() error {
 
 	// exec process会在启动后阻塞，直至收到namespaces
 	if err := p.sendNamespaces(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending namespaces to init process")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending namespaces to exec process")
 	}
-
+	childPid, err := util.ReadIntFromFile(p.parentConfigPipe)
+	logrus.Infof("read child pid from parent pipe: %d", childPid)
+	if err != nil {
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "reading child pid")
+	}
+	if err := p.wait(); err != nil {
+		return err
+	}
+	process, err := os.FindProcess(childPid)
+	if err != nil {
+		return err
+	}
+	p.execProcessCmd.Process = process
 	// exec process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending init config to init process")
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending init config to exec process")
 	}
 	// parent 写完就关
 	if err = p.parentConfigPipe.Close(); err != nil {
@@ -64,20 +76,19 @@ func (p *ParentExecProcess) startTime() (uint64, error) {
 }
 
 func (p *ParentExecProcess) terminate() error {
-	if p.execProcessCmd.Process == nil {
-		logrus.Warnf("exec process is nil, cant be terminated")
-		return nil
-	}
-	err := p.execProcessCmd.Process.Kill()
-	if err := p.wait(); err == nil {
+	logrus.Infof("starting to kill exec process")
+	if err := p.execProcessCmd.Process.Kill(); err != nil {
 		return err
 	}
-	return err
+	if err := p.wait(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *ParentExecProcess) wait() error {
 	logrus.Infof("starting to wait exec process exit")
-	err := p.execProcessCmd.Wait()
+	_, err := p.execProcessCmd.Process.Wait()
 	if err != nil {
 		return err
 	}
