@@ -15,7 +15,7 @@ var DeleteCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.BoolFlag{
 			Name:  "force, f",
-			Usage: "Forcibly deletes the container if it is still running (uses SIGKILL)",
+			Usage: "Force delete the container even it is still running (uses SIGKILL)",
 		},
 	},
 	Action: func(ctx *cli.Context) error {

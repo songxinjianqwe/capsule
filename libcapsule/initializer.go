@@ -26,10 +26,11 @@ func NewInitializer(initializerType InitializerType, config *InitConfig, configP
 			parentPid:  unix.Getppid(),
 		}, nil
 	case ExecInitializer:
-		return &InitializerExecImpl{
-			config:    config,
-			childPipe: configPipe,
-		}, nil
+		return nil, fmt.Errorf("exec initializer cant be used for now")
+		//return &InitializerExecImpl{
+		//	config:    config,
+		//	childPipe: configPipe,
+		//}, nil
 	default:
 		return nil, fmt.Errorf("unknown initializerType:%s", initializerType)
 	}

@@ -11,6 +11,7 @@ const char* LOG_PREFIX 	   			= "[EXEC]";
 const char* ENV_CONFIG_PIPE      	= "_LIBCAPSULE_CONFIG_PIPE";
 const char* ENV_INITIALIZER_TYPE 	= "_LIBCAPSULE_INITIALIZER_TYPE";
 const char* NS_DELIMETER 			= ",";
+const char* CMD_DELIMETER 			= " ";
 const char*	EXEC_INITIALIZER  		= "exec";
 const int ERROR 					= 1;
 
@@ -38,24 +39,23 @@ void read_namespces_and_enter_them() {
 		exit(ERROR);
 	}
 	// 读出长度
-	char lenBuffer[4];
-	if (read(config_pipe_fd, lenBuffer, 4) < 0) {
-		printf("%s lenBuffer: %s\n", LOG_PREFIX, lenBuffer);
+	char intBuffer[4];
+	if (read(config_pipe_fd, intBuffer, 4) < 0) {
 		printf("%s read namespace length failed\n", LOG_PREFIX);
 		exit(ERROR);
 	}
 
 	// big endian
-	int len = (lenBuffer[0] << 24) + (lenBuffer[1] << 16) + (lenBuffer[2] << 8) + lenBuffer[3];
-	printf("%s read namespace len: %d\n", LOG_PREFIX, len);
+	int nsLen = (intBuffer[0] << 24) + (intBuffer[1] << 16) + (intBuffer[2] << 8) + intBuffer[3];
+	printf("%s read namespace len: %d\n", LOG_PREFIX, nsLen);
 
 	// 再读出namespaces
-	char namespaces[len];
-	if (read(config_pipe_fd, namespaces, len) < 0) {
+	char namespaces[nsLen];
+	if (read(config_pipe_fd, namespaces, nsLen) < 0) {
 		printf("%s read namespaces failed\n", LOG_PREFIX);
 		exit(ERROR);
 	}
-	namespaces[len] = '\0';
+	namespaces[nsLen] = '\0';
 	printf("%s read namespaces: %s\n", LOG_PREFIX, namespaces);
 	char* ns = strtok(namespaces, NS_DELIMETER);
 	while(ns) {
@@ -68,6 +68,33 @@ void read_namespces_and_enter_them() {
 		ns = strtok(NULL, NS_DELIMETER);
 	}
 	printf("%s enter namespaces succeeded\n", LOG_PREFIX);
+
+	if (read(config_pipe_fd, intBuffer, 4) < 0) {
+		printf("%s read cmd length failed\n", LOG_PREFIX);
+		exit(ERROR);
+	}
+
+	int cmdLen = (intBuffer[0] << 24) + (intBuffer[1] << 16) + (intBuffer[2] << 8) + intBuffer[3];
+	printf("%s read cmd len: %d\n", LOG_PREFIX, cmdLen);
+
+	char cmd[cmdLen];
+	if (read(config_pipe_fd, cmd, 1024) < 0) {
+		printf("%s read cmd failed\n", LOG_PREFIX);
+		exit(ERROR);
+	}
+	cmd[cmdLen] = '\0';
+	printf("%s read cmd: %s\n", LOG_PREFIX, cmd);
+
+	if (close(config_pipe_fd) < 0) {
+		printf("%s close child pipe failed, cause: %s\n", LOG_PREFIX, strerror(errno));
+	}
+	int status = system(cmd);
+	if (status < 0) {
+		printf("%s system(%s) failed, cause: %s\n", LOG_PREFIX, cmd, strerror(errno));
+	} else {
+		printf("%s system(%s) succeeded\n", LOG_PREFIX, cmd);
+	}
+	exit(status);
 }
 
 int nsenter(char* namespace_path) {

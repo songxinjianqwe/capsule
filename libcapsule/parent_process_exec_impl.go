@@ -37,14 +37,22 @@ func (p *ParentExecProcess) start() error {
 	}
 
 	// exec process会在启动后阻塞，直至收到config
-	if err = p.sendConfig(); err != nil {
+	if err = p.sendCommand(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending init config to init process")
 	}
 	// parent 写完就关
 	if err = p.parentConfigPipe.Close(); err != nil {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
-	return p.wait()
+	// 如果是detach，则直接结束。
+	if !p.detach() {
+		logrus.Infof("wait child process exit...")
+		if err := p.wait(); err != nil {
+			return exception.NewGenericErrorWithContext(err, exception.SystemError, "waiting child process exit")
+		}
+		logrus.Infof("child process exited")
+	}
+	return nil
 }
 
 func (p *ParentExecProcess) detach() bool {
@@ -114,6 +122,18 @@ func (p *ParentExecProcess) sendNamespaces() error {
 	return nil
 }
 
-func (p *ParentExecProcess) sendConfig() error {
-	return sendConfig(p.container.config, *p.process, p.container.id, p.parentConfigPipe)
+func (p *ParentExecProcess) sendCommand() error {
+	argsString := strings.Join(p.process.Args, " ")
+	lenInBytes, err := util.Int32ToBytes(int32(len(argsString)))
+	if err != nil {
+		return err
+	}
+	logrus.Infof("write length of commands: %v", lenInBytes)
+	if _, err := p.parentConfigPipe.Write(lenInBytes); err != nil {
+		return err
+	}
+	if _, err := p.parentConfigPipe.WriteString(argsString); err != nil {
+		return err
+	}
+	return nil
 }

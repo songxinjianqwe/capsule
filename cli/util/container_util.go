@@ -181,6 +181,10 @@ func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) 
 	return container, nil
 }
 
+func CleanRuntime() error {
+	return os.RemoveAll(libcapsule.RuntimeRoot)
+}
+
 var (
 	singletonFactory    libcapsule.Factory
 	singletonFactoryErr error

@@ -1,9 +1,9 @@
 package command
 
 import (
-	"fmt"
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/urfave/cli"
+	"strings"
 )
 
 var ExecCommand = cli.Command{
@@ -24,21 +24,22 @@ var ExecCommand = cli.Command{
 		},
 	},
 	Action: func(ctx *cli.Context) error {
-		if err := util.CheckArgs(ctx, 1, util.MinArgs); err != nil {
+		if err := util.CheckArgs(ctx, 2, util.MinArgs); err != nil {
 			return err
-		}
-		if len(ctx.Args()) == 1 {
-			return fmt.Errorf("process args cannot be empty")
 		}
 		spec, err := loadSpec()
 		if err != nil {
 			return err
 		}
+		args := ctx.Args()[1:]
+		if len(args) == 1 && strings.Contains(args[0], " ") {
+			args = strings.Split(args[0], " ")
+		}
 		if err := util.ExecContainer(
 			ctx.Args().First(),
 			spec,
 			ctx.Bool("detach"),
-			ctx.Args()[1:],
+			args,
 			ctx.String("cwd"),
 			ctx.StringSlice("env")); err != nil {
 			return err

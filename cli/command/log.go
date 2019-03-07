@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/songxinjianqwe/capsule/libcapsule"
 	"github.com/urfave/cli"
@@ -13,6 +14,12 @@ import (
 var LogCommand = cli.Command{
 	Name:  "log",
 	Usage: "get a container's log",
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exec",
+			Usage: "get a container's exec log",
+		},
+	},
 	Action: func(ctx *cli.Context) error {
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
@@ -22,7 +29,15 @@ var LogCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		logFilename := path.Join(libcapsule.RuntimeRoot, containerId, libcapsule.ContainerInitLogFilename)
+		var logFilename string
+		logrus.Infof("exec param: %s", ctx.String("exec"))
+		if ctx.String("exec") != "" {
+			// exec detach log
+			logFilename = path.Join(libcapsule.RuntimeRoot, containerId, fmt.Sprintf(libcapsule.ContainerExecLogFilenamePattern, ctx.String("exec")))
+		} else {
+			// container detach log
+			logFilename = path.Join(libcapsule.RuntimeRoot, containerId, libcapsule.ContainerInitLogFilename)
+		}
 		file, err := os.Open(logFilename)
 		if err != nil {
 			return err
