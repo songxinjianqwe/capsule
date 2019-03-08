@@ -4,7 +4,7 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 )
 
-/**
+/*
 以memory为例：
 memory是一个subsystem。
 /sys/fs/cgroup/memory是一个hierarchy（或者称为mount point ），它与memory subsystem关联。

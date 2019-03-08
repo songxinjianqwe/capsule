@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-/**
+/*
 将当前root文件系统改为rootfs目录下的文件系统
 把整个系统切换到一个新的root目录，而移除对之前root文件系统的依赖，这样就可以unmount原来的root文件系统
 原来系统的mount信息都会消失！

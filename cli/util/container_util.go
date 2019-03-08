@@ -31,7 +31,7 @@ func (action ContainerAction) String() string {
 	}
 }
 
-/**
+/*
 进入容器执行一个Process
 */
 func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd string, env []string) (string, error) {
@@ -69,7 +69,7 @@ func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd 
 	return execId.String(), container.Run(process)
 }
 
-/**
+/*
 创建或启动容器
 create
 or
@@ -120,7 +120,7 @@ func handleContainerErr(container libcapsule.Container, containerErr error) erro
 	return containerErr
 }
 
-/**
+/*
 根据id读取一个Container
 */
 func GetContainer(id string) (libcapsule.Container, error) {
@@ -134,7 +134,7 @@ func GetContainer(id string) (libcapsule.Container, error) {
 	return factory.Load(id)
 }
 
-/**
+/*
 查询所有的id
 */
 func GetContainerIds() ([]string, error) {
@@ -154,7 +154,7 @@ func GetContainerIds() ([]string, error) {
 	return ids, nil
 }
 
-/**
+/*
 创建容器实例
 */
 func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) {

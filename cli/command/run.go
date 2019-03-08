@@ -5,7 +5,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-/**
+/*
 如果detach=true，则表示将容器的stdio、stdout、stderr设置为os.stdio...等，且等待容器进程结束
 如果detach=false，则什么都不做。
 并且capsule start时，detach总是为false。

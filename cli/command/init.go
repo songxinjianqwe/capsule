@@ -7,7 +7,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-/**
+/*
 仅限内部调用，有可能是init process，也有可能是exec process。
 */
 var InitCommand = cli.Command{

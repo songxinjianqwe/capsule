@@ -16,7 +16,7 @@ func NewParentNoChildProcess(initProcessPid int, initProcessStartTime uint64, c 
 	}
 }
 
-/**
+/*
 ParentProcess接口的实现类，no child意味着我们现在启动的进程并不是容器init process的父进程，但仍是init process的代理
 */
 type ParentNoChildProcess struct {
@@ -33,14 +33,14 @@ func (p *ParentNoChildProcess) pid() int {
 	return p.initProcessPid
 }
 
-/**
+/*
 不需要实现
 */
 func (p *ParentNoChildProcess) start() error {
 	return errors.New("should not be called")
 }
 
-/**
+/*
 不需要实现
 */
 func (p *ParentNoChildProcess) terminate() error {

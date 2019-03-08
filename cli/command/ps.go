@@ -2,7 +2,7 @@ package command
 
 import "github.com/urfave/cli"
 
-/**
+/*
 相当于exec ps
 */
 var PsCommand = cli.Command{

@@ -31,7 +31,7 @@ type ParentProcess interface {
 	detach() bool
 }
 
-/**
+/*
 创建一个ParentProcess实例，用于启动容器进程
 有可能是InitParentProcess，也有可能是ExecParentProcess
 */

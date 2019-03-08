@@ -17,7 +17,7 @@ the Open Container Initiative (OCI) format and is a compliant implementation of 
 Open Container Initiative specification.`
 )
 
-/**
+/*
 CLI入口
 */
 func main() {

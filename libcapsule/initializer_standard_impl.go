@@ -26,7 +26,7 @@ type InitializerStandardImpl struct {
 // public
 // **************************************************************************************************
 
-/**
+/*
 容器初始化
 */
 func (initializer *InitializerStandardImpl) Init() (err error) {

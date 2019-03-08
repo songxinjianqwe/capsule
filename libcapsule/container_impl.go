@@ -23,9 +23,9 @@ import (
 const (
 	EnvConfigPipe      = "_LIBCAPSULE_CONFIG_PIPE"
 	EnvInitializerType = "_LIBCAPSULE_INITIALIZER_TYPE"
-	/**
-	一个进程默认有三个文件描述符，stdin、stdout、stderr
-	外带的文件描述符在这三个fd之后
+	/*
+		一个进程默认有三个文件描述符，stdin、stdout、stderr
+		外带的文件描述符在这三个fd之后
 	*/
 	DefaultStdFdCount = 3
 )
@@ -71,7 +71,7 @@ func (c *LinuxContainer) Config() configs.ContainerConfig {
 	return c.config
 }
 
-/**
+/*
 Create并不会运行cmd
 会让init process阻塞在cmd之前的
 */
@@ -81,7 +81,7 @@ func (c *LinuxContainer) Create(process *Process) error {
 	return c.create(process)
 }
 
-/**
+/*
 CreateAndStart
 如果是exec（即不是init cmd），则在start中就会执行cmd，不需要exec再通知
 */
@@ -99,7 +99,7 @@ func (c *LinuxContainer) Run(process *Process) error {
 	return nil
 }
 
-/**
+/*
 取消init process的阻塞
 */
 func (c *LinuxContainer) Start() error {
@@ -136,7 +136,7 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 // private
 // ************************************************************************************************
 
-/**
+/*
 1. parent create child
 2.1 parent init, then send config
 2.2 child init, then wait config
@@ -268,7 +268,7 @@ func (c *LinuxContainer) currentOCIState() (*specs.State, error) {
 	return state, err
 }
 
-/**
+/*
 容器状态可以存储在state.json文件中，也可以每次去检测。
 前者是不靠谱的！如果是后台运行的容器，那么在parent process结束后，容器可能会退出，但此时parent process不会
 去监听容器进程状态，也就无法保证state.json文件的状态总是正确的。
@@ -281,7 +281,7 @@ func (c *LinuxContainer) currentStatus() (ContainerStatus, error) {
 	return c.statusBehavior.status(), nil
 }
 
-/**
+/*
 可以根据容器进程状态判断:
 1. 如果进程不存在，或状态异常，则说明为Stopped
 2. 如果进程存在，那么有可能是Created或Running，从进程状态没有办法区别
@@ -310,7 +310,7 @@ func (c *LinuxContainer) detectContainerStatus() (ContainerStatus, error) {
 	return Running, nil
 }
 
-/**
+/*
 检测并刷新状态，调用完该方法后，容器的containerStatusBehavior是最新的状态对象
 */
 func (c *LinuxContainer) refreshStatus() error {
@@ -330,7 +330,7 @@ func (c *LinuxContainer) refreshStatus() error {
 	return nil
 }
 
-/**
+/*
 更新容器状态文件state.json
 这个文件中不存储真正容器的状态，只需要在创建容器后创建文件即可，此后不再修改
 */
@@ -397,7 +397,7 @@ func ignoreTerminateErrors(err error) error {
 	return err
 }
 
-/**
+/*
 构造一个command对象
 */
 func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {

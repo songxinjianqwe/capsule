@@ -29,7 +29,7 @@ func PrepareRoot(config *configs.ContainerConfig) error {
 	return unix.Mount(config.Rootfs, config.Rootfs, "bind", unix.MS_BIND|unix.MS_REC, "")
 }
 
-/**
+/*
 挂载
 */
 func MountToRootfs(m *configs.Mount, rootfs string) error {
@@ -51,7 +51,7 @@ func MountToRootfs(m *configs.Mount, rootfs string) error {
 	return mount(m, rootfs)
 }
 
-/**
+/*
 真正执行挂载
 */
 func mount(m *configs.Mount, rootfs string) error {
@@ -73,7 +73,7 @@ func mount(m *configs.Mount, rootfs string) error {
 	return nil
 }
 
-/**
+/*
 将该mount置为read only
 */
 func RemountReadonly(m *configs.Mount) error {
@@ -88,14 +88,14 @@ func RemountReadonly(m *configs.Mount) error {
 	return nil
 }
 
-/**
+/*
 将rootfs 置为read only
 */
 func SetRootfsReadonly() error {
 	return unix.Mount("/", "/", "bind", unix.MS_BIND|unix.MS_REMOUNT|unix.MS_RDONLY|unix.MS_REC, "")
 }
 
-/**
+/*
 创建设备文件,mknod
 */
 func CreateDeviceNode(rootfs string, node *configs.Device) error {

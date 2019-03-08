@@ -13,7 +13,7 @@ func (subsys *CpuSubsystem) Name() string {
 	return "cpu"
 }
 
-/**
+/*
 cpu share，默认值为1024。
 多个容器都设置了cpu share，并且每个容器的进程都会把CPU沾满时：
 将每个容器的cpu share的值相加，每个容器的占比就是 CPU 的利用率。

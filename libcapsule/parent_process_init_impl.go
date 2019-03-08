@@ -19,7 +19,7 @@ type InitConfig struct {
 	ID              string                  `json:"id"`
 }
 
-/**
+/*
 ParentProcess接口的实现类，包裹了InitProcess，它返回的进程信息均为容器Init进程的信息
 */
 type ParentInitProcess struct {

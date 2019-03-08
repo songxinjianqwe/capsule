@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-/**
+/*
 ParentProcess接口的实现类，包裹了ExecProcess
 */
 type ParentExecProcess struct {
@@ -21,7 +21,7 @@ type ParentExecProcess struct {
 	process          *Process
 }
 
-/**
+/*
 对于Exec来说，start返回后，非daemon的进程已经结束了。
 */
 func (p *ParentExecProcess) start() error {
