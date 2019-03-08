@@ -138,6 +138,7 @@ func (p *ParentInitProcess) signal(sig os.Signal) error {
 
 func (p *ParentInitProcess) createNetworkInterfaces() error {
 	logrus.Infof("creating network interfaces")
+
 	return nil
 }
 

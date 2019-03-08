@@ -15,17 +15,20 @@ const char* NS_DELIMETER 			= ",";
 const char* CMD_DELIMETER 			= " ";
 const char*	EXEC_INITIALIZER  		= "exec";
 const int ERROR 					= 1;
+const int OK						= 0;
 
-void read_namespces_and_enter_them();
+void nsexec();
+int enter_namespaces(int config_pipe_fd);
+int exec_cmd(int config_pipe_fd);
 // __attribute__((constructor))：在main函数之前执行某个函数
 // https://stackoverflow.com/questions/25704661/calling-setns-from-go-returns-einval-for-mnt-namespace
 // https://lists.linux-foundation.org/pipermail/containers/2013-January/031565.html
 
 __attribute__((constructor)) void init(void) {
-	read_namespces_and_enter_them();
+	nsexec();
 }
 
-void read_namespces_and_enter_them() {
+void nsexec() {
 	const char* type = getenv(ENV_INITIALIZER_TYPE);
 	if (!type || strcmp(type, EXEC_INITIALIZER) != 0) {
 		return;
@@ -39,22 +42,31 @@ void read_namespces_and_enter_them() {
 		printf("%s converting config pipe to int failed\n", LOG_PREFIX);
 		exit(ERROR);
 	}
-	// 读出长度
+	int status = enter_namespaces(config_pipe_fd);
+	if (status < 0) {
+		exit(status);
+	}
+	status = exec_cmd(config_pipe_fd);
+	exit(status);
+}
+
+int enter_namespaces(int config_pipe_fd) {
+	// 读出namespaces的长度
 	char intBuffer[4];
 	if (read(config_pipe_fd, intBuffer, 4) < 0) {
 		printf("%s read namespace length failed\n", LOG_PREFIX);
-		exit(ERROR);
+		return ERROR;
 	}
 
 	// big endian
-	int nsLen = (intBuffer[0] << 24) + (intBuffer[1] << 16) + (intBuffer[2] << 8) + intBuffer[3];
+	int nsLen = byte4_to_int(intBuffer);
 	printf("%s read namespace len: %d\n", LOG_PREFIX, nsLen);
 
 	// 再读出namespaces
 	char namespaces[nsLen];
 	if (read(config_pipe_fd, namespaces, nsLen) < 0) {
 		printf("%s read namespaces failed\n", LOG_PREFIX);
-		exit(ERROR);
+		return ERROR;
 	}
 	namespaces[nsLen] = '\0';
 	printf("%s read namespaces: %s\n", LOG_PREFIX, namespaces);
@@ -64,24 +76,28 @@ void read_namespces_and_enter_them() {
         int result = nsenter(ns);
         printf("\n");
         if (result < 0) {
-			exit(ERROR);
+			return ERROR;
         }
 		ns = strtok(NULL, NS_DELIMETER);
 	}
 	printf("%s enter namespaces succeeded\n", LOG_PREFIX);
+	return OK;
+}
 
+int exec_cmd(int config_pipe_fd) {
+	char intBuffer[4];
 	if (read(config_pipe_fd, intBuffer, 4) < 0) {
 		printf("%s read cmd length failed\n", LOG_PREFIX);
-		exit(ERROR);
+		return ERROR;
 	}
 
-	int cmdLen = (intBuffer[0] << 24) + (intBuffer[1] << 16) + (intBuffer[2] << 8) + intBuffer[3];
+	int cmdLen = byte4_to_int(intBuffer);
 	printf("%s read cmd len: %d\n", LOG_PREFIX, cmdLen);
 
 	char cmd[cmdLen];
 	if (read(config_pipe_fd, cmd, 1024) < 0) {
 		printf("%s read cmd failed\n", LOG_PREFIX);
-		exit(ERROR);
+		return ERROR;
 	}
 	cmd[cmdLen] = '\0';
 	printf("%s read cmd: %s\n", LOG_PREFIX, cmd);
@@ -92,10 +108,15 @@ void read_namespces_and_enter_them() {
 	int status = system(cmd);
 	if (status < 0) {
 		printf("%s system(%s) failed, cause: %s\n", LOG_PREFIX, cmd, strerror(errno));
+		return ERROR;
 	} else {
 		printf("%s system(%s) succeeded\n", LOG_PREFIX, cmd);
+		return OK;
 	}
-	exit(status);
+}
+
+int byte4_to_int(char buffer[4]) {
+	return (buffer[0] << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
 }
 
 int nsenter(char* namespace_path) {
