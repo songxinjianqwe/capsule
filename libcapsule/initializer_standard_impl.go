@@ -8,8 +8,11 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/rootfs"
 	"golang.org/x/sys/unix"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
+	"strings"
 	"syscall"
 )
 
@@ -38,6 +41,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 			}
 		}
 	}()
+
 	// 初始化网络
 	if err = initializer.setUpNetwork(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/set up network")
@@ -59,7 +63,6 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 			return err
 		}
 	}
-	util.PrintSubsystemPids("memory", initializer.config.ID, "init process/after rootfs set up", true)
 
 	// 初始化hostname
 	if hostname := initializer.config.ContainerConfig.Hostname; hostname != "" {
@@ -75,6 +78,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("init process/write sysctl key %s", key))
 		}
 	}
+
 	// 初始化namespace
 	if err = initializer.finalizeNamespace(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/finalize namespace")
@@ -185,7 +189,10 @@ func (initializer *InitializerStandardImpl) SetRootfsReadOnlyIfNeed() error {
 // util
 // **************************************************************************************************
 
+// writeSystemProperty writes the value to a path under /proc/sys as determined from the key.
+// For e.g. net.ipv4.ip_forward translated to /proc/sys/net/ipv4/ip_forward.
 func writeSystemProperty(key string, value string) error {
-	logrus.WithField("init", true).Infof("write system property:key:%s, value:%s", key, value)
-	return nil
+	keyPath := strings.Replace(key, ".", "/", -1)
+	logrus.WithField("init", true).Infof("write system property: key:%s, value:%s", keyPath, value)
+	return ioutil.WriteFile(path.Join("/proc/sys", keyPath), []byte(value), 0644)
 }
