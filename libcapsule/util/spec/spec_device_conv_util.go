@@ -8,21 +8,6 @@ import (
 	"os"
 )
 
-func stringToDeviceRune(s string) (rune, error) {
-	switch s {
-	case "p":
-		return 'p', nil
-	case "u":
-		return 'u', nil
-	case "b":
-		return 'b', nil
-	case "c":
-		return 'c', nil
-	default:
-		return 0, fmt.Errorf("invalid device type %q", s)
-	}
-}
-
 func createDevices(spec *specs.Spec, config *configs.ContainerConfig) error {
 	logrus.Infof("creating devices...")
 	// add whitelisted devices
@@ -114,4 +99,19 @@ func createDevices(spec *specs.Spec, config *configs.ContainerConfig) error {
 		}
 	}
 	return nil
+}
+
+func stringToDeviceRune(s string) (rune, error) {
+	switch s {
+	case "p":
+		return 'p', nil
+	case "u":
+		return 'u', nil
+	case "b":
+		return 'b', nil
+	case "c":
+		return 'c', nil
+	default:
+		return 0, fmt.Errorf("invalid device type %q", s)
+	}
 }

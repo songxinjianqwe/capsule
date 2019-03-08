@@ -34,28 +34,28 @@ func (action ContainerAction) String() string {
 /**
 进入容器执行一个Process
 */
-func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd string, env []string) error {
+func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd string, env []string) (string, error) {
 	logrus.Infof("exec container: %s, detach: %t, args: %v, cwd: %s, env: %v", id, detach, args, cwd, env)
 	container, err := GetContainer(id)
 	if err != nil {
-		return err
+		return "", err
 	}
 	containerStatus, err := container.Status()
 	if err != nil {
-		return err
+		return "", err
 	}
 	// exec时,先检查容器状态是否为Stopped
 	if containerStatus == libcapsule.Stopped {
-		return fmt.Errorf("cant exec in a stopped container ")
+		return "", fmt.Errorf("cant exec in a stopped container ")
 	}
 	execId, err := uuid.NewV4()
 	if err != nil {
-		return err
+		return "", err
 	}
 	// 构造一个Process，由命令行输入的参数会覆盖spec中的Init Process Config
 	process, err := newProcess(execId.String(), spec.Process, false, detach)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// override
 	process.Args = args
@@ -66,7 +66,7 @@ func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd 
 
 	logrus.Infof("new exec process complete, libcapsule.Process: %#v", process)
 	// 无论是否是daemon运行，在执行完exec process后，都不会销毁容器。
-	return container.Run(process)
+	return execId.String(), container.Run(process)
 }
 
 /**

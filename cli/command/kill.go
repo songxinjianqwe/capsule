@@ -10,6 +10,10 @@ import (
 	"syscall"
 )
 
+/**
+如果杀死容器的init process，那么容器的exec process也会被杀死
+暂不清楚原因。
+*/
 var KillCommand = cli.Command{
 	Name:  "kill",
 	Usage: "kill a container",

@@ -7,8 +7,6 @@ type Cgroup struct {
 }
 
 type Resources struct {
-	Devices []*Device `json:"devices"`
-
 	// Memory limit (in bytes)
 	Memory int64 `json:"memory"`
 

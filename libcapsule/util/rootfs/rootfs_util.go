@@ -1,6 +1,7 @@
 package rootfs
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
@@ -92,4 +93,43 @@ func RemountReadonly(m *configs.Mount) error {
 */
 func SetRootfsReadonly() error {
 	return unix.Mount("/", "/", "bind", unix.MS_BIND|unix.MS_REMOUNT|unix.MS_RDONLY|unix.MS_REC, "")
+}
+
+/**
+创建设备文件,mknod
+*/
+func CreateDeviceNode(rootfs string, node *configs.Device) error {
+	dest := filepath.Join(rootfs, node.Path)
+	logrus.WithField("init", true).Infof("creating device %#v ...", node)
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
+	if err := mknodDevice(dest, node); err != nil {
+		if os.IsExist(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func mknodDevice(dest string, node *configs.Device) error {
+	// b 块设备
+	// c 字符设备
+	// p 有名管道
+	fileMode := node.FileMode
+	switch node.Type {
+	case 'c', 'u':
+		fileMode |= unix.S_IFCHR
+	case 'b':
+		fileMode |= unix.S_IFBLK
+	case 'p':
+		fileMode |= unix.S_IFIFO
+	default:
+		return fmt.Errorf("%c is not a valid device type for device %s", node.Type, node.Path)
+	}
+	if err := unix.Mknod(dest, uint32(fileMode), node.Mkdev()); err != nil {
+		return err
+	}
+	return unix.Chown(dest, int(node.Uid), int(node.Gid))
 }

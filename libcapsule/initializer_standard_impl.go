@@ -126,20 +126,28 @@ func (initializer *InitializerStandardImpl) setUpRoute() error {
 
 func (initializer *InitializerStandardImpl) setUpRootfs() error {
 	logrus.WithField("init", true).Info("setting up rootfs...")
-
+	containerRootfs := initializer.config.ContainerConfig.Rootfs
 	if err := rootfs.PrepareRoot(&initializer.config.ContainerConfig); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "preparing root")
 	}
 	// 挂载
 	for _, m := range initializer.config.ContainerConfig.Mounts {
-		if err := rootfs.MountToRootfs(m, initializer.config.ContainerConfig.Rootfs); err != nil {
+		if err := rootfs.MountToRootfs(m, containerRootfs); err != nil {
 			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
+		}
+	}
+	// 设备
+	for _, node := range initializer.config.ContainerConfig.Devices {
+		// containers running in a user namespace are not allowed to mknod
+		// devices so we can just bind mount it from the host.
+		if err := rootfs.CreateDeviceNode(containerRootfs, node); err != nil {
+			return err
 		}
 	}
 	// 如果使用了Mount的namespace，则使用pivot_root命令
 	// pivot root放在mount之前的话，会报错invalid argument
 	if initializer.config.ContainerConfig.Namespaces.Contains(configs.NEWNS) {
-		if err := rootfs.PivotRoot(initializer.config.ContainerConfig.Rootfs); err != nil {
+		if err := rootfs.PivotRoot(containerRootfs); err != nil {
 			return err
 		}
 	}

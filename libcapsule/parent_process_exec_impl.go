@@ -1,6 +1,7 @@
 package libcapsule
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
@@ -31,19 +32,28 @@ func (p *ParentExecProcess) start() error {
 	}
 	logrus.Infof("exec process started, EXEC_PROCESS_PID: [%d]", p.pid())
 
+	// 如果启用了cgroups，那么将exec进程的pid也加进去
+	if len(p.container.cgroupManager.GetPaths()) > 0 {
+		if err := p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
+			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("adding pid %d to cgroups", p.pid()))
+		}
+	}
+
 	// exec process会在启动后阻塞，直至收到namespaces
 	if err := p.sendNamespaces(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending namespaces to init process")
 	}
 
-	// exec process会在启动后阻塞，直至收到config
+	// 发送exec执行的命令
 	if err = p.sendCommand(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending init config to init process")
 	}
+
 	// parent 写完就关
 	if err = p.parentConfigPipe.Close(); err != nil {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
+
 	// 如果是detach，则直接结束。
 	if !p.detach() {
 		logrus.Infof("wait child process exit...")

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/urfave/cli"
 	"strings"
@@ -35,14 +36,18 @@ var ExecCommand = cli.Command{
 		if len(args) == 1 && strings.Contains(args[0], " ") {
 			args = strings.Split(args[0], " ")
 		}
-		if err := util.ExecContainer(
+		execId, err := util.ExecContainer(
 			ctx.Args().First(),
 			spec,
 			ctx.Bool("detach"),
 			args,
 			ctx.String("cwd"),
-			ctx.StringSlice("env")); err != nil {
+			ctx.StringSlice("env"))
+		if err != nil {
 			return err
+		}
+		if ctx.Bool("detach") {
+			fmt.Printf("exec id is %s\n", execId)
 		}
 		return nil
 	},
