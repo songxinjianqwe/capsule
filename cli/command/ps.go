@@ -1,15 +1,34 @@
 package command
 
-import "github.com/urfave/cli"
+import (
+	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/urfave/cli"
+)
 
 /*
-相当于exec ps
+相当于exec(ps -ef)
 */
 var PsCommand = cli.Command{
 	Name:  "ps",
 	Usage: "show a container's process info",
 	Action: func(ctx *cli.Context) error {
-
+		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
+			return err
+		}
+		spec, err := loadSpec()
+		if err != nil {
+			return err
+		}
+		containerId := ctx.Args().First()
+		if _, err := util.ExecContainer(
+			containerId,
+			spec,
+			false,
+			[]string{"ps", "-ef"},
+			"",
+			nil); err != nil {
+			return err
+		}
 		return nil
 	},
 }
