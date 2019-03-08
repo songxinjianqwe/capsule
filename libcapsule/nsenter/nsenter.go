@@ -7,6 +7,7 @@ package nsenter
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+
 const char* LOG_PREFIX 	   			= "[EXEC]";
 const char* ENV_CONFIG_PIPE      	= "_LIBCAPSULE_CONFIG_PIPE";
 const char* ENV_INITIALIZER_TYPE 	= "_LIBCAPSULE_INITIALIZER_TYPE";
