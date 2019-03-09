@@ -6,7 +6,6 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule"
-	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	specutil "github.com/songxinjianqwe/capsule/libcapsule/util/spec"
 	"io/ioutil"
@@ -53,12 +52,11 @@ func ExecContainer(id string, detach bool, args []string, cwd string, env []stri
 	if err != nil {
 		return "", err
 	}
-	storage, err := container.State()
+	ociState, err := container.OCIState()
 	if err != nil {
 		return "", err
 	}
-	bundle, _ := util.GetAnnotations(storage.Config.Labels)
-	spec, err := LoadSpec(bundle)
+	spec, err := LoadSpec(ociState.Bundle)
 	if err != nil {
 		return "", err
 	}

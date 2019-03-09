@@ -12,10 +12,14 @@ import (
 func LoadSpec(bundle string) (spec *specs.Spec, err error) {
 	// 如果bundle不为空，则open路径为bundle下的config.json
 	// 如果为空，那么open默认是在当前路径下打开
-	file, err := os.Open(bundle + libcapsule.ContainerConfigFilename)
+	path := libcapsule.ContainerConfigFilename
+	if bundle != "" {
+		path = filepath.Join(bundle, path)
+	}
+	file, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("JSON specification file %s not found", libcapsule.ContainerConfigFilename)
+			return nil, fmt.Errorf("JSON specification file %s not found, bundle is %s", libcapsule.ContainerConfigFilename, bundle)
 		}
 		return nil, err
 	}
