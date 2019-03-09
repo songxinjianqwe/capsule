@@ -47,11 +47,6 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/set up network")
 	}
 
-	// 初始化路由
-	if err = initializer.setUpRoute(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/set up route")
-	}
-
 	// 初始化rootfs
 	if err = initializer.setUpRootfs(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/prepare rootfs")
@@ -120,11 +115,12 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 
 func (initializer *InitializerStandardImpl) setUpNetwork() error {
 	logrus.WithField("init", true).Info("setting up network...")
-	return nil
-}
+	// 创建一个Bridge，如果没有的话
 
-func (initializer *InitializerStandardImpl) setUpRoute() error {
-	logrus.WithField("init", true).Info("setting up route...")
+	// 创建端点
+	for _, endpoint := range initializer.config.ContainerConfig.Endpoints {
+		logrus.WithField("init", true).Infof("creating endpoint: %#v", endpoint)
+	}
 	return nil
 }
 

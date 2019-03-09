@@ -6,6 +6,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	specutil "github.com/songxinjianqwe/capsule/libcapsule/util/spec"
 	"io/ioutil"
@@ -34,7 +35,7 @@ func (action ContainerAction) String() string {
 /*
 进入容器执行一个Process
 */
-func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd string, env []string) (string, error) {
+func ExecContainer(id string, detach bool, args []string, cwd string, env []string) (string, error) {
 	logrus.Infof("exec container: %s, detach: %t, args: %v, cwd: %s, env: %v", id, detach, args, cwd, env)
 	container, err := GetContainer(id)
 	if err != nil {
@@ -49,6 +50,15 @@ func ExecContainer(id string, spec *specs.Spec, detach bool, args []string, cwd 
 		return "", fmt.Errorf("cant exec in a stopped container ")
 	}
 	execId, err := uuid.NewV4()
+	if err != nil {
+		return "", err
+	}
+	storage, err := container.State()
+	if err != nil {
+		return "", err
+	}
+	bundle, _ := util.GetAnnotations(storage.Config.Labels)
+	spec, err := LoadSpec(bundle)
 	if err != nil {
 		return "", err
 	}
@@ -76,9 +86,9 @@ or
 create and start
 Process一定为Init Process
 */
-func CreateOrRunContainer(id string, spec *specs.Spec, action ContainerAction, detach bool) error {
+func CreateOrRunContainer(id string, bundle string, spec *specs.Spec, action ContainerAction, detach bool) error {
 	logrus.Infof("create or run container: %s, action: %s", id, action)
-	container, err := CreateContainer(id, spec)
+	container, err := CreateContainer(id, bundle, spec)
 	if err != nil {
 		return err
 	}
@@ -157,13 +167,13 @@ func GetContainerIds() ([]string, error) {
 /*
 创建容器实例
 */
-func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) {
+func CreateContainer(id string, bundle string, spec *specs.Spec) (libcapsule.Container, error) {
 	logrus.Infof("creating container: %s", id)
 	if id == "" {
 		return nil, fmt.Errorf("container id cannot be empty")
 	}
 	// 1、将spec转为容器config
-	config, err := specutil.CreateContainerConfig(spec)
+	config, err := specutil.CreateContainerConfig(bundle, spec)
 	logrus.Infof("convert complete, config: %#v", config)
 	if err != nil {
 		return nil, err

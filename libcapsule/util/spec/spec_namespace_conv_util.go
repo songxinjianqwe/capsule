@@ -27,7 +27,7 @@ func createNamespaces(config *configs.ContainerConfig, spec *specs.Spec) error {
 		config.Namespaces.Add(t, ns.Path)
 	}
 	if config.Namespaces.Contains(configs.NEWNET) && config.Namespaces.PathOf(configs.NEWNET) == "" {
-		config.Networks = []*configs.Network{
+		config.Endpoints = []*configs.Endpoint{
 			{
 				Type: "loopback",
 			},

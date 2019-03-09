@@ -28,17 +28,12 @@ var ExecCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 2, util.MinArgs); err != nil {
 			return err
 		}
-		spec, err := loadSpec()
-		if err != nil {
-			return err
-		}
 		args := ctx.Args()[1:]
 		if len(args) == 1 && strings.Contains(args[0], " ") {
 			args = strings.Split(args[0], " ")
 		}
 		execId, err := util.ExecContainer(
 			ctx.Args().First(),
-			spec,
 			ctx.Bool("detach"),
 			args,
 			ctx.String("cwd"),

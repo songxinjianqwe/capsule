@@ -12,18 +12,23 @@ import (
 /*
 将specs.Spec转为libcapsule.ContainerConfig
 */
-func CreateContainerConfig(spec *specs.Spec) (*configs.ContainerConfig, error) {
+func CreateContainerConfig(bundle string, spec *specs.Spec) (*configs.ContainerConfig, error) {
 	logrus.Infof("converting specs.Spec to libcapsule.ContainerConfig...")
 	// runc's cwd will always be the bundle path
-	rcwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
+	var cwd string
+	if bundle == "" {
+		rcwd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		// 拿到当前路径，即bundle path
+		if cwd, err = filepath.Abs(rcwd); err != nil {
+			return nil, err
+		}
+	} else {
+		cwd = bundle
 	}
-	// 拿到当前路径，即bundle path
-	cwd, err := filepath.Abs(rcwd)
-	if err != nil {
-		return nil, err
-	}
+
 	if spec.Root == nil {
 		return nil, fmt.Errorf("root must be specified")
 	}
@@ -68,13 +73,6 @@ func CreateContainerConfig(spec *specs.Spec) (*configs.ContainerConfig, error) {
 	}
 	config.Cgroup = cgroupConfig
 	logrus.Infof("convert cgroup config complete, config.Cgroup: %#v", config.Cgroup)
-
-	// 转换网络
-	for _, m := range spec.Mounts {
-		mount := createMount(cwd, m)
-		logrus.Infof("convert mount complete: %#v", mount)
-		config.Mounts = append(config.Mounts, mount)
-	}
 
 	// Linux特有配置
 	if spec.Linux != nil {

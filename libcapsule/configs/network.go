@@ -1,25 +1,33 @@
 package configs
 
-// Network defines configuration for a container's networking stack
-//
-// The network configuration can be omitted from a container causing the
-// container to be setup with the host's networking stack
+import (
+	"github.com/vishvananda/netlink"
+	"net"
+)
+
+/*
+对应一个网段，Driver取值有Bridge
+*/
 type Network struct {
-	// Type sets the networks type, commonly veth and loopback
-	Type string `json:"type"`
+	// 网络名称
+	Name string
+	// 网段
+	IpRange *net.IPNet
+	// 网络驱动名（网络类型）
+	Driver string
+}
 
-	// Name of the network interface
-	Name string `json:"name"`
-
-	// The bridge to use.
-	Bridge string `json:"bridge"`
-
-	// MacAddress contains the MAC address to set on the network interface
-	MacAddress string `json:"mac_address"`
-
-	// Address contains the IPv4 and mask to set on the network interface
-	Address string `json:"address"`
-
-	// Gateway sets the gateway address that is used as the default for the interface
-	Gateway string `json:"gateway"`
+/*
+对应一个网络端点，比如容器中会有一个veth和一个loopback
+*/
+type Endpoint struct {
+	ID string
+	// veth 或者 loopback
+	Type       string
+	IpAddress  net.IP
+	MacAddress net.HardwareAddr
+	// 下面是Veth特有配置
+	Device      netlink.Veth
+	Network     *Network
+	PortMapping []string
 }

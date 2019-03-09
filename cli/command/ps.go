@@ -15,14 +15,8 @@ var PsCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
-		spec, err := loadSpec()
-		if err != nil {
-			return err
-		}
-		containerId := ctx.Args().First()
 		if _, err := util.ExecContainer(
-			containerId,
-			spec,
+			ctx.Args().First(),
 			false,
 			[]string{"ps", "-ef"},
 			"",

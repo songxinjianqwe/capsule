@@ -18,6 +18,11 @@ var RunCommand = cli.Command{
 			Name:  "detach, d",
 			Usage: "detach from the container's process",
 		},
+		cli.StringFlag{
+			Name:  "bundle, b",
+			Value: "",
+			Usage: `path to the root of the bundle directory, defaults to the current directory`,
+		},
 	},
 	Action: func(ctx *cli.Context) error {
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
@@ -26,11 +31,11 @@ var RunCommand = cli.Command{
 		// 将spec转为container config对象
 		// 加载factory
 		// 调用factory.create
-		spec, err := loadSpec()
+		spec, err := util.LoadSpec(ctx.String("bundle"))
 		if err != nil {
 			return err
 		}
-		if err := util.CreateOrRunContainer(ctx.Args().First(), spec, util.ContainerActRun, ctx.Bool("detach")); err != nil {
+		if err := util.CreateOrRunContainer(ctx.Args().First(), ctx.String("bundle"), spec, util.ContainerActRun, ctx.Bool("detach")); err != nil {
 			return err
 		}
 		return nil

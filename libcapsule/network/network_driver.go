@@ -1,9 +1,11 @@
 package network
 
+import "github.com/songxinjianqwe/capsule/libcapsule/configs"
+
 type NetworkDriver interface {
 	Name() string
-	Create(subnet string, name string) (*Network, error)
-	Delete(*Network) error
-	Connect(network *Network, endpoint *Endpoint) error
-	Disconnect(network *Network, endpoint *Endpoint) error
+	Create(subnet string, name string) (*configs.Network, error)
+	Delete(*configs.Network) error
+	Connect(network *configs.Network, endpoint *configs.Endpoint) error
+	Disconnect(network *configs.Network, endpoint *configs.Endpoint) error
 }
