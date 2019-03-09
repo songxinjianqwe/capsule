@@ -6,8 +6,6 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 )
 
-const wildcard = -1
-
 var namespaceMapping = map[specs.LinuxNamespaceType]configs.NamespaceType{
 	specs.PIDNamespace:     configs.NEWPID,
 	specs.NetworkNamespace: configs.NEWNET,

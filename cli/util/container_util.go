@@ -163,7 +163,7 @@ func CreateContainer(id string, spec *specs.Spec) (libcapsule.Container, error) 
 		return nil, fmt.Errorf("container id cannot be empty")
 	}
 	// 1、将spec转为容器config
-	config, err := specutil.CreateContainerConfig(id, spec)
+	config, err := specutil.CreateContainerConfig(spec)
 	logrus.Infof("convert complete, config: %#v", config)
 	if err != nil {
 		return nil, err

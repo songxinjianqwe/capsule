@@ -12,7 +12,7 @@ import (
 /*
 将specs.Spec转为libcapsule.ContainerConfig
 */
-func CreateContainerConfig(id string, spec *specs.Spec) (*configs.ContainerConfig, error) {
+func CreateContainerConfig(spec *specs.Spec) (*configs.ContainerConfig, error) {
 	logrus.Infof("converting specs.Spec to libcapsule.ContainerConfig...")
 	// runc's cwd will always be the bundle path
 	rcwd, err := os.Getwd()
@@ -68,6 +68,13 @@ func CreateContainerConfig(id string, spec *specs.Spec) (*configs.ContainerConfi
 	}
 	config.Cgroup = cgroupConfig
 	logrus.Infof("convert cgroup config complete, config.Cgroup: %#v", config.Cgroup)
+
+	// 转换网络
+	for _, m := range spec.Mounts {
+		mount := createMount(cwd, m)
+		logrus.Infof("convert mount complete: %#v", mount)
+		config.Mounts = append(config.Mounts, mount)
+	}
 
 	// Linux特有配置
 	if spec.Linux != nil {

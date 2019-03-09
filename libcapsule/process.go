@@ -15,6 +15,7 @@ type Process struct {
 
 	// Detach specifies the container is running frontend or backend
 	Detach bool
+
 	// if init = true, ID is container id, or ID is exec id.
 	ID string
 }
