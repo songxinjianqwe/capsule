@@ -25,7 +25,7 @@ const (
 	// 运行容器init进程的命令
 	ContainerInitArgs = "init"
 	// 运行时文件的存放目录
-	RuntimeRoot = "/run/capsule"
+	RuntimeRoot = "/var/run/capsule"
 	// 容器配置文件，存放在运行capsule的cwd下
 	ContainerConfigFilename = "config.json"
 	// 容器Init进程的日志
