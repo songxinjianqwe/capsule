@@ -10,7 +10,6 @@ import (
 	specutil "github.com/songxinjianqwe/capsule/libcapsule/util/spec"
 	"io/ioutil"
 	"os"
-	"sync"
 )
 
 type ContainerAction uint8
@@ -135,7 +134,7 @@ func GetContainer(id string) (libcapsule.Container, error) {
 	if id == "" {
 		return nil, fmt.Errorf("container id cannot be empty")
 	}
-	factory, err := LoadFactory()
+	factory, err := libcapsule.NewFactory(true)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +176,7 @@ func CreateContainer(id string, bundle string, spec *specs.Spec, portMappings []
 		return nil, err
 	}
 	// 2、创建容器工厂
-	factory, err := LoadFactory()
+	factory, err := libcapsule.NewFactory(true)
 	if err != nil {
 		return nil, err
 	}
@@ -187,26 +186,6 @@ func CreateContainer(id string, bundle string, spec *specs.Spec, portMappings []
 		return nil, err
 	}
 	return container, nil
-}
-
-func CleanRuntime() error {
-	return os.RemoveAll(libcapsule.RuntimeRoot)
-}
-
-var (
-	singletonFactory    libcapsule.Factory
-	singletonFactoryErr error
-	once                sync.Once
-)
-
-/*
-创建容器工厂
-*/
-func LoadFactory() (libcapsule.Factory, error) {
-	once.Do(func() {
-		singletonFactory, singletonFactoryErr = libcapsule.NewFactory(true)
-	})
-	return singletonFactory, singletonFactoryErr
 }
 
 /*

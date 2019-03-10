@@ -1,30 +1,28 @@
 package network
 
-import "github.com/songxinjianqwe/capsule/libcapsule/configs"
-
 type LoopbackNetworkDriver struct {
 }
 
-func (LoopbackNetworkDriver) Name() string {
+func (driver *LoopbackNetworkDriver) Name() string {
+	return "loopback"
+}
+
+func (driver *LoopbackNetworkDriver) Create(subnet string, name string) (*Network, error) {
 	panic("implement me")
 }
 
-func (LoopbackNetworkDriver) Create(subnet string, name string) (*Network, error) {
+func (driver *LoopbackNetworkDriver) Load(name string) (*Network, error) {
 	panic("implement me")
 }
 
-func (LoopbackNetworkDriver) Load(name string) (*Network, error) {
+func (driver *LoopbackNetworkDriver) Delete(*Network) error {
 	panic("implement me")
 }
 
-func (LoopbackNetworkDriver) Delete(*Network) error {
+func (driver *LoopbackNetworkDriver) Connect(endpointId string, networkName string, portMappings []string) (*Endpoint, error) {
 	panic("implement me")
 }
 
-func (LoopbackNetworkDriver) Connect(endpointConfig configs.EndpointConfig) (*Endpoint, error) {
-	panic("implement me")
-}
-
-func (LoopbackNetworkDriver) Disconnect(endpoint *Endpoint) error {
+func (driver *LoopbackNetworkDriver) Disconnect(endpoint *Endpoint) error {
 	panic("implement me")
 }

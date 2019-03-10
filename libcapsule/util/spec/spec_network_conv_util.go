@@ -17,6 +17,7 @@ func createNetworkConfig(config *configs.ContainerConfig, portMappings []string)
 			NetworkDriver: "loopback",
 		})
 	}
+	// veth端点
 	id, err := uuid.NewV4()
 	if err != nil {
 		return err
