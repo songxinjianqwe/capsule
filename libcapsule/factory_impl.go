@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"io/ioutil"
 	"os"
@@ -15,32 +16,13 @@ import (
 	"strings"
 )
 
-const (
-	// 容器状态文件的文件名
-	// 存放在 $RuntimeRoot/$containerId/下
-	StateFilename       = "state.json"
-	NotExecFlagFilename = "not_exec.flag"
-	// 重新执行本应用的command，相当于 重新执行./capsule
-	ContainerInitCmd = "/proc/self/exe"
-	// 运行容器init进程的命令
-	ContainerInitArgs = "init"
-	// 运行时文件的存放目录
-	RuntimeRoot = "/var/run/capsule"
-	// 容器配置文件，存放在运行capsule的cwd下
-	ContainerConfigFilename = "config.json"
-	// 容器Init进程的日志
-	ContainerInitLogFilename = "container.log"
-	// 容器Exec进程的日志名模板
-	ContainerExecLogFilenamePattern = "exec_%s.log"
-)
-
 func NewFactory(init bool) (Factory, error) {
 	logrus.Infof("new container factory ...")
 	if init {
-		if _, err := os.Stat(RuntimeRoot); err != nil {
+		if _, err := os.Stat(constant.RuntimeRoot); err != nil {
 			if os.IsNotExist(err) {
-				logrus.Infof("mkdir RuntimeRoot if not exists: %s", RuntimeRoot)
-				if err := os.MkdirAll(RuntimeRoot, 0700); err != nil {
+				logrus.Infof("mkdir RuntimeRoot if not exists: %s", constant.RuntimeRoot)
+				if err := os.MkdirAll(constant.RuntimeRoot, 0700); err != nil {
 					return nil, exception.NewGenericError(err, exception.SystemError)
 				}
 			} else {
@@ -57,7 +39,7 @@ type LinuxContainerFactory struct {
 
 func (factory *LinuxContainerFactory) Create(id string, config *configs.ContainerConfig) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
-	containerRoot := filepath.Join(RuntimeRoot, id)
+	containerRoot := filepath.Join(constant.RuntimeRoot, id)
 	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错
 	if _, err := os.Stat(containerRoot); err == nil {
 		return nil, exception.NewGenericError(fmt.Errorf("container with id exists: %v", id), exception.SystemError)
@@ -80,7 +62,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configs.Containe
 }
 
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
-	containerRoot := filepath.Join(RuntimeRoot, id)
+	containerRoot := filepath.Join(constant.RuntimeRoot, id)
 	state, err := factory.loadContainerState(containerRoot, id)
 	if err != nil {
 		return nil, err
@@ -177,7 +159,7 @@ func populateProcessEnvironment(env []string) error {
 }
 
 func (factory *LinuxContainerFactory) loadContainerState(containerRoot, id string) (*StateStorage, error) {
-	stateFilePath := filepath.Join(containerRoot, StateFilename)
+	stateFilePath := filepath.Join(containerRoot, constant.StateFilename)
 	f, err := os.Open(stateFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/cli/util"
-	"github.com/songxinjianqwe/capsule/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"github.com/urfave/cli"
 	"io/ioutil"
 	"os"
@@ -33,10 +33,10 @@ var LogCommand = cli.Command{
 		logrus.Infof("exec param: %s", ctx.String("exec"))
 		if ctx.String("exec") != "" {
 			// exec detach log
-			logFilename = path.Join(libcapsule.RuntimeRoot, containerId, fmt.Sprintf(libcapsule.ContainerExecLogFilenamePattern, ctx.String("exec")))
+			logFilename = path.Join(constant.RuntimeRoot, containerId, fmt.Sprintf(constant.ContainerExecLogFilenamePattern, ctx.String("exec")))
 		} else {
 			// container detach log
-			logFilename = path.Join(libcapsule.RuntimeRoot, containerId, libcapsule.ContainerInitLogFilename)
+			logFilename = path.Join(constant.RuntimeRoot, containerId, constant.ContainerInitLogFilename)
 		}
 		file, err := os.Open(logFilename)
 		if err != nil {

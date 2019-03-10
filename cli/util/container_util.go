@@ -6,6 +6,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	specutil "github.com/songxinjianqwe/capsule/libcapsule/util/spec"
 	"io/ioutil"
@@ -146,12 +147,12 @@ func GetContainer(id string) (libcapsule.Container, error) {
 */
 func GetContainerIds() ([]string, error) {
 	var ids []string
-	if _, err := os.Stat(libcapsule.RuntimeRoot); err != nil {
+	if _, err := os.Stat(constant.RuntimeRoot); err != nil {
 		if os.IsNotExist(err) {
 			return []string{}, nil
 		}
 	}
-	list, err := ioutil.ReadDir(libcapsule.RuntimeRoot)
+	list, err := ioutil.ReadDir(constant.RuntimeRoot)
 	if err != nil {
 		return nil, err
 	}

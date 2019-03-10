@@ -1,12 +1,10 @@
 package network
 
 import (
-	"github.com/songxinjianqwe/capsule/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"net"
 	"sync"
 )
-
-const IPAMDefaultAllocatorPath = libcapsule.RuntimeRoot + "/network/ipam/subnet.json"
 
 // ipam is short for ip address management
 type IPAM interface {
@@ -21,7 +19,7 @@ var singletonErr error
 func LoadIPAllocator() (IPAM, error) {
 	once.Do(func() {
 		singletonIPAM = &DefaultIPAMImpl{
-			subnetAllocatorPath: IPAMDefaultAllocatorPath,
+			subnetAllocatorPath: constant.IPAMDefaultAllocatorPath,
 		}
 		singletonErr = singletonIPAM.load()
 	})

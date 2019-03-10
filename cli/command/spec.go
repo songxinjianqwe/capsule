@@ -3,7 +3,7 @@ package command
 import (
 	"encoding/json"
 	"github.com/songxinjianqwe/capsule/cli/util"
-	"github.com/songxinjianqwe/capsule/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/spec"
 	"github.com/urfave/cli"
 	"io/ioutil"
@@ -17,13 +17,13 @@ var SpecCommand = cli.Command{
 			return err
 		}
 		exampleSpec := spec.Example()
-		if err := util.CheckNoFile(libcapsule.ContainerConfigFilename); err != nil {
+		if err := util.CheckNoFile(constant.ContainerConfigFilename); err != nil {
 			return err
 		}
 		data, err := json.MarshalIndent(exampleSpec, "", "\t")
 		if err != nil {
 			return err
 		}
-		return ioutil.WriteFile(libcapsule.ContainerConfigFilename, data, 0666)
+		return ioutil.WriteFile(constant.ContainerConfigFilename, data, 0666)
 	},
 }

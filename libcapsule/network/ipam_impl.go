@@ -6,18 +6,24 @@ import (
 	"net"
 	"os"
 	"path"
+	"sync"
 )
 
 type DefaultIPAMImpl struct {
 	subnetAllocatorPath string
 	subnetMap           map[string]string
+	mutex               sync.Mutex
 }
 
 func (ipam *DefaultIPAMImpl) Allocate(subnet *net.IPNet) (net.IP, error) {
+	ipam.mutex.Lock()
+	defer ipam.mutex.Unlock()
 	panic("implement me")
 }
 
 func (ipam *DefaultIPAMImpl) Release(subnet *net.IPNet, ip *net.IP) error {
+	ipam.mutex.Lock()
+	defer ipam.mutex.Unlock()
 	panic("implement me")
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
@@ -308,7 +309,7 @@ func (c *LinuxContainer) detectContainerStatus() (ContainerStatus, error) {
 	// 容器进程存在的话，会有两种情况：一种是调用完create方法，容器进程阻塞在cmd之前；一种是容器进程解除阻塞，执行了cmd
 	// 在容器创建后，会创建该标记；在容器启动后，会删除该标记
 	// 如果标记存在，则说明是创建容器之后，启动容器之前
-	if _, err := os.Stat(filepath.Join(c.root, NotExecFlagFilename)); err == nil {
+	if _, err := os.Stat(filepath.Join(c.root, constant.NotExecFlagFilename)); err == nil {
 		return Created, nil
 	}
 	return Running, nil
@@ -344,7 +345,7 @@ func (c *LinuxContainer) saveState() error {
 		return err
 	}
 	logrus.Infof("current state is %#v", state)
-	stateFilePath := filepath.Join(c.root, StateFilename)
+	stateFilePath := filepath.Join(c.root, constant.StateFilename)
 	logrus.Infof("saving state in file: %s", stateFilePath)
 	file, err := os.Create(stateFilePath)
 	if err != nil {
@@ -363,7 +364,7 @@ func (c *LinuxContainer) saveState() error {
 }
 
 func (c *LinuxContainer) createFlagFile() error {
-	flagFilePath := filepath.Join(c.root, NotExecFlagFilename)
+	flagFilePath := filepath.Join(c.root, constant.NotExecFlagFilename)
 	logrus.Infof("creating not exec flag in file: %s", flagFilePath)
 	file, err := os.Create(flagFilePath)
 	if err != nil {
@@ -375,7 +376,7 @@ func (c *LinuxContainer) createFlagFile() error {
 }
 
 func (c *LinuxContainer) deleteFlagFileIfExists() error {
-	flagFilePath := filepath.Join(c.root, NotExecFlagFilename)
+	flagFilePath := filepath.Join(c.root, constant.NotExecFlagFilename)
 	_, err := os.Stat(flagFilePath)
 	if err == nil {
 		// 如果文件存在，则删除
@@ -405,7 +406,7 @@ func ignoreTerminateErrors(err error) error {
 构造一个command对象
 */
 func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
-	cmd := exec.Command(ContainerInitCmd, ContainerInitArgs)
+	cmd := exec.Command(constant.ContainerInitCmd, constant.ContainerInitArgs)
 	// 注意！Exec进程不需要新建namespace，而是进入已有的namespace
 	if process.Init {
 		cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -422,11 +423,11 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 		var logFileName string
 		// 输出重定向
 		if process.Init {
-			logFileName = ContainerInitLogFilename
+			logFileName = constant.ContainerInitLogFilename
 		} else {
-			logFileName = fmt.Sprintf(ContainerExecLogFilenamePattern, process.ID)
+			logFileName = fmt.Sprintf(constant.ContainerExecLogFilenamePattern, process.ID)
 		}
-		logFile, err := os.Create(path.Join(RuntimeRoot, c.id, logFileName))
+		logFile, err := os.Create(path.Join(constant.RuntimeRoot, c.id, logFileName))
 		if err != nil {
 			return nil, err
 		}
@@ -441,7 +442,7 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 }
 
 func (c *LinuxContainer) loadContainerInitProcessPid() (int, error) {
-	stateFilePath := filepath.Join(c.root, StateFilename)
+	stateFilePath := filepath.Join(c.root, constant.StateFilename)
 	f, err := os.Open(stateFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
