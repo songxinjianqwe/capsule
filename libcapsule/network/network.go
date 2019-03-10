@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/vishvananda/netlink"
 	"net"
 )
@@ -45,4 +46,28 @@ func CreateNetwork(driver string, subnet string, name string) (*Network, error) 
 		return nil, fmt.Errorf("network driver not found: %s", driver)
 	}
 	return networkDriver.Create(subnet, name)
+}
+
+func LoadNetwork(driver string, name string) (*Network, error) {
+	networkDriver, found := networkDrivers[driver]
+	if !found {
+		return nil, fmt.Errorf("network driver not found: %s", driver)
+	}
+	return networkDriver.Load(name)
+}
+
+func Connect(config configs.EndpointConfig) (*Endpoint, error) {
+	networkDriver, found := networkDrivers[config.NetworkDriver]
+	if !found {
+		return nil, fmt.Errorf("network driver not found: %s", config.NetworkDriver)
+	}
+	return networkDriver.Connect(config)
+}
+
+func Disconnect(endpoint *Endpoint) error {
+	networkDriver, found := networkDrivers[endpoint.Network.Driver]
+	if !found {
+		return fmt.Errorf("network driver not found: %s", endpoint.Network.Driver)
+	}
+	return networkDriver.Disconnect(endpoint)
 }

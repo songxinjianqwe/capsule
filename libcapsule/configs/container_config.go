@@ -24,7 +24,7 @@ type ContainerConfig struct {
 	Namespaces Namespaces `json:"namespaces"`
 
 	// Endpoints specifies the container's network setup to be created
-	Endpoints []*EndpointConfig `json:"endpoints"`
+	Endpoints []EndpointConfig `json:"endpoints"`
 
 	// Cgroup specifies specific cgroup settings for the various subsystems that the container is
 	// placed into to limit the resources the container has available

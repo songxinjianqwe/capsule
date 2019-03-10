@@ -69,7 +69,7 @@ func (p *ParentInitProcess) start() (err error) {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "setting cgroup config for procHooks process")
 	}
 
-	// 创建网络接口，比如bridge
+	// 创建网络接口
 	if err = p.createNetworkInterfaces(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "creating network interfaces")
 	}
@@ -145,14 +145,24 @@ func (p *ParentInitProcess) signal(sig os.Signal) error {
 func (p *ParentInitProcess) createNetworkInterfaces() error {
 	logrus.Infof("creating network interfaces")
 	// 创建一个Bridge，如果没有的话
-	bridge, err := network.CreateNetwork("bridge", DefaultSubnet, DefaultBridgeName)
+	var bridge *network.Network
+	bridge, err := network.LoadNetwork("bridge", DefaultBridgeName)
 	if err != nil {
-		return err
+		bridge, err = network.CreateNetwork("bridge", DefaultSubnet, DefaultBridgeName)
+		if err != nil {
+			return err
+		}
 	}
-	logrus.Infof("create bridge complete, bridge: %#v", bridge)
+	logrus.Infof("create or load bridge complete, bridge: %#v", bridge)
+
 	// 创建端点
 	for _, endpointConfig := range p.container.config.Endpoints {
 		logrus.Infof("creating endpoint: %#v", endpointConfig)
+		endpoint, err := network.Connect(endpointConfig)
+		if err != nil {
+			return err
+		}
+		p.container.endpoints = append(p.container.endpoints, *endpoint)
 	}
 	return nil
 }
