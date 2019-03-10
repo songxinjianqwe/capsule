@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
@@ -11,6 +12,11 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+)
+
+const (
+	DefaultSubnet     = "192.168.1.0/24"
+	DefaultBridgeName = "capsule_bridge0"
 )
 
 type InitConfig struct {
@@ -138,7 +144,16 @@ func (p *ParentInitProcess) signal(sig os.Signal) error {
 
 func (p *ParentInitProcess) createNetworkInterfaces() error {
 	logrus.Infof("creating network interfaces")
-
+	// 创建一个Bridge，如果没有的话
+	bridge, err := network.CreateNetwork("bridge", DefaultSubnet, DefaultBridgeName)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("create bridge complete, bridge: %#v", bridge)
+	// 创建端点
+	for _, endpointConfig := range p.container.config.Endpoints {
+		logrus.Infof("creating endpoint: %#v", endpointConfig)
+	}
 	return nil
 }
 

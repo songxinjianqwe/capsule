@@ -14,7 +14,7 @@ var namespaceMapping = map[specs.LinuxNamespaceType]configs.NamespaceType{
 	specs.UTSNamespace:     configs.NEWUTS,
 }
 
-func createNamespaces(config *configs.ContainerConfig, spec *specs.Spec) error {
+func createNamespacesConfig(config *configs.ContainerConfig, spec *specs.Spec) error {
 	// 转换namespaces
 	for _, ns := range spec.Linux.Namespaces {
 		t, exists := namespaceMapping[ns.Type]
@@ -25,13 +25,6 @@ func createNamespaces(config *configs.ContainerConfig, spec *specs.Spec) error {
 			return fmt.Errorf("malformed spec file: duplicated ns %q", ns)
 		}
 		config.Namespaces.Add(t, ns.Path)
-	}
-	if config.Namespaces.Contains(configs.NEWNET) && config.Namespaces.PathOf(configs.NEWNET) == "" {
-		config.Endpoints = []*configs.Endpoint{
-			{
-				Type: "loopback",
-			},
-		}
 	}
 	return nil
 }

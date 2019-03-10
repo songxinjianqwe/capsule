@@ -12,8 +12,13 @@ import (
 /*
 将specs.Spec转为libcapsule.ContainerConfig
 */
-func CreateContainerConfig(bundle string, spec *specs.Spec) (*configs.ContainerConfig, error) {
+func CreateContainerConfig(bundle string, spec *specs.Spec, portMappings []string) (*configs.ContainerConfig, error) {
 	logrus.Infof("converting specs.Spec to libcapsule.ContainerConfig...")
+
+	if spec.Root == nil {
+		return nil, fmt.Errorf("root must be specified")
+	}
+
 	// runc's cwd will always be the bundle path
 	var cwd string
 	if bundle == "" {
@@ -29,10 +34,6 @@ func CreateContainerConfig(bundle string, spec *specs.Spec) (*configs.ContainerC
 		cwd = bundle
 	}
 
-	if spec.Root == nil {
-		return nil, fmt.Errorf("root must be specified")
-	}
-
 	// rootfs path要么是绝对路径，要么是cwd+rootfs转为绝对路径
 	rootfsPath := spec.Root.Path
 	if !filepath.IsAbs(rootfsPath) {
@@ -45,6 +46,8 @@ func CreateContainerConfig(bundle string, spec *specs.Spec) (*configs.ContainerC
 	for k, v := range spec.Annotations {
 		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
 	}
+
+	// 开始构造
 	config := &configs.ContainerConfig{
 		Rootfs:     rootfsPath,
 		Readonlyfs: spec.Root.Readonly,
@@ -76,11 +79,16 @@ func CreateContainerConfig(bundle string, spec *specs.Spec) (*configs.ContainerC
 
 	// Linux特有配置
 	if spec.Linux != nil {
-		if err := createNamespaces(config, spec); err != nil {
+		if err := createNamespacesConfig(config, spec); err != nil {
 			return nil, err
 		}
 		logrus.Infof("convert namespaces complete, config.Namespaces: %#v", config.Namespaces)
 		config.Sysctl = spec.Linux.Sysctl
+	}
+
+	// 转换网络
+	if err := createNetworkConfig(config, portMappings); err != nil {
+		return nil, err
 	}
 	config.Version = specs.Version
 	return config, nil

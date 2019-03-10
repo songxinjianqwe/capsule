@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
@@ -31,10 +32,12 @@ const (
 )
 
 type LinuxContainer struct {
-	id             string
-	root           string
-	config         configs.ContainerConfig
+	id     string
+	root   string
+	config configs.ContainerConfig
+	// runtime info
 	cgroupManager  cgroups.CgroupManager
+	endpoints      []network.Endpoint
 	parentProcess  ParentProcess
 	statusBehavior ContainerStatusBehavior
 	createdTime    time.Time
@@ -238,6 +241,7 @@ func (c *LinuxContainer) currentState() (*StateStorage, error) {
 		Created:              c.createdTime,
 		CgroupPaths:          c.cgroupManager.GetPaths(),
 		NamespacePaths:       make(map[configs.NamespaceType]string),
+		Endpoints:            c.endpoints,
 	}
 	if initProcessPid > 0 {
 		for _, ns := range c.config.Namespaces {

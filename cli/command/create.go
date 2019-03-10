@@ -14,6 +14,10 @@ var CreateCommand = cli.Command{
 			Value: "",
 			Usage: `path to the root of the bundle directory, defaults to the current directory`,
 		},
+		cli.StringSliceFlag{
+			Name:  "port, p",
+			Usage: `port mappings, host port:container port`,
+		},
 	},
 	Action: func(ctx *cli.Context) error {
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
@@ -26,7 +30,7 @@ var CreateCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		if err := util.CreateOrRunContainer(ctx.Args().First(), ctx.String("bundle"), spec, util.ContainerActCreate, false); err != nil {
+		if err := util.CreateOrRunContainer(ctx.Args().First(), ctx.String("bundle"), spec, util.ContainerActCreate, false, ctx.StringSlice("port")); err != nil {
 			return err
 		}
 		return nil

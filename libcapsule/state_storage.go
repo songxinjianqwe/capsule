@@ -2,6 +2,7 @@ package libcapsule
 
 import (
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"time"
 )
 
@@ -29,4 +30,7 @@ type StateStorage struct {
 	// NamespacePaths are filepaths to the container's namespaces. Key is the namespace type
 	// with the value as the path.
 	NamespacePaths map[configs.NamespaceType]string `json:"namespace_paths"`
+
+	// Endpoints
+	Endpoints []network.Endpoint `json:"endpoints"`
 }
