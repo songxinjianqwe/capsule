@@ -2,6 +2,7 @@ package network
 
 import (
 	"github.com/coreos/go-iptables/iptables"
+	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 	"strings"
 	"testing"
@@ -11,64 +12,37 @@ var driver = BridgeNetworkDriver{}
 
 func TestBridgeNetworkDriver_Create_Load_Delete(t *testing.T) {
 	subnet := "192.168.10.0/24"
-	//ip, _, _ := net.ParseCIDR(subnet)
 	name := "test_bridge0"
-	_, err := driver.Create(subnet, name)
-	if err != nil {
-		t.Errorf(err.Error())
-		t.FailNow()
-	}
-	// 如果test失败也要把这个删掉
 	defer driver.Delete(name)
+	_, err := driver.Create(subnet, name)
+	assert.Nil(t, err)
+	// 如果test失败也要把这个删掉
 	network, err := driver.Load(name)
-	if err != nil {
-		t.Errorf(err.Error())
-		t.FailNow()
-	}
+	assert.Nil(t, err)
 	t.Logf("Network: %s", network)
-	// 检查network是否OK
 
-	checkNetworkCorrect(t, name, subnet, network)
+	checkBridgeData(t, name, subnet, network)
 	checkBridgeRoute(t, name, subnet)
 	checkBridgeUp(t, name)
 	checkSNAT(t, name, subnet)
 
-	if err := driver.Delete(name); err != nil {
-		t.Errorf("delete network failed, cause: %s", err.Error())
-		t.FailNow()
-	}
-	if _, err := driver.Load(name); err == nil {
-		t.Errorf("delete network failed")
-		t.FailNow()
-	}
+	err = driver.Delete(name)
+	assert.Nil(t, err)
+	_, err = driver.Load(name)
+	assert.NotNil(t, err, "delete network did not work")
 }
 
-func checkNetworkCorrect(t *testing.T, name string, subnet string, network *Network) {
-	if network.Name != name {
-		t.Errorf("network name is wrong: %s", network.Name)
-		t.FailNow()
-	}
-	if network.Driver != "bridge" {
-		t.Errorf("network driver is wrong: %s", network.Driver)
-		t.FailNow()
-	}
-	if network.IpRange.String() != subnet {
-		t.Errorf("network subnet is wrong: %s", network.IpRange)
-		t.FailNow()
-	}
+func checkBridgeData(t *testing.T, name string, subnet string, network *Network) {
+	assert.Equal(t, name, network.Name, "network name is wrong")
+	assert.Equal(t, subnet, network.IpRange.String(), "network subnet is wrong")
+	assert.Equal(t, "bridge", network.Driver, "network driver is wrong")
 }
 
 func checkBridgeRoute(t *testing.T, name string, subnet string) {
 	link, err := netlink.LinkByName(name)
-	if err != nil {
-		t.Errorf(err.Error())
-		t.FailNow()
-	}
+	assert.Nil(t, err)
 	routes, err := netlink.RouteList(link, netlink.FAMILY_ALL)
-	if err != nil {
-		t.Errorf(err.Error())
-		t.FailNow()
-	}
+	assert.Nil(t, err)
 	var routeExist bool
 	for _, route := range routes {
 		t.Logf("route: %s", route)
@@ -76,51 +50,36 @@ func checkBridgeRoute(t *testing.T, name string, subnet string) {
 			routeExist = true
 		}
 	}
-	if !routeExist {
-		t.Error("route not exists")
-		t.FailNow()
-	}
+	assert.True(t, routeExist, "route not exists")
 }
 
 func checkBridgeUp(t *testing.T, name string) {
 	link, err := netlink.LinkByName(name)
-	if err != nil {
-		t.Errorf(err.Error())
-		t.FailNow()
-	}
+	assert.Nil(t, err)
 	t.Logf("link: %s", link)
 	t.Logf("link flag: %s", link.Attrs().Flags.String())
-	if !strings.Contains(link.Attrs().Flags.String(), "up") {
-		t.Errorf("network is down")
-		t.FailNow()
-	}
+	assert.True(t, strings.Contains(link.Attrs().Flags.String(), "up"), "network is down")
 }
 
 func checkSNAT(t *testing.T, name string, subnet string) {
 	ipRange, err := netlink.ParseIPNet(subnet)
 	table, err := iptables.New()
-	if err != nil {
-		t.Errorf(err.Error())
-		t.FailNow()
+	assert.Nil(t, err)
+	rules, err := table.List("nat", "POSTROUTING")
+	assert.Nil(t, err)
+	for i, rule := range rules {
+		t.Logf("[RULE %d]%s", i, rule)
 	}
 	exists, err := table.Exists(
 		"nat",
 		"POSTROUTING",
-		getSNATRuleSpec(name, ipRange)...)
-	if err != nil {
-		t.Errorf(err.Error())
-		t.FailNow()
-	}
-	if !exists {
-		t.Errorf("SNAT Rule do not exist")
-		t.FailNow()
-	}
+		getSNATRuleSpecs(name, ipRange)...)
+	assert.Nil(t, err)
+	assert.True(t, exists, "SNAT Rule do not exist")
 }
 
 func TestBridgeNetworkDriver_Name(t *testing.T) {
-	if driver.Name() != "bridge" {
-		t.FailNow()
-	}
+	assert.Equal(t, "bridge", driver.Name())
 }
 
 func TestBridgeNetworkDriver_Connect(t *testing.T) {

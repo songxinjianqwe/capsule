@@ -91,7 +91,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	if err := tables.Delete(
 		"nat",
 		"POSTROUTING",
-		getSNATRuleSpec(network.Name, network.IpRange)...,
+		getSNATRuleSpecs(network.Name, network.IpRange)...,
 	); err != nil {
 		return err
 	}
@@ -164,17 +164,17 @@ func setupIPTablesMasquerade(name string, subnet *net.IPNet) error {
 	// iptables -t nat -A POSTROUTING -s %s -o %s -j MASQUERADE
 	if err := tables.Append(
 		"nat",
-		"POSTROUTING", getSNATRuleSpec(name, subnet)...); err != nil {
+		"POSTROUTING", getSNATRuleSpecs(name, subnet)...); err != nil {
 		return err
 	}
 	return nil
 }
 
-func getSNATRuleSpec(name string, subnet *net.IPNet) []string {
+func getSNATRuleSpecs(name string, subnet *net.IPNet) []string {
 	return []string{
-		fmt.Sprintf("-s %s", subnet.String()),
-		fmt.Sprintf("-o %s", name),
-		fmt.Sprintf("-j MASQUERADE"),
+		fmt.Sprintf("-s%s", subnet.String()),
+		fmt.Sprintf("-o%s", name),
+		"-jMASQUERADE",
 	}
 }
 
