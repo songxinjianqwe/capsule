@@ -147,12 +147,12 @@ func GetContainer(id string) (libcapsule.Container, error) {
 */
 func GetContainerIds() ([]string, error) {
 	var ids []string
-	if _, err := os.Stat(constant.RuntimeRoot); err != nil {
+	if _, err := os.Stat(constant.ContainerRuntimeRoot); err != nil {
 		if os.IsNotExist(err) {
 			return []string{}, nil
 		}
 	}
-	list, err := ioutil.ReadDir(constant.RuntimeRoot)
+	list, err := ioutil.ReadDir(constant.ContainerRuntimeRoot)
 	if err != nil {
 		return nil, err
 	}

@@ -39,7 +39,7 @@ type LinuxContainerFactory struct {
 
 func (factory *LinuxContainerFactory) Create(id string, config *configs.ContainerConfig) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
-	containerRoot := filepath.Join(constant.RuntimeRoot, id)
+	containerRoot := filepath.Join(constant.ContainerRuntimeRoot, id)
 	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错
 	if _, err := os.Stat(containerRoot); err == nil {
 		return nil, exception.NewGenericError(fmt.Errorf("container with id exists: %v", id), exception.SystemError)
@@ -47,7 +47,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configs.Containe
 		return nil, exception.NewGenericError(err, exception.SystemError)
 	}
 	logrus.Infof("mkdir containerRoot: %s", containerRoot)
-	if err := os.MkdirAll(containerRoot, 0711); err != nil {
+	if err := os.MkdirAll(containerRoot, 0644); err != nil {
 		return nil, exception.NewGenericError(err, exception.SystemError)
 	}
 	container := &LinuxContainer{
@@ -62,7 +62,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configs.Containe
 }
 
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
-	containerRoot := filepath.Join(constant.RuntimeRoot, id)
+	containerRoot := filepath.Join(constant.ContainerRuntimeRoot, id)
 	state, err := factory.loadContainerState(containerRoot, id)
 	if err != nil {
 		return nil, err
@@ -72,8 +72,8 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 		createdTime:   state.Created,
 		root:          containerRoot,
 		config:        state.Config,
-		cgroupManager: cgroups.NewCroupManager(id, state.CgroupPaths),
 		endpoint:      state.Endpoint,
+		cgroupManager: cgroups.NewCroupManager(id, state.CgroupPaths),
 	}
 	container.parentProcess = NewParentNoChildProcess(state.InitProcessPid, state.InitProcessStartTime, container)
 	detectedStatus, err := container.detectContainerStatus()

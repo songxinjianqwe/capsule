@@ -427,7 +427,7 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 		} else {
 			logFileName = fmt.Sprintf(constant.ContainerExecLogFilenamePattern, process.ID)
 		}
-		logFile, err := os.Create(path.Join(constant.RuntimeRoot, c.id, logFileName))
+		logFile, err := os.Create(path.Join(constant.ContainerRuntimeRoot, c.id, logFileName))
 		if err != nil {
 			return nil, err
 		}

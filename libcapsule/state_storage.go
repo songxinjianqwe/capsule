@@ -31,6 +31,6 @@ type StateStorage struct {
 	// with the value as the path.
 	NamespacePaths map[configs.NamespaceType]string `json:"namespace_paths"`
 
-	// Endpoints
+	// Endpoint is container veth
 	Endpoint network.Endpoint `json:"endpoint"`
 }
