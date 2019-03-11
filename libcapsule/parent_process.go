@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"os"
 )
 
@@ -47,7 +48,7 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 		return nil, err
 	}
 	if process.Init {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(StandardInitializer)))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(StandardInitializer)))
 		logrus.Infof("build command complete, command: %#v", cmd)
 		logrus.Infof("new parent init process...")
 		return &ParentInitProcess{
@@ -57,7 +58,7 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 			process:          process,
 		}, nil
 	} else {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", EnvInitializerType, string(ExecInitializer)))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(ExecInitializer)))
 		logrus.Infof("build command complete, command: %#v", cmd)
 		logrus.Infof("new parent exec process...")
 		return &ParentExecProcess{

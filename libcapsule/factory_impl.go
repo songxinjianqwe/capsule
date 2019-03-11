@@ -94,13 +94,13 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 			logrus.Errorf("panic from initialization: %v, %v", e, string(debug.Stack()))
 		}
 	}()
-	configPipeEnv := os.Getenv(EnvConfigPipe)
+	configPipeEnv := os.Getenv(constant.EnvConfigPipe)
 	initPipeFd, err := strconv.Atoi(configPipeEnv)
 	logrus.WithField("init", true).Infof("got config pipe env: %d", initPipeFd)
 	if err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "converting EnvConfigPipe to int")
 	}
-	initializerType := InitializerType(os.Getenv(EnvInitializerType))
+	initializerType := InitializerType(os.Getenv(constant.EnvInitializerType))
 	logrus.WithField("init", true).Infof("got initializer type: %s", initializerType)
 
 	// 读取config

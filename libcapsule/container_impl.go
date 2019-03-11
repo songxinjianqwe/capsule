@@ -22,16 +22,6 @@ import (
 	"time"
 )
 
-const (
-	EnvConfigPipe      = "_LIBCAPSULE_CONFIG_PIPE"
-	EnvInitializerType = "_LIBCAPSULE_INITIALIZER_TYPE"
-	/*
-		一个进程默认有三个文件描述符，stdin、stdout、stderr
-		外带的文件描述符在这三个fd之后
-	*/
-	DefaultStdFdCount = 3
-)
-
 type LinuxContainer struct {
 	id     string
 	root   string
@@ -167,7 +157,7 @@ func (c *LinuxContainer) create(process *Process) error {
 	if err := parent.start(); err != nil {
 		// 启动失败，则杀掉init process，如果是已经停止，则忽略。
 		logrus.Warnf("parent process init/exec failed, killing init/exec process...")
-		if err := ignoreTerminateErrors(parent.terminate()); err != nil {
+		if err := c.ignoreTerminateErrors(parent.terminate()); err != nil {
 			logrus.Warn(err)
 		}
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting container process")
@@ -390,7 +380,7 @@ func (c *LinuxContainer) deleteFlagFileIfExists() error {
 // util
 // ****************************************************************************************************
 // 如果init process已经停止，则忽略terminate异常
-func ignoreTerminateErrors(err error) error {
+func (c *LinuxContainer) ignoreTerminateErrors(err error) error {
 	if err == nil {
 		return nil
 	}
@@ -416,7 +406,7 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 	cmd.Dir = c.config.Rootfs
 	cmd.ExtraFiles = append(cmd.ExtraFiles, childConfigPipe)
 	cmd.Env = append(cmd.Env,
-		fmt.Sprintf(EnvConfigPipe+"=%d", DefaultStdFdCount+len(cmd.ExtraFiles)-1),
+		fmt.Sprintf(constant.EnvConfigPipe+"=%d", constant.DefaultStdFdCount+len(cmd.ExtraFiles)-1),
 	)
 	// 如果后台运行，则将stdout输出到日志文件中
 	if process.Detach {

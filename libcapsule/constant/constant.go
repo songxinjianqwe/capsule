@@ -22,4 +22,13 @@ const (
 	ContainerInitCmd = "/proc/self/exe"
 	// 运行容器init进程的命令
 	ContainerInitArgs = "init"
+
+	// 容器初始化相关的常量
+	EnvConfigPipe      = "_LIBCAPSULE_CONFIG_PIPE"
+	EnvInitializerType = "_LIBCAPSULE_INITIALIZER_TYPE"
+	/*
+		一个进程默认有三个文件描述符，stdin、stdout、stderr
+		外带的文件描述符在这三个fd之后
+	*/
+	DefaultStdFdCount = 3
 )
