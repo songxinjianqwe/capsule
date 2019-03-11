@@ -94,7 +94,7 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 		return nil, err
 	}
 	//  `ip addr show`.
-	addrs, err := netlink.AddrList(iface, netlink.FAMILY_ALL)
+	addrs, err := netlink.AddrList(iface, 0)
 	if err != nil {
 		return nil, err
 	}
