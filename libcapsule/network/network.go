@@ -13,7 +13,7 @@ type Network struct {
 	// 网络名称
 	Name string `json:"name"`
 	// 网段
-	IpRange *net.IPNet `json:"ip_range"`
+	IpRange net.IPNet `json:"ip_range"`
 	// 网络驱动名（网络类型）
 	Driver string `json:"driver"`
 }
@@ -79,7 +79,7 @@ func DeleteNetwork(driver string, name string) error {
 	if err != nil {
 		return err
 	}
-	if err := allocator.Release(network.IpRange, &network.IpRange.IP); err != nil {
+	if err := allocator.Release(&network.IpRange, network.IpRange.IP); err != nil {
 		return err
 	}
 	return networkDriver.Delete(network.Name)

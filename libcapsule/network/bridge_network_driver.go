@@ -22,7 +22,7 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 	_, ipRange, err := net.ParseCIDR(subnet)
 	network := &Network{
 		Name:    bridgeName,
-		IpRange: ipRange,
+		IpRange: *ipRange,
 		Driver:  driver.Name(),
 	}
 	// subnet的格式是192.168.1.2/24，parseCIDR的第一个返回值是IP地址,192.168.1.2，第二个返回值是IPNet类型，192.168.1.0/24
@@ -45,7 +45,7 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 	}
 
 	// 4.设置iptables SNAT规则（MASQUERADE）
-	if err := setupIPTablesMasquerade(bridgeName, ipRange); err != nil {
+	if err := setupIPTablesMasquerade(bridgeName, *ipRange); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set iptables SNAT MASQUERADE RULE")
 	}
 	return network, nil
@@ -77,7 +77,7 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 	return &Network{
 		Name:    name,
 		Driver:  driver.Name(),
-		IpRange: bridgeAddr,
+		IpRange: *bridgeAddr,
 	}, nil
 }
 
@@ -114,7 +114,7 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string
 	if err != nil {
 		return nil, err
 	}
-	ip, err := allocator.Allocate(network.IpRange)
+	ip, err := allocator.Allocate(&network.IpRange)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func createBridgeInterface(name string) error {
 }
 
 // SNAT MASQUERADE
-func setupIPTablesMasquerade(name string, subnet *net.IPNet) error {
+func setupIPTablesMasquerade(name string, subnet net.IPNet) error {
 	tables, err := iptables.New()
 	if err != nil {
 		return err
@@ -170,7 +170,7 @@ func setupIPTablesMasquerade(name string, subnet *net.IPNet) error {
 	return nil
 }
 
-func getSNATRuleSpecs(name string, subnet *net.IPNet) []string {
+func getSNATRuleSpecs(name string, subnet net.IPNet) []string {
 	return []string{
 		fmt.Sprintf("-s%s", subnet.String()),
 		fmt.Sprintf("-o%s", name),

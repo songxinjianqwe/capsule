@@ -9,7 +9,8 @@ import (
 // ipam is short for ip address management
 type IPAM interface {
 	Allocate(subnet *net.IPNet) (net.IP, error)
-	Release(subnet *net.IPNet, ip *net.IP) error
+	Release(subnet *net.IPNet, ip net.IP) error
+	Allocatable(subnet *net.IPNet) uint
 }
 
 var once sync.Once

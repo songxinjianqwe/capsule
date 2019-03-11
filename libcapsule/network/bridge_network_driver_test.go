@@ -73,7 +73,7 @@ func checkSNAT(t *testing.T, name string, subnet string) {
 	exists, err := table.Exists(
 		"nat",
 		"POSTROUTING",
-		getSNATRuleSpecs(name, ipRange)...)
+		getSNATRuleSpecs(name, *ipRange)...)
 	assert.Nil(t, err)
 	assert.True(t, exists, "SNAT Rule do not exist")
 }
