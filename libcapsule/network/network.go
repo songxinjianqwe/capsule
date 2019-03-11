@@ -78,7 +78,7 @@ func DeleteNetwork(driver string, name string) error {
 	if err := allocator.Release(network.IpRange, &network.IpRange.IP); err != nil {
 		return err
 	}
-	return networkDriver.Delete(network)
+	return networkDriver.Delete(network.Name)
 }
 
 func LoadNetwork(driver string, name string) (*Network, error) {

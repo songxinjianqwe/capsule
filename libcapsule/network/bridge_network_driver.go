@@ -2,10 +2,15 @@ package network
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/vishvananda/netlink"
 	"net"
+	"os/exec"
 	"strings"
 )
+
+const Masquerade = "-t nat -A POSTROUTING -s %s -o %s -j MASQUERADE"
 
 type BridgeNetworkDriver struct {
 }
@@ -14,10 +19,10 @@ func (driver *BridgeNetworkDriver) Name() string {
 	return "bridge"
 }
 
-func (driver *BridgeNetworkDriver) Create(subnet string, name string) (*Network, error) {
-	gatewayIP, ipRange, err := net.ParseCIDR(subnet)
+func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Network, error) {
+	_, ipRange, err := net.ParseCIDR(subnet)
 	network := &Network{
-		Name:    name,
+		Name:    bridgeName,
 		IpRange: ipRange,
 		Driver:  driver.Name(),
 	}
@@ -26,26 +31,89 @@ func (driver *BridgeNetworkDriver) Create(subnet string, name string) (*Network,
 		return nil, err
 	}
 	// 1.创建bridge
-	if err := createBridgeInterface(name); err != nil {
-		return nil, err
+	if err := createBridgeInterface(bridgeName); err != nil {
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create bridge")
 	}
 	// 2.设置Bridge的IP地址和路由
-	if err := setInterfaceIP(name, gatewayIP.String(), ipRange); err != nil {
-
+	if err := setInterfaceIPAndRoute(bridgeName, subnet); err != nil {
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set bridge ip and route")
+	}
+	// 3.启动Bridge
+	if err := setInterfaceUp(bridgeName); err != nil {
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set bridge UP")
+	}
+	// 4.设置iptables SNAT规则（MASQUERADE）
+	if err := setupIPTablesMasquerade(bridgeName, ipRange); err != nil {
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set iptables SNAT MASQUERADE RULE")
 	}
 	return network, nil
 }
 
-func setInterfaceIP(name string, gatewayIP string, subnet *net.IPNet) error {
+// SNAT MASQUERADE
+func setupIPTablesMasquerade(name string, subnet *net.IPNet) error {
+	iptablesCmd := fmt.Sprintf(Masquerade, subnet.String(), name)
+	cmd := exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
+	bytes, err := cmd.Output()
+	if err != nil {
+		logrus.Errorf("execute iptables command failed, cause: %s, output: %s", err.Error(), string(bytes))
+		return err
+	}
 	return nil
 }
 
-func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
-	panic("implement me")
+// 启用
+func setInterfaceUp(name string) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	// `ip link set $link up`
+	return netlink.LinkSetUp(iface)
 }
 
-func (driver *BridgeNetworkDriver) Delete(*Network) error {
-	panic("implement me")
+// 设置网络接口的IP和路由
+func setInterfaceIPAndRoute(name string, subnet string) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	_, ipRange, err := net.ParseCIDR(subnet)
+	// ip addr add xxx
+	// 做了两件事：
+	// 1、配置了网络接口的IP地址(gatewayIP)
+	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
+	addr := &netlink.Addr{
+		IPNet: ipRange}
+	// `ip addr add $addr dev $link`
+	return netlink.AddrAdd(iface, addr)
+}
+
+func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return nil, err
+	}
+	//  `ip addr show`.
+	addrs, err := netlink.AddrList(iface, netlink.FAMILY_ALL)
+	if err != nil {
+		return nil, err
+	}
+	if len(addrs) != 1 {
+		return nil, fmt.Errorf("address amount is not equal to 1")
+	}
+	return &Network{
+		Name:    name,
+		Driver:  driver.Name(),
+		IpRange: addrs[0].IPNet,
+	}, nil
+}
+
+func (driver *BridgeNetworkDriver) Delete(name string) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	return netlink.LinkDel(iface)
 }
 
 func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string, portMappings []string) (*Endpoint, error) {
@@ -68,7 +136,9 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string
 		PortMappings: portMappings,
 	}
 	// connect
+
 	// config ip address and route
+
 	// config port mapping
 	return endpoint, nil
 }

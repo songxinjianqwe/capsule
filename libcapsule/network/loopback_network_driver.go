@@ -17,7 +17,7 @@ func (driver *LoopbackNetworkDriver) Load(name string) (*Network, error) {
 	return nil, fmt.Errorf("loopback network dont exist")
 }
 
-func (driver *LoopbackNetworkDriver) Delete(*Network) error {
+func (driver *LoopbackNetworkDriver) Delete(name string) error {
 	return fmt.Errorf("loopback network dont exist")
 }
 
