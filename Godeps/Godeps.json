@@ -4,6 +4,11 @@
 	"GodepVersion": "v80",
 	"Deps": [
 		{
+			"ImportPath": "github.com/coreos/go-iptables/iptables",
+			"Comment": "v0.4.0",
+			"Rev": "47f22b0dd3355c0ba570ba12b0b8a36bf214c04b"
+		},
+		{
 			"ImportPath": "github.com/konsorten/go-windows-terminal-sequences",
 			"Comment": "v1.0.1",
 			"Rev": "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"

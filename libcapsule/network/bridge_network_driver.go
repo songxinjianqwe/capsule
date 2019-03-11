@@ -2,11 +2,10 @@ package network
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
+	"github.com/coreos/go-iptables/iptables"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/vishvananda/netlink"
 	"net"
-	"os/exec"
 	"strings"
 )
 
@@ -52,52 +51,13 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 	return network, nil
 }
 
-// SNAT MASQUERADE
-func setupIPTablesMasquerade(name string, subnet *net.IPNet) error {
-	iptablesCmd := fmt.Sprintf(Masquerade, subnet.String(), name)
-	cmd := exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
-	bytes, err := cmd.Output()
-	if err != nil {
-		logrus.Errorf("execute iptables command failed, cause: %s, output: %s", err.Error(), string(bytes))
-		return err
-	}
-	return nil
-}
-
-// 启用
-func setInterfaceUp(name string) error {
-	iface, err := netlink.LinkByName(name)
-	if err != nil {
-		return err
-	}
-	// `ip link set $link up`
-	return netlink.LinkSetUp(iface)
-}
-
-// 设置网络接口的IP和路由
-func setInterfaceIPAndRoute(name string, subnet string) error {
-	iface, err := netlink.LinkByName(name)
-	if err != nil {
-		return err
-	}
-	_, ipRange, err := net.ParseCIDR(subnet)
-	// ip addr add xxx
-	// 做了两件事：
-	// 1、配置了网络接口的IP地址(gatewayIP)
-	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
-	addr := &netlink.Addr{
-		IPNet: ipRange}
-	// `ip addr add $addr dev $link`
-	return netlink.AddrAdd(iface, addr)
-}
-
 func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return nil, err
 	}
 	//  `ip addr show`.
-	addrs, err := netlink.AddrList(iface, 0)
+	addrs, err := netlink.AddrList(iface, netlink.FAMILY_ALL)
 	if err != nil {
 		return nil, err
 	}
@@ -122,11 +82,27 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 }
 
 func (driver *BridgeNetworkDriver) Delete(name string) error {
+	network, err := driver.Load(name)
+	if err != nil {
+		return err
+	}
+	// 删除SNAT规则
+	tables, err := iptables.New()
+	if err := tables.Delete(
+		"nat",
+		"POSTROUTING",
+		getSNATRuleSpec(network.Name, network.IpRange)...,
+	); err != nil {
+		return err
+	}
 	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	return netlink.LinkDel(iface)
+	if err := netlink.LinkDel(iface); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string, portMappings []string) (*Endpoint, error) {
@@ -177,4 +153,54 @@ func createBridgeInterface(name string) error {
 		return err
 	}
 	return nil
+}
+
+// SNAT MASQUERADE
+func setupIPTablesMasquerade(name string, subnet *net.IPNet) error {
+	tables, err := iptables.New()
+	if err != nil {
+		return err
+	}
+	// iptables -t nat -A POSTROUTING -s %s -o %s -j MASQUERADE
+	if err := tables.Append(
+		"nat",
+		"POSTROUTING", getSNATRuleSpec(name, subnet)...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getSNATRuleSpec(name string, subnet *net.IPNet) []string {
+	return []string{
+		fmt.Sprintf("-s %s", subnet.String()),
+		fmt.Sprintf("-o %s", name),
+		fmt.Sprintf("-j MASQUERADE"),
+	}
+}
+
+// 启用
+func setInterfaceUp(name string) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	// `ip link set $link up`
+	return netlink.LinkSetUp(iface)
+}
+
+// 设置网络接口的IP和路由
+func setInterfaceIPAndRoute(name string, subnet string) error {
+	iface, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+	_, ipRange, err := net.ParseCIDR(subnet)
+	// ip addr add xxx
+	// 做了两件事：
+	// 1、配置了网络接口的IP地址(gatewayIP)
+	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
+	addr := &netlink.Addr{
+		IPNet: ipRange}
+	// `ip addr add $addr dev $link`
+	return netlink.AddrAdd(iface, addr)
 }
