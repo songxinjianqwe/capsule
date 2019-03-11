@@ -34,14 +34,17 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 	if err := createBridgeInterface(bridgeName); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create bridge")
 	}
+
 	// 2.设置Bridge的IP地址和路由
 	if err := setInterfaceIPAndRoute(bridgeName, subnet); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set bridge ip and route")
 	}
+
 	// 3.启动Bridge
 	if err := setInterfaceUp(bridgeName); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set bridge UP")
 	}
+
 	// 4.设置iptables SNAT规则（MASQUERADE）
 	if err := setupIPTablesMasquerade(bridgeName, ipRange); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set iptables SNAT MASQUERADE RULE")
@@ -98,13 +101,23 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(addrs) != 1 {
-		return nil, fmt.Errorf("address amount is not equal to 1")
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("addresses not found")
+	}
+	var bridgeAddr *net.IPNet
+	for _, addr := range addrs {
+		if addr.Label == name {
+			bridgeAddr = addr.IPNet
+			break
+		}
+	}
+	if bridgeAddr == nil {
+		return nil, fmt.Errorf("addresses not found")
 	}
 	return &Network{
 		Name:    name,
 		Driver:  driver.Name(),
-		IpRange: addrs[0].IPNet,
+		IpRange: bridgeAddr,
 	}, nil
 }
 
@@ -152,7 +165,7 @@ func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {
 // ******************************************************************************************
 
 func createBridgeInterface(name string) error {
-	if _, err := net.InterfaceByName(name); err == nil || strings.Contains(err.Error(), "no such network interface") {
+	if _, err := net.InterfaceByName(name); err == nil || !strings.Contains(err.Error(), "no such network interface") {
 		return fmt.Errorf("brigde name %s exists", name)
 	}
 	linkAttrs := netlink.NewLinkAttrs()
@@ -161,7 +174,7 @@ func createBridgeInterface(name string) error {
 		LinkAttrs: linkAttrs,
 	}
 	if err := netlink.LinkAdd(br); err != nil {
-		return fmt.Errorf("bridge create failed, cause: %s", err.Error())
+		return err
 	}
 	return nil
 }

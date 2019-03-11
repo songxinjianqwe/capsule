@@ -13,12 +13,12 @@ type IPAM interface {
 }
 
 var once sync.Once
-var singletonIPAM *DefaultIPAMImpl
+var singletonIPAM *LocalIPAM
 var singletonErr error
 
 func LoadIPAllocator() (IPAM, error) {
 	once.Do(func() {
-		singletonIPAM = &DefaultIPAMImpl{
+		singletonIPAM = &LocalIPAM{
 			subnetAllocatorPath: constant.IPAMDefaultAllocatorPath,
 		}
 		singletonErr = singletonIPAM.load()

@@ -18,6 +18,10 @@ type Network struct {
 	Driver string `json:"driver"`
 }
 
+func (net *Network) String() string {
+	return fmt.Sprintf("[%s]%s(%s)", net.Driver, net.Name, net.IpRange.String())
+}
+
 /*
 对应一个网络端点，比如容器中会有一个veth和一个loopback
 */

@@ -9,25 +9,25 @@ import (
 	"sync"
 )
 
-type DefaultIPAMImpl struct {
+type LocalIPAM struct {
 	subnetAllocatorPath string
 	subnetMap           map[string]string
 	mutex               sync.Mutex
 }
 
-func (ipam *DefaultIPAMImpl) Allocate(subnet *net.IPNet) (net.IP, error) {
+func (ipam *LocalIPAM) Allocate(subnet *net.IPNet) (net.IP, error) {
 	ipam.mutex.Lock()
 	defer ipam.mutex.Unlock()
 	panic("implement me")
 }
 
-func (ipam *DefaultIPAMImpl) Release(subnet *net.IPNet, ip *net.IP) error {
+func (ipam *LocalIPAM) Release(subnet *net.IPNet, ip *net.IP) error {
 	ipam.mutex.Lock()
 	defer ipam.mutex.Unlock()
 	panic("implement me")
 }
 
-func (ipam *DefaultIPAMImpl) load() error {
+func (ipam *LocalIPAM) load() error {
 	// load
 	if _, err := os.Stat(singletonIPAM.subnetAllocatorPath); err != nil && !os.IsNotExist(err) {
 		return err
@@ -42,7 +42,7 @@ func (ipam *DefaultIPAMImpl) load() error {
 	return nil
 }
 
-func (ipam *DefaultIPAMImpl) dump() error {
+func (ipam *LocalIPAM) dump() error {
 	if _, err := os.Stat(ipam.subnetAllocatorPath); err != nil && os.IsNotExist(err) {
 		// 如果文件之前不存在，则先创建目录，再创建文件
 		// 否则覆盖原来的文件
