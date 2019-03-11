@@ -32,5 +32,5 @@ type StateStorage struct {
 	NamespacePaths map[configs.NamespaceType]string `json:"namespace_paths"`
 
 	// Endpoints
-	Endpoints []network.Endpoint `json:"endpoints"`
+	Endpoint network.Endpoint `json:"endpoint"`
 }

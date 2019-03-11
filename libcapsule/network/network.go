@@ -39,8 +39,7 @@ type Endpoint struct {
 一点规则：有值，未必能取得指针；反之一定可以。
 */
 var networkDrivers = map[string]NetworkDriver{
-	"bridge":   &BridgeNetworkDriver{},
-	"loopback": &LoopbackNetworkDriver{},
+	"bridge": &BridgeNetworkDriver{},
 }
 
 func CreateNetwork(driver string, subnet string, name string) (*Network, error) {

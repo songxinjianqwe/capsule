@@ -108,28 +108,73 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string, portMappings []string) (*Endpoint, error) {
 	network, err := LoadNetwork(driver.Name(), networkName)
 	if err != nil {
-		return nil, err
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "load network")
 	}
 	allocator, err := LoadIPAllocator()
 	if err != nil {
-		return nil, err
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "load ip allocator")
 	}
-	ip, err := allocator.Allocate(&network.IpRange)
+	endpointIP, err := allocator.Allocate(&network.IpRange)
 	if err != nil {
-		return nil, err
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "allocate ip")
 	}
 	endpoint := &Endpoint{
 		ID:           endpointId,
 		Network:      network,
-		IpAddress:    ip,
+		IpAddress:    endpointIP,
 		PortMappings: portMappings,
 	}
-	// connect
 
+	// 创建网络端点veth
+	if err := createVethAndSetUp(endpoint); err != nil {
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create veth and set it UP")
+	}
 	// config ip address and route
-
+	if err := setVethIPAndRoute(endpoint); err != nil {
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set veth ip and route")
+	}
 	// config port mapping
+	if err := setupPortMappings(); err != nil {
+		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set up port mappings")
+	}
 	return endpoint, nil
+}
+
+func setupPortMappings() error {
+	return nil
+}
+
+func setVethIPAndRoute(endpoint *Endpoint) error {
+	//peerVeth, err := netlink.LinkByName(endpoint.Device.PeerName)
+	//if err != nil {
+	//	return err
+	//}
+	return nil
+}
+
+func createVethAndSetUp(endpoint *Endpoint) error {
+	bridge, err := netlink.LinkByName(endpoint.Network.Name)
+	if err != nil {
+		return err
+	}
+	vethAttrs := netlink.NewLinkAttrs()
+	// link名称长度有限制
+	vethAttrs.Name = endpoint.ID[:5]
+	// 将一端连接到bridge上
+	vethAttrs.MasterIndex = bridge.Attrs().Index
+
+	endpoint.Device = netlink.Veth{
+		LinkAttrs: vethAttrs,
+		PeerName:  fmt.Sprintf("cif-%s", endpoint.ID[:5]),
+	}
+
+	if err := netlink.LinkAdd(&endpoint.Device); err != nil {
+		return err
+	}
+	if err := netlink.LinkSetUp(&endpoint.Device); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {

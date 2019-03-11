@@ -38,7 +38,7 @@ type LinuxContainer struct {
 	config configs.ContainerConfig
 	// runtime info
 	cgroupManager  cgroups.CgroupManager
-	endpoints      []network.Endpoint
+	endpoint       network.Endpoint
 	parentProcess  ParentProcess
 	statusBehavior ContainerStatusBehavior
 	createdTime    time.Time
@@ -242,7 +242,7 @@ func (c *LinuxContainer) currentState() (*StateStorage, error) {
 		Created:              c.createdTime,
 		CgroupPaths:          c.cgroupManager.GetPaths(),
 		NamespacePaths:       make(map[configs.NamespaceType]string),
-		Endpoints:            c.endpoints,
+		Endpoint:             c.endpoint,
 	}
 	if initProcessPid > 0 {
 		for _, ns := range c.config.Namespaces {

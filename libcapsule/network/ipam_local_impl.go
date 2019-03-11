@@ -49,7 +49,7 @@ func (ipam *LocalIPAM) Allocate(subnet *net.IPNet) (net.IP, error) {
 	}
 	// gotcha!
 	bitmap.Set(nextClearIndex)
-	// 网段IP
+	// 网段IP,注意这里一定要拷贝!!!
 	ip := make([]byte, 4)
 	copy(ip, subnet.IP.To4())
 	// 假设subnet为192.168.1.0/24, index为184,那么IP地址为192.168.1.1+184=192.168.1.185

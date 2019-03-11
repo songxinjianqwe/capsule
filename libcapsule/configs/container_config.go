@@ -23,8 +23,8 @@ type ContainerConfig struct {
 	// If a namespace is not provided that namespace is shared from the container's parent process
 	Namespaces Namespaces `json:"namespaces"`
 
-	// Endpoints specifies the container's network setup to be created
-	Endpoints []EndpointConfig `json:"endpoints"`
+	// Endpoint specifies the container's network setup to be created
+	Endpoint EndpointConfig `json:"endpoint"`
 
 	// Cgroup specifies specific cgroup settings for the various subsystems that the container is
 	// placed into to limit the resources the container has available

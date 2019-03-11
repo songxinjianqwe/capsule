@@ -156,14 +156,13 @@ func (p *ParentInitProcess) createNetworkInterfaces() error {
 	logrus.Infof("create or load bridge complete, bridge: %#v", bridge)
 
 	// 创建端点
-	for _, endpointConfig := range p.container.config.Endpoints {
-		logrus.Infof("creating endpoint: %#v", endpointConfig)
-		endpoint, err := network.Connect(endpointConfig.NetworkDriver, endpointConfig.ID, endpointConfig.NetworkName, endpointConfig.PortMappings)
-		if err != nil {
-			return err
-		}
-		p.container.endpoints = append(p.container.endpoints, *endpoint)
+	endpointConfig := p.container.config.Endpoint
+	logrus.Infof("creating endpoint: %#v", endpointConfig)
+	endpoint, err := network.Connect(endpointConfig.NetworkDriver, endpointConfig.ID, endpointConfig.NetworkName, endpointConfig.PortMappings)
+	if err != nil {
+		return err
 	}
+	p.container.endpoint = *endpoint
 	return nil
 }
 
