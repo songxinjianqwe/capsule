@@ -3,10 +3,10 @@ package network
 import (
 	"fmt"
 	"github.com/coreos/go-iptables/iptables"
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/vishvananda/netlink"
 	"net"
-	"strings"
 )
 
 const Masquerade = "-t nat -A POSTROUTING -s %s -o %s -j MASQUERADE"
@@ -105,7 +105,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	return nil
 }
 
-func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string, portMappings []string) (*Endpoint, error) {
+func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string, portMappings []string, containerInitPid int) (*Endpoint, error) {
 	network, err := LoadNetwork(driver.Name(), networkName)
 	if err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "load network")
@@ -119,133 +119,47 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "allocate ip")
 	}
 	endpoint := &Endpoint{
-		ID:           endpointId,
+		Name:         endpointId,
 		Network:      network,
 		IpAddress:    endpointIP,
 		PortMappings: portMappings,
 	}
-
+	logrus.Infof("connecting network, endpoint: %#v, veth ip: %s", endpoint, endpoint.IpAddress.String())
 	// 创建网络端点veth
-	if err := createVethAndSetUp(endpoint); err != nil {
+	if err := createVethPairAndSetUp(endpoint); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create veth and set it UP")
 	}
 	// config ip address and route
-	if err := setVethIPAndRoute(endpoint); err != nil {
+	if err := moveVethToContainerAndSetIPAndRouteInContainerNetNs(endpoint, containerInitPid); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set veth ip and route")
 	}
 	// config port mapping
-	if err := setupPortMappings(); err != nil {
+	if err := setupPortMappings(endpoint); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set up port mappings")
 	}
 	return endpoint, nil
 }
 
-func setupPortMappings() error {
-	return nil
-}
-
-func setVethIPAndRoute(endpoint *Endpoint) error {
-	//peerVeth, err := netlink.LinkByName(endpoint.Device.PeerName)
-	//if err != nil {
-	//	return err
-	//}
-	return nil
-}
-
-func createVethAndSetUp(endpoint *Endpoint) error {
-	bridge, err := netlink.LinkByName(endpoint.Network.Name)
-	if err != nil {
-		return err
-	}
-	vethAttrs := netlink.NewLinkAttrs()
-	// link名称长度有限制
-	vethAttrs.Name = endpoint.ID[:5]
-	// 将一端连接到bridge上
-	vethAttrs.MasterIndex = bridge.Attrs().Index
-
-	endpoint.Device = netlink.Veth{
-		LinkAttrs: vethAttrs,
-		PeerName:  fmt.Sprintf("cif-%s", endpoint.ID[:5]),
-	}
-
-	if err := netlink.LinkAdd(&endpoint.Device); err != nil {
-		return err
-	}
-	if err := netlink.LinkSetUp(&endpoint.Device); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {
-	panic("implement me")
-}
-
-// ******************************************************************************************
-// util
-// ******************************************************************************************
-
-func createBridgeInterface(name string) error {
-	if _, err := net.InterfaceByName(name); err == nil || !strings.Contains(err.Error(), "no such network interface") {
-		return fmt.Errorf("brigde name %s exists", name)
-	}
-	linkAttrs := netlink.NewLinkAttrs()
-	linkAttrs.Name = name
-	br := &netlink.Bridge{
-		LinkAttrs: linkAttrs,
-	}
-	if err := netlink.LinkAdd(br); err != nil {
+	// 回收IP地址
+	allocator, err := LoadIPAllocator()
+	if err != nil {
 		return err
+	}
+	if err := allocator.Release(&endpoint.Network.IpRange, endpoint.IpAddress); err != nil {
+		logrus.Warnf(err.Error())
+	}
+	// 删除端口映射
+	if err := deletePortMappings(endpoint); err != nil {
+		logrus.Warnf(err.Error())
+	}
+	// 删除网络端点
+	hostVeth, err := netlink.LinkByName(endpoint.Device.Name)
+	if err != nil {
+		logrus.Warnf(err.Error())
+	}
+	if err := netlink.LinkDel(hostVeth); err != nil {
+		logrus.Warnf(err.Error())
 	}
 	return nil
-}
-
-// SNAT MASQUERADE
-func setupIPTablesMasquerade(name string, subnet net.IPNet) error {
-	tables, err := iptables.New()
-	if err != nil {
-		return err
-	}
-	// iptables -t nat -A POSTROUTING -s %s -o %s -j MASQUERADE
-	if err := tables.Append(
-		"nat",
-		"POSTROUTING", getSNATRuleSpecs(name, subnet)...); err != nil {
-		return err
-	}
-	return nil
-}
-
-func getSNATRuleSpecs(name string, subnet net.IPNet) []string {
-	return []string{
-		fmt.Sprintf("-s%s", subnet.String()),
-		fmt.Sprintf("-o%s", name),
-		"-jMASQUERADE",
-	}
-}
-
-// 启用
-func setInterfaceUp(name string) error {
-	iface, err := netlink.LinkByName(name)
-	if err != nil {
-		return err
-	}
-	// `ip link set $link up`
-	return netlink.LinkSetUp(iface)
-}
-
-// 设置网络接口的IP和路由
-func setInterfaceIPAndRoute(name string, subnet string) error {
-	iface, err := netlink.LinkByName(name)
-	if err != nil {
-		return err
-	}
-	_, ipRange, err := net.ParseCIDR(subnet)
-	// ip addr add xxx
-	// 做了两件事：
-	// 1、配置了网络接口的IP地址(gatewayIP)
-	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
-	addr := &netlink.Addr{
-		IPNet: ipRange}
-	// `ip addr add $addr dev $link`
-	return netlink.AddrAdd(iface, addr)
 }

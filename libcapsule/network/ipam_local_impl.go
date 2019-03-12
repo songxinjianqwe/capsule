@@ -63,7 +63,7 @@ func (ipam *LocalIPAM) Allocate(subnet *net.IPNet) (net.IP, error) {
 	}
 	// ip 从1开始
 	ip[3]++
-
+	logrus.Infof("allocated ip: %s", net.IP(ip).String())
 	if err := ipam.dump(); err != nil {
 		return nil, err
 	}

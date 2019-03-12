@@ -17,7 +17,7 @@ import (
 )
 
 func NewFactory(init bool) (Factory, error) {
-	logrus.Infof("new container factory ...")
+	//logrus.Infof("new container factory ...")
 	if init {
 		if _, err := os.Stat(constant.RuntimeRoot); err != nil {
 			if os.IsNotExist(err) {
@@ -72,7 +72,7 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 		createdTime:   state.Created,
 		root:          containerRoot,
 		config:        state.Config,
-		endpoint:      state.Endpoint,
+		endpoint:      &state.Endpoint,
 		cgroupManager: cgroups.NewCroupManager(id, state.CgroupPaths),
 	}
 	container.parentProcess = NewParentNoChildProcess(state.InitProcessPid, state.InitProcessStartTime, container)

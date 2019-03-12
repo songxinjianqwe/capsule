@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"net"
 )
@@ -26,7 +27,7 @@ func (net *Network) String() string {
 对应一个网络端点，比如容器中会有一个veth和一个loopback
 */
 type Endpoint struct {
-	ID           string           `json:"id"`
+	Name         string           `json:"name"`
 	IpAddress    net.IP           `json:"ip_address"`
 	MacAddress   net.HardwareAddr `json:"mac_address"`
 	Device       netlink.Veth     `json:"-"`
@@ -92,15 +93,17 @@ func LoadNetwork(driver string, name string) (*Network, error) {
 	return networkDriver.Load(name)
 }
 
-func Connect(networkDriver string, endpointId string, networkName string, portMappings []string) (*Endpoint, error) {
+func Connect(networkDriver string, endpointId string, networkName string, portMappings []string, containerInitPid int) (*Endpoint, error) {
+	logrus.Infof("connecting, driver: %s, endpointId: %s, networkName: %s, portMappings: %v, containerInitPid: %d", networkDriver, endpointId, networkName, portMappings, containerInitPid)
 	networkDriverInstance, found := networkDrivers[networkDriver]
 	if !found {
 		return nil, fmt.Errorf("network driver not found: %s", networkDriver)
 	}
-	return networkDriverInstance.Connect(endpointId, networkName, portMappings)
+	return networkDriverInstance.Connect(endpointId, networkName, portMappings, containerInitPid)
 }
 
 func Disconnect(endpoint *Endpoint) error {
+	logrus.Infof("disconnecting, endpoint: %#v", endpoint)
 	networkDriver, found := networkDrivers[endpoint.Network.Driver]
 	if !found {
 		return fmt.Errorf("network driver not found: %s", endpoint.Network.Driver)

@@ -106,6 +106,7 @@ func CreateOrRunContainer(id string, bundle string, spec *specs.Spec, action Con
 		containerErr = container.Run(process)
 	}
 	if containerErr != nil {
+		logrus.Errorf("create or run container failed, cause: %s", containerErr.Error())
 		return handleContainerErr(container, containerErr)
 	}
 	// 如果是Run命令运行容器吗，并且是前台运行，那么Run结束，即为容器进程结束，则删除容器

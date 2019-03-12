@@ -15,12 +15,6 @@ import (
 	"syscall"
 )
 
-// CleanPath makes a path safe for use with filepath.Join. This is done by not
-// only cleaning the path, but also (if the path is relative) adding a leading
-// '/' and cleaning it (then removing the leading '/'). This ensures that a
-// path resulting from prepending another path will always resolve to lexically
-// be a subdirectory of the prefixed path. This is all done lexically, so paths
-// that include symlinks won't be safe as a result of using CleanPath.
 func CleanPath(path string) string {
 	// Deal with empty strings nicely.
 	if path == "" {

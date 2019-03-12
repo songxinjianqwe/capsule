@@ -41,19 +41,7 @@ func (p *ParentInitProcess) detach() bool {
 
 func (p *ParentInitProcess) start() (err error) {
 	logrus.Infof("ParentInitProcess starting...")
-	defer func() {
-		// 如果start方法出现任何异常，则必须销毁cgroup manager
-		if err != nil {
-			logrus.Warnf("parent process init failed, destroying cgroup manager...")
-			destroyErr := p.container.cgroupManager.Destroy()
-			if destroyErr != nil {
-				logrus.Warnf("destroy failed, cause: %s", destroyErr.Error())
-			}
-		}
-	}()
-
-	err = p.initProcessCmd.Start()
-	if err != nil {
+	if err = p.initProcessCmd.Start(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting init process command")
 	}
 	logrus.Infof("init process started, INIT_PROCESS_PID: [%d]", p.pid())
@@ -158,11 +146,11 @@ func (p *ParentInitProcess) createNetworkInterfaces() error {
 	// 创建端点
 	endpointConfig := p.container.config.Endpoint
 	logrus.Infof("creating endpoint: %#v", endpointConfig)
-	endpoint, err := network.Connect(endpointConfig.NetworkDriver, endpointConfig.ID, endpointConfig.NetworkName, endpointConfig.PortMappings)
+	endpoint, err := network.Connect(endpointConfig.NetworkDriver, endpointConfig.ID, endpointConfig.NetworkName, endpointConfig.PortMappings, p.pid())
 	if err != nil {
 		return err
 	}
-	p.container.endpoint = *endpoint
+	p.container.endpoint = endpoint
 	return nil
 }
 

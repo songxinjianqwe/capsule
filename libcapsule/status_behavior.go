@@ -3,6 +3,7 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"os"
 )
 
@@ -49,6 +50,12 @@ func destroy(c *LinuxContainer) (err error) {
 	err = c.cgroupManager.Destroy()
 	if err != nil {
 		logrus.Warnf("destroy cgroup manager failed, cause: %s", err.Error())
+	}
+	logrus.Infof("destroying endpoint...")
+	if c.endpoint != nil {
+		if err := network.Disconnect(c.endpoint); err != nil {
+			logrus.Warnf("destroy cgroup manager failed, cause: %s", err.Error())
+		}
 	}
 	logrus.Infof("removing container root files...")
 	removeErr := os.RemoveAll(c.root)
