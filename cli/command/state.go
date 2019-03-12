@@ -10,6 +10,12 @@ import (
 var StateCommand = cli.Command{
 	Name:  "state",
 	Usage: "get a container's state",
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "detail, d",
+			Usage: "get container's detailed state",
+		},
+	},
 	Action: func(ctx *cli.Context) error {
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
@@ -17,6 +23,9 @@ var StateCommand = cli.Command{
 		vo, err := util.GetContainerStateVO(ctx.Args().First())
 		if err != nil {
 			return err
+		}
+		if !ctx.Bool("detail") {
+			vo.Detail = nil
 		}
 		data, err := json.MarshalIndent(vo, "", "  ")
 		if err != nil {

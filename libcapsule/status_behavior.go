@@ -54,7 +54,7 @@ func destroy(c *LinuxContainer) (err error) {
 	logrus.Infof("destroying endpoint...")
 	if c.endpoint != nil {
 		if err := network.Disconnect(c.endpoint); err != nil {
-			logrus.Warnf("destroy cgroup manager failed, cause: %s", err.Error())
+			logrus.Warnf("destroy endpoint failed, cause: %s", err.Error())
 		}
 	}
 	logrus.Infof("removing container root files...")

@@ -21,10 +21,13 @@ type ContainerStateVO struct {
 	Bundle string `json:"bundle"`
 	// Rootfs is a path to a directory containing the container's root filesystem.
 	Rootfs string `json:"rootfs"`
+	// IP is container veth ip address
+	IP string `json:"ip"`
 	// Created is the unix timestamp for the creation time of the container in UTC
 	Created time.Time `json:"created"`
 	// GetAnnotations is the user defined annotations added to the config.
-	Annotations map[string]string `json:"annotations,omitempty"`
+	Annotations map[string]string        `json:"annotations,omitempty"`
+	Detail      *libcapsule.StateStorage `json:"detail"`
 }
 
 func GetContainerStateVOs(ids []string) ([]*ContainerStateVO, error) {
@@ -65,6 +68,8 @@ func convertContainerStateToVO(status libcapsule.ContainerStatus, state *libcaps
 		Rootfs:         state.Config.Rootfs,
 		Version:        state.Config.Version,
 		Bundle:         bundle,
+		IP:             state.Endpoint.IpAddress.String(),
 		Annotations:    annotations,
+		Detail:         state,
 	}
 }

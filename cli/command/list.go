@@ -22,12 +22,13 @@ var ListCommand = cli.Command{
 			return err
 		}
 		w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
-		fmt.Fprint(w, "ID\tPID\tSTATUS\tBUNDLE\tCREATED\n")
+		fmt.Fprint(w, "ID\tPID\tSTATUS\tIP\tBUNDLE\tCREATED\n")
 		for _, item := range vos {
-			fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\n",
+			fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\n",
 				item.ID,
 				item.InitProcessPid,
 				item.Status,
+				item.IP,
 				item.Bundle,
 				item.Created.Format(time.RFC3339Nano))
 		}

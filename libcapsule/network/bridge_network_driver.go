@@ -9,8 +9,6 @@ import (
 	"net"
 )
 
-const Masquerade = "-t nat -A POSTROUTING -s %s -o %s -j MASQUERADE"
-
 type BridgeNetworkDriver struct {
 }
 
@@ -19,23 +17,35 @@ func (driver *BridgeNetworkDriver) Name() string {
 }
 
 func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Network, error) {
+	// 如果subnet的格式是192.168.1.2/24，那么parseCIDR的第一个返回值是IP地址,192.168.1.2，第二个返回值是IPNet类型，192.168.1.0/24
 	_, ipRange, err := net.ParseCIDR(subnet)
+	if err != nil {
+		return nil, err
+	}
+	allocator, err := LoadIPAllocator()
+	if err != nil {
+		return nil, err
+	}
+	gatewayIP, err := allocator.Allocate(ipRange)
+	if err != nil {
+		return nil, err
+	}
+	logrus.Infof("allocated gateway ip: %s", gatewayIP.String())
+	ipRange.IP = gatewayIP
 	network := &Network{
 		Name:    bridgeName,
 		IpRange: *ipRange,
 		Driver:  driver.Name(),
 	}
-	// subnet的格式是192.168.1.2/24，parseCIDR的第一个返回值是IP地址,192.168.1.2，第二个返回值是IPNet类型，192.168.1.0/24
-	if err != nil {
-		return nil, err
-	}
+	logrus.Infof("network: %s", network)
+
 	// 1.创建bridge
 	if err := createBridgeInterface(bridgeName); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create bridge")
 	}
 
 	// 2.设置Bridge的IP地址和路由
-	if err := setInterfaceIPAndRoute(bridgeName, subnet); err != nil {
+	if err := setInterfaceIPAndRoute(bridgeName, *ipRange); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set bridge ip and route")
 	}
 
@@ -86,6 +96,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	if err != nil {
 		return err
 	}
+	logrus.Infof("loaded network: %s", network)
 	// 删除SNAT规则
 	tables, err := iptables.New()
 	if err := tables.Delete(
@@ -93,6 +104,15 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 		"POSTROUTING",
 		getSNATRuleSpecs(network.Name, network.IpRange)...,
 	); err != nil {
+		return err
+	}
+	allocator, err := LoadIPAllocator()
+	if err != nil {
+		return err
+	}
+	// 回收gateway IP
+	ip, ipRange, _ := net.ParseCIDR(network.IpRange.String())
+	if err := allocator.Release(ipRange, ip); err != nil {
 		return err
 	}
 	iface, err := netlink.LinkByName(name)
@@ -130,7 +150,7 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create veth and set it UP")
 	}
 	// config ip address and route
-	if err := moveVethToContainerAndSetIPAndRouteInContainerNetNs(endpoint, containerInitPid); err != nil {
+	if err := setUpContainerVethInNetNs(endpoint, containerInitPid); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set veth ip and route")
 	}
 	// config port mapping
@@ -144,22 +164,17 @@ func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {
 	// 回收IP地址
 	allocator, err := LoadIPAllocator()
 	if err != nil {
+		logrus.Warnf(err.Error())
 		return err
 	}
 	if err := allocator.Release(&endpoint.Network.IpRange, endpoint.IpAddress); err != nil {
 		logrus.Warnf(err.Error())
+		return err
 	}
 	// 删除端口映射
 	if err := deletePortMappings(endpoint); err != nil {
 		logrus.Warnf(err.Error())
 	}
-	// 删除网络端点
-	hostVeth, err := netlink.LinkByName(endpoint.Device.Name)
-	if err != nil {
-		logrus.Warnf(err.Error())
-	}
-	if err := netlink.LinkDel(hostVeth); err != nil {
-		logrus.Warnf(err.Error())
-	}
-	return nil
+	// 删除宿主机上的网络端点(前面kill掉容器init process后,容器net namespace被销毁,容器内veth被销毁,宿主机与之peer的veth也随之被销毁)
+	return err
 }

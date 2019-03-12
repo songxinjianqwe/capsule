@@ -19,20 +19,28 @@ type Network struct {
 	Driver string `json:"driver"`
 }
 
-func (net *Network) String() string {
-	return fmt.Sprintf("[%s]%s(%s)", net.Driver, net.Name, net.IpRange.String())
+func (network *Network) String() string {
+	ip, ipNet, _ := net.ParseCIDR(network.IpRange.String())
+	return fmt.Sprintf("[%s]%s(ip:%s,range:%s)", network.Driver, network.Name, ip, ipNet)
 }
 
 /*
 对应一个网络端点，比如容器中会有一个veth和一个loopback
 */
 type Endpoint struct {
-	Name         string           `json:"name"`
-	IpAddress    net.IP           `json:"ip_address"`
-	MacAddress   net.HardwareAddr `json:"mac_address"`
-	Device       netlink.Veth     `json:"-"`
-	Network      *Network         `json:"network"`
-	PortMappings []string         `json:"port_mappings"`
+	Name         string        `json:"name"`
+	IpAddress    net.IP        `json:"ip_address"`
+	Device       *netlink.Veth `json:"device"`
+	Network      *Network      `json:"network"`
+	PortMappings []string      `json:"port_mappings"`
+}
+
+func (endpoint *Endpoint) GetContainerVethName() string {
+	return endpoint.Device.PeerName
+}
+
+func (endpoint *Endpoint) GetHostVethName() string {
+	return endpoint.Name[:5]
 }
 
 /*

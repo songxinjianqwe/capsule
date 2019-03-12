@@ -75,6 +75,7 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 		endpoint:      &state.Endpoint,
 		cgroupManager: cgroups.NewCroupManager(id, state.CgroupPaths),
 	}
+
 	container.parentProcess = NewParentNoChildProcess(state.InitProcessPid, state.InitProcessStartTime, container)
 	detectedStatus, err := container.detectContainerStatus()
 	if err != nil {

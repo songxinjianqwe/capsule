@@ -4,6 +4,7 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
+	"net"
 	"strings"
 	"testing"
 )
@@ -14,14 +15,14 @@ func TestBridgeNetworkDriver_Create_Load_Delete(t *testing.T) {
 	subnet := "192.168.10.0/24"
 	name := "test_bridge0"
 	defer driver.Delete(name)
-	_, err := driver.Create(subnet, name)
+	createdNetwork, err := driver.Create(subnet, name)
 	assert.Nil(t, err)
 	// 如果test失败也要把这个删掉
 	network, err := driver.Load(name)
 	assert.Nil(t, err)
 	t.Logf("Network: %s", network)
 
-	checkBridgeData(t, name, subnet, network)
+	checkBridgeData(t, name, createdNetwork.IpRange, network)
 	checkBridgeRoute(t, name, subnet)
 	checkBridgeUp(t, name)
 	checkSNAT(t, name, subnet)
@@ -32,10 +33,10 @@ func TestBridgeNetworkDriver_Create_Load_Delete(t *testing.T) {
 	assert.NotNil(t, err, "delete network did not work")
 }
 
-func checkBridgeData(t *testing.T, name string, subnet string, network *Network) {
+func checkBridgeData(t *testing.T, name string, ipRange net.IPNet, network *Network) {
 	assert.Equal(t, name, network.Name, "network name is wrong")
-	assert.Equal(t, subnet, network.IpRange.String(), "network subnet is wrong")
 	assert.Equal(t, "bridge", network.Driver, "network driver is wrong")
+	assert.Equal(t, ipRange.String(), network.IpRange.String(), "network addr is wrong")
 }
 
 func checkBridgeRoute(t *testing.T, name string, subnet string) {

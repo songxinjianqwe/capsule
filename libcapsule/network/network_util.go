@@ -45,11 +45,20 @@ func setupIPTablesMasquerade(name string, subnet net.IPNet) error {
 }
 
 func getSNATRuleSpecs(name string, subnet net.IPNet) []string {
+	_, ipNet, _ := net.ParseCIDR(subnet.String())
 	return []string{
-		fmt.Sprintf("-s%s", subnet.String()),
+		fmt.Sprintf("-s%s", ipNet.String()),
 		fmt.Sprintf("-o%s", name),
 		"-jMASQUERADE",
 	}
+}
+
+func getDNATRuleSpecs(ip string, hostPort string, containerPort string) []string {
+	return []string{"-ptcp",
+		"-mtcp",
+		fmt.Sprintf("--dport%s", hostPort),
+		"-jDNAT",
+		fmt.Sprintf("--to-destination%s:%s", ip, containerPort)}
 }
 
 // 启用
@@ -64,23 +73,33 @@ func setInterfaceUp(name string) error {
 }
 
 // 设置网络接口的IP和路由
-func setInterfaceIPAndRoute(name string, subnet string) error {
+// subnet可以同时存储IP地址和网段地址
+func setInterfaceIPAndRoute(name string, interfaceIPAndRoute net.IPNet) error {
+	ip, ipRange, _ := net.ParseCIDR(interfaceIPAndRoute.String())
+	logrus.Infof("set interface %s ip %s and route %s", name, ip, ipRange)
 	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err
 	}
-	_, ipRange, err := net.ParseCIDR(subnet)
-	logrus.Infof("set interface %s ip %s and route %s...", name, ipRange.IP.String(), ipRange.String())
+	// ipRange包含两个信息
+	if err != nil {
+		return err
+	}
 	// ip addr add xxx
 	// 做了两件事：
 	// 1、配置了网络接口的IP地址(IP)
 	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
 	addr := &netlink.Addr{
-		IPNet: ipRange}
+		IPNet: &interfaceIPAndRoute}
 	// `ip addr add $addr dev $link`
-	return netlink.AddrAdd(iface, addr)
+	if err := netlink.AddrAdd(iface, addr); err != nil {
+		logrus.Errorf("config ip and route failed, cause: %s", err.Error())
+		return err
+	}
+	return nil
 }
 
+// DNAT
 func setupPortMappings(endpoint *Endpoint) error {
 	tables, err := iptables.New()
 	if err != nil {
@@ -94,11 +113,7 @@ func setupPortMappings(endpoint *Endpoint) error {
 		if err := tables.Append(
 			"nat",
 			"PREROUTING",
-			"-ptcp",
-			"-mtcp",
-			fmt.Sprintf("--dport%s", hostPort),
-			"-jDNAT",
-			fmt.Sprintf("--to-destination%s:%s", endpoint.IpAddress.String(), containerPort),
+			getDNATRuleSpecs(endpoint.IpAddress.String(), hostPort, containerPort)...,
 		); err != nil {
 			return err
 		}
@@ -118,11 +133,7 @@ func deletePortMappings(endpoint *Endpoint) error {
 		if err := tables.Delete(
 			"nat",
 			"PREROUTING",
-			"-ptcp",
-			"-mtcp",
-			fmt.Sprintf("--dport%s", hostPort),
-			"-jDNAT",
-			fmt.Sprintf("--to-destination%s:%s", endpoint.IpAddress.String(), containerPort),
+			getDNATRuleSpecs(endpoint.IpAddress.String(), hostPort, containerPort)...,
 		); err != nil {
 			return err
 		}
@@ -130,43 +141,51 @@ func deletePortMappings(endpoint *Endpoint) error {
 	return nil
 }
 
-func moveVethToContainerAndSetIPAndRouteInContainerNetNs(endpoint *Endpoint, pid int) error {
-	containerVeth, err := netlink.LinkByName(endpoint.Device.PeerName)
+func setUpContainerVethInNetNs(endpoint *Endpoint, pid int) error {
+	containerVethName := endpoint.GetContainerVethName()
+	containerVeth, err := netlink.LinkByName(containerVethName)
 	if err != nil {
 		return err
 	}
-	originNetNsHandle, netNsFileHandle, err := enterContainerNetNs(pid)
+	netNsFileHandle, err := os.OpenFile(fmt.Sprintf("/proc/%d/ns/net", pid), os.O_RDONLY, 0)
+	if err != nil {
+		return err
+	}
+
+	// 1.把veth移动到net ns中
+	if err := netlink.LinkSetNsFd(containerVeth, int(netNsFileHandle.Fd())); err != nil {
+		return exception.NewGenericErrorWithContext(err, exception.SystemError, "move veth to container net ns")
+	}
+
+	// 2. 进入container network namespace
+	originNetNsHandle, err := enterContainerNetNs(int(netNsFileHandle.Fd()), pid)
 	if err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "enter container net ns")
 	}
 	defer leaveContainerNetNs(originNetNsHandle, netNsFileHandle)
 	// 下面就进入容器网络了
 	logrus.Infof("moving veth %s to container, detail: %#v...", containerVeth.Attrs().Name, containerVeth)
-	// 1.把veth移动到net ns中
-	if err := netlink.LinkSetNsFd(containerVeth, int(netNsFileHandle.Fd())); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "move veth to container net ns")
-	}
 
-	// 2. 配置IP地址与路由
+	// 3. 配置IP地址与路由
 	// 此时interface的IP地址为endpoint的地址,而网段是bridge的网段
 	// 将来自该网段的网络请求转发到这个网络接口上
 	interfaceIP := endpoint.Network.IpRange
 	interfaceIP.IP = endpoint.IpAddress
-	if err := setInterfaceIPAndRoute(endpoint.Name, interfaceIP.String()); err != nil {
+	if err := setInterfaceIPAndRoute(containerVethName, interfaceIP); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "set veth ip and route")
 	}
 
-	// 3.启用
-	if err := setInterfaceUp(endpoint.Name); err != nil {
+	// 4.启用
+	if err := setInterfaceUp(containerVethName); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "set container veth UP")
 	}
 
-	// 4.启用loopback
+	// 5.启用loopback
 	if err := setInterfaceUp("lo"); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "set container loopback UP")
 	}
 
-	// 5. 设置容器内的外部请求均通过容器内的veth端点访问
+	// 6. 设置容器内的对外部的请求均通过容器内的veth端点访问
 	// route add -net 0.0.0.0/0 gw $(bridge IP) dev $(veth端点设置)
 	_, defaultIpRange, _ := net.ParseCIDR("0.0.0.0/0")
 	defaultRoute := &netlink.Route{
@@ -174,28 +193,26 @@ func moveVethToContainerAndSetIPAndRouteInContainerNetNs(endpoint *Endpoint, pid
 		Gw:        endpoint.Network.IpRange.IP,
 		Dst:       defaultIpRange,
 	}
+	logrus.Infof("add default route in container: %#v", defaultIpRange)
 	if err := netlink.RouteAdd(defaultRoute); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "add default route")
 	}
+	// 7.离开container network namespace
 	return nil
 }
 
-func enterContainerNetNs(pid int) (netns.NsHandle, *os.File, error) {
+func enterContainerNetNs(netNsFd int, pid int) (netns.NsHandle, error) {
 	logrus.Infof("entering container %d network namespace...", pid)
-	netNsFileHandle, err := os.OpenFile(fmt.Sprintf("/proc/%d/ns/net", pid), os.O_RDONLY, 0)
-	if err != nil {
-		return -1, nil, err
-	}
-	netNsFd := netNsFileHandle.Fd()
+
 	runtime.LockOSThread()
 	originNetNsHandle, err := netns.Get()
 	if err != nil {
-		return -1, nil, err
+		return -1, err
 	}
 	if err := netns.Set(netns.NsHandle(netNsFd)); err != nil {
-		return -1, nil, err
+		return -1, err
 	}
-	return originNetNsHandle, netNsFileHandle, nil
+	return originNetNsHandle, nil
 }
 
 func leaveContainerNetNs(originNetNsHandle netns.NsHandle, netNsFileHandle *os.File) {
@@ -224,16 +241,15 @@ func createVethPairAndSetUp(endpoint *Endpoint) error {
 	// 将一端连接到bridge上
 	vethAttrs.MasterIndex = bridge.Attrs().Index
 
-	endpoint.Device = netlink.Veth{
+	endpoint.Device = &netlink.Veth{
 		LinkAttrs: vethAttrs,
 		PeerName:  fmt.Sprintf("cif-%s", endpoint.Name[:5]),
 	}
-
-	if err := netlink.LinkAdd(&endpoint.Device); err != nil {
+	if err := netlink.LinkAdd(endpoint.Device); err != nil {
 		return err
 	}
 	logrus.Infof("veth pair created: %#v", endpoint.Device)
-	if err := netlink.LinkSetUp(&endpoint.Device); err != nil {
+	if err := netlink.LinkSetUp(endpoint.Device); err != nil {
 		return err
 	}
 	return nil
