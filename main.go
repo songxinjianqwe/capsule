@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/sirupsen/logrus"
 	capsuleCli "github.com/songxinjianqwe/capsule/cli/command"
 	"github.com/urfave/cli"
@@ -60,6 +61,6 @@ func main() {
 	err := app.Run(os.Args)
 	if err != nil {
 		logrus.Error(err)
-		//fmt.Println(err)
+		fmt.Println(err)
 	}
 }

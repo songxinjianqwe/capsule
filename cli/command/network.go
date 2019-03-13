@@ -118,21 +118,11 @@ var networkListCommand = cli.Command{
 var networkShowCommand = cli.Command{
 	Name:  "show",
 	Usage: "show a network",
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "driver",
-			Usage: "network driver",
-		},
-	},
 	Action: func(ctx *cli.Context) error {
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
-		driver := ctx.String("driver")
-		if driver == "" {
-			return fmt.Errorf("driver cant be empty")
-		}
-		network, err := network.LoadNetwork(driver, ctx.Args().First())
+		network, err := network.LoadNetworkByName(ctx.Args().First())
 		if err != nil {
 			return err
 		}

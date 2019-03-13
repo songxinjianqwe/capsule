@@ -12,7 +12,7 @@ import (
 /*
 将specs.Spec转为libcapsule.ContainerConfig
 */
-func CreateContainerConfig(bundle string, spec *specs.Spec, portMappings []string) (*configs.ContainerConfig, error) {
+func CreateContainerConfig(bundle string, spec *specs.Spec, network string, portMappings []string) (*configs.ContainerConfig, error) {
 	logrus.Infof("converting specs.Spec to libcapsule.ContainerConfig...")
 
 	if spec.Root == nil {
@@ -87,7 +87,7 @@ func CreateContainerConfig(bundle string, spec *specs.Spec, portMappings []strin
 	}
 
 	// 转换网络
-	if err := createNetworkConfig(config, portMappings); err != nil {
+	if err := createNetworkConfig(config, network, portMappings); err != nil {
 		return nil, err
 	}
 	config.Version = specs.Version

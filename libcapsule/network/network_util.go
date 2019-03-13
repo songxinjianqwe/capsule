@@ -61,12 +61,14 @@ func getSNATRuleSpecs(name string, subnet net.IPNet) []string {
 	}
 }
 
-func getDNATRuleSpecs(ip string, hostPort string, containerPort string) []string {
+func getDNATRuleSpecs(containerIP string, hostPort string, containerPort string) []string {
 	return []string{"-ptcp",
 		"-mtcp",
-		fmt.Sprintf("--dport%s", hostPort),
 		"-jDNAT",
-		fmt.Sprintf("--to-destination%s:%s", ip, containerPort)}
+		"--dport",
+		hostPort,
+		"--to-destination",
+		fmt.Sprintf("%s:%s", containerIP, containerPort)}
 }
 
 // 启用
@@ -99,7 +101,7 @@ func setInterfaceIPAndRoute(name string, interfaceIPAndRoute net.IPNet) error {
 	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
 	// 设置Broadcast为nil,即为0.0.0.0,不能设置为网段的广播地址,否则会出现ARP找不到容器内IP的情况
 
-	addr := &netlink.Addr{IPNet: &interfaceIPAndRoute, Peer: &interfaceIPAndRoute, Label: "", Flags: 0, Scope: 0, Broadcast: net.ParseIP("0.0.0.0")}
+	addr := &netlink.Addr{IPNet: &interfaceIPAndRoute, Peer: &interfaceIPAndRoute, Label: "", Flags: 0, Scope: 0}
 	// `ip addr add $addr dev $link`
 	if err := netlink.AddrAdd(iface, addr); err != nil {
 		logrus.Errorf("config ip and route failed, cause: %s", err.Error())
@@ -202,7 +204,7 @@ func setUpContainerVethInNetNs(endpoint *Endpoint, pid int) error {
 		Gw:        endpoint.Network.IpRange.IP,
 		Dst:       defaultIpRange,
 	}
-	logrus.Infof("add default route in container: %#v", defaultIpRange)
+	logrus.Infof("add default route in container: %s", defaultIpRange)
 	if err := netlink.RouteAdd(defaultRoute); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.SystemError, "add default route")
 	}

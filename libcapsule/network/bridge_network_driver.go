@@ -150,11 +150,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	return nil
 }
 
-func (driver *BridgeNetworkDriver) Connect(endpointId string, networkName string, portMappings []string, containerInitPid int) (*Endpoint, error) {
-	network, err := LoadNetwork(driver.Name(), networkName)
-	if err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "load network")
-	}
+func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, portMappings []string, containerInitPid int) (*Endpoint, error) {
 	allocator, err := LoadIPAllocator()
 	if err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "load ip allocator")

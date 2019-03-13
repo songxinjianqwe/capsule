@@ -146,7 +146,7 @@ func (p *ParentInitProcess) createNetworkInterfaces() error {
 	// 创建端点
 	endpointConfig := p.container.config.Endpoint
 	logrus.Infof("creating endpoint: %#v", endpointConfig)
-	endpoint, err := network.Connect(endpointConfig.NetworkDriver, endpointConfig.ID, endpointConfig.NetworkName, endpointConfig.PortMappings, p.pid())
+	endpoint, err := network.Connect(endpointConfig.ID, endpointConfig.NetworkName, endpointConfig.PortMappings, p.pid())
 	if err != nil {
 		return err
 	}

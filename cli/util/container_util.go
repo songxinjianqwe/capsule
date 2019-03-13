@@ -84,9 +84,9 @@ or
 create and start
 Process一定为Init Process
 */
-func CreateOrRunContainer(id string, bundle string, spec *specs.Spec, action ContainerAction, detach bool, portMappings []string) error {
+func CreateOrRunContainer(id string, bundle string, spec *specs.Spec, action ContainerAction, detach bool, network string, portMappings []string) error {
 	logrus.Infof("create or run container: %s, action: %s", id, action)
-	container, err := CreateContainer(id, bundle, spec, portMappings)
+	container, err := CreateContainer(id, bundle, spec, network, portMappings)
 	if err != nil {
 		return err
 	}
@@ -165,13 +165,13 @@ func GetContainerIds() ([]string, error) {
 /*
 创建容器实例
 */
-func CreateContainer(id string, bundle string, spec *specs.Spec, portMappings []string) (libcapsule.Container, error) {
+func CreateContainer(id string, bundle string, spec *specs.Spec, network string, portMappings []string) (libcapsule.Container, error) {
 	logrus.Infof("creating container: %s", id)
 	if id == "" {
 		return nil, fmt.Errorf("container id cannot be empty")
 	}
 	// 1、将spec转为容器config
-	config, err := specutil.CreateContainerConfig(bundle, spec, portMappings)
+	config, err := specutil.CreateContainerConfig(bundle, spec, network, portMappings)
 	logrus.Infof("convert complete, config: %#v", config)
 	if err != nil {
 		return nil, err

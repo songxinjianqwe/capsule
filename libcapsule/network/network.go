@@ -79,6 +79,17 @@ func LoadNetwork(driver string, name string) (*Network, error) {
 	return networkDriver.Load(name)
 }
 
+func LoadNetworkByName(name string) (*Network, error) {
+	for _, driver := range networkDrivers {
+		network, err := driver.Load(name)
+		if err != nil {
+			continue
+		}
+		return network, nil
+	}
+	return nil, fmt.Errorf("network %s not found", name)
+}
+
 func ListNetwork(driver string) ([]*Network, error) {
 	networkDriver, found := networkDrivers[driver]
 	if !found {
@@ -99,13 +110,17 @@ func ListAllNetwork() ([]*Network, error) {
 	return result, nil
 }
 
-func Connect(networkDriver string, endpointId string, networkName string, portMappings []string, containerInitPid int) (*Endpoint, error) {
-	logrus.Infof("connecting, driver: %s, endpointId: %s, networkName: %s, portMappings: %v, containerInitPid: %d", networkDriver, endpointId, networkName, portMappings, containerInitPid)
-	networkDriverInstance, found := networkDrivers[networkDriver]
-	if !found {
-		return nil, fmt.Errorf("network driver not found: %s", networkDriver)
+func Connect(endpointId string, networkName string, portMappings []string, containerInitPid int) (*Endpoint, error) {
+	network, err := LoadNetworkByName(networkName)
+	if err != nil {
+		return nil, err
 	}
-	return networkDriverInstance.Connect(endpointId, networkName, portMappings, containerInitPid)
+	logrus.Infof("connecting, driver: %s, endpointId: %s, networkName: %s, portMappings: %v, containerInitPid: %d", network.Driver, endpointId, networkName, portMappings, containerInitPid)
+	networkDriverInstance, found := networkDrivers[network.Driver]
+	if !found {
+		return nil, fmt.Errorf("network driver not found: %s", network.Driver)
+	}
+	return networkDriverInstance.Connect(endpointId, network, portMappings, containerInitPid)
 }
 
 func Disconnect(endpoint *Endpoint) error {
