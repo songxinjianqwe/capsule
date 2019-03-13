@@ -35,6 +35,7 @@ func (ipam *LocalIPAM) Allocatable(subnet *net.IPNet) uint {
 func (ipam *LocalIPAM) Allocate(subnet *net.IPNet) (net.IP, error) {
 	ipam.mutex.Lock()
 	defer ipam.mutex.Unlock()
+	logrus.Infof("allocating ip in subnet:%s", subnet)
 	if _, exist := ipam.subnetMap[subnet.String()]; !exist {
 		amount := allocatableIPAmount(subnet)
 		logrus.Infof("subnet %s do not exist, allocatable ip amount is %d", subnet, amount)
@@ -76,6 +77,7 @@ func (ipam *LocalIPAM) Release(subnet *net.IPNet, ip net.IP) error {
 	if _, exist := ipam.subnetMap[subnet.String()]; !exist {
 		return fmt.Errorf("subnet %s not exists", subnet)
 	}
+	logrus.Infof("releasing ip %s in subnet:%s", ip, subnet)
 	releasingIP := ip.To4()
 	releasingIP[3]--
 	var index uint

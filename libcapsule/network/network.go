@@ -56,22 +56,7 @@ func CreateNetwork(driver string, subnet string, name string) (*Network, error) 
 	if !found {
 		return nil, fmt.Errorf("network driver not found: %s", driver)
 	}
-	// subnet的格式是192.168.1.0/24，parseCIDR的第一个返回值是IP地址，第二个返回值是IPNet类型，192.168.1.0/24
-	_, ipRange, err := net.ParseCIDR(subnet)
-	if err != nil {
-		return nil, err
-	}
-	allocator, err := LoadIPAllocator()
-	if err != nil {
-		return nil, err
-	}
-	gatewayIP, err := allocator.Allocate(ipRange)
-	if err != nil {
-		return nil, err
-	}
-	ipRange.IP = gatewayIP
-	// 即使设置了IP，网段也不会发生变化，因为网段地址是 IP&subnet mask(取决于/24等)
-	return networkDriver.Create(ipRange.String(), name)
+	return networkDriver.Create(subnet, name)
 }
 
 func DeleteNetwork(driver string, name string) error {
@@ -83,13 +68,6 @@ func DeleteNetwork(driver string, name string) error {
 	if err != nil {
 		return err
 	}
-	allocator, err := LoadIPAllocator()
-	if err != nil {
-		return err
-	}
-	if err := allocator.Release(&network.IpRange, network.IpRange.IP); err != nil {
-		return err
-	}
 	return networkDriver.Delete(network.Name)
 }
 
@@ -99,6 +77,26 @@ func LoadNetwork(driver string, name string) (*Network, error) {
 		return nil, fmt.Errorf("network driver not found: %s", driver)
 	}
 	return networkDriver.Load(name)
+}
+
+func ListNetwork(driver string) ([]*Network, error) {
+	networkDriver, found := networkDrivers[driver]
+	if !found {
+		return nil, fmt.Errorf("network driver not found: %s", driver)
+	}
+	return networkDriver.List()
+}
+
+func ListAllNetwork() ([]*Network, error) {
+	var result []*Network
+	for _, driver := range networkDrivers {
+		networks, err := driver.List()
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, networks...)
+	}
+	return result, nil
 }
 
 func Connect(networkDriver string, endpointId string, networkName string, portMappings []string, containerInitPid int) (*Endpoint, error) {

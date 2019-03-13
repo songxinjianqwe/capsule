@@ -7,6 +7,7 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/vishvananda/netlink"
 	"net"
+	"strings"
 )
 
 type BridgeNetworkDriver struct {
@@ -14,6 +15,10 @@ type BridgeNetworkDriver struct {
 
 func (driver *BridgeNetworkDriver) Name() string {
 	return "bridge"
+}
+
+func (driver *BridgeNetworkDriver) NetworkLabel() string {
+	return "capsule_bridge_label"
 }
 
 func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Network, error) {
@@ -40,7 +45,7 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 	logrus.Infof("network: %s", network)
 
 	// 1.创建bridge
-	if err := createBridgeInterface(bridgeName); err != nil {
+	if err := createBridgeInterface(bridgeName, driver.NetworkLabel()); err != nil {
 		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create bridge")
 	}
 
@@ -91,6 +96,24 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 	}, nil
 }
 
+func (driver *BridgeNetworkDriver) List() ([]*Network, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, err
+	}
+	var networks []*Network
+	for _, link := range links {
+		if strings.HasPrefix(link.Attrs().Alias, driver.NetworkLabel()) {
+			instance, err := driver.Load(link.Attrs().Name)
+			if err != nil {
+				return nil, err
+			}
+			networks = append(networks, instance)
+		}
+	}
+	return networks, nil
+}
+
 func (driver *BridgeNetworkDriver) Delete(name string) error {
 	network, err := driver.Load(name)
 	if err != nil {
@@ -106,15 +129,17 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	); err != nil {
 		return err
 	}
+	// 回收gateway IP
 	allocator, err := LoadIPAllocator()
 	if err != nil {
 		return err
 	}
-	// 回收gateway IP
+
 	ip, ipRange, _ := net.ParseCIDR(network.IpRange.String())
 	if err := allocator.Release(ipRange, ip); err != nil {
 		return err
 	}
+	// 删除interface
 	iface, err := netlink.LinkByName(name)
 	if err != nil {
 		return err

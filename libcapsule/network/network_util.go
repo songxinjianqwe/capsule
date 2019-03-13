@@ -13,16 +13,20 @@ import (
 	"strings"
 )
 
-func createBridgeInterface(name string) error {
+func createBridgeInterface(name string, networkLabel string) error {
 	if _, err := net.InterfaceByName(name); err == nil || !strings.Contains(err.Error(), "no such network interface") {
 		return fmt.Errorf("brigde name %s exists", name)
 	}
 	linkAttrs := netlink.NewLinkAttrs()
 	linkAttrs.Name = name
+
 	br := &netlink.Bridge{
 		LinkAttrs: linkAttrs,
 	}
 	if err := netlink.LinkAdd(br); err != nil {
+		return err
+	}
+	if err := netlink.LinkSetAlias(br, networkLabel+"-"+name); err != nil {
 		return err
 	}
 	return nil
@@ -89,8 +93,9 @@ func setInterfaceIPAndRoute(name string, interfaceIPAndRoute net.IPNet) error {
 	// 做了两件事：
 	// 1、配置了网络接口的IP地址(IP)
 	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
-	addr := &netlink.Addr{
-		IPNet: &interfaceIPAndRoute}
+	// 设置Broadcast为nil,即为0.0.0.0,不能设置为网段的广播地址,否则会出现ARP找不到容器内IP的情况
+
+	addr := &netlink.Addr{IPNet: &interfaceIPAndRoute, Label: "", Flags: 0, Scope: 0, Broadcast: net.ParseIP("0.0.0.0")}
 	// `ip addr add $addr dev $link`
 	if err := netlink.AddrAdd(iface, addr); err != nil {
 		logrus.Errorf("config ip and route failed, cause: %s", err.Error())
