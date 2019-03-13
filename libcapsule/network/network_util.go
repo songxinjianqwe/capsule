@@ -50,8 +50,12 @@ func setupIPTablesMasquerade(name string, subnet net.IPNet) error {
 
 func getSNATRuleSpecs(name string, subnet net.IPNet) []string {
 	_, ipNet, _ := net.ParseCIDR(subnet.String())
+	// !的意思是negative,out设备名是除了name之外的其他网络设备
+	// SNAT转换时将源IP转为某设备名,这里我们不清楚有哪些网卡,于是我们将其设置为除了我们bridge外的设备
+	// 因为bridge的IP也是私有IP,外网是不认识的
 	return []string{
 		fmt.Sprintf("-s%s", ipNet.String()),
+		"!",
 		fmt.Sprintf("-o%s", name),
 		"-jMASQUERADE",
 	}
@@ -95,7 +99,7 @@ func setInterfaceIPAndRoute(name string, interfaceIPAndRoute net.IPNet) error {
 	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
 	// 设置Broadcast为nil,即为0.0.0.0,不能设置为网段的广播地址,否则会出现ARP找不到容器内IP的情况
 
-	addr := &netlink.Addr{IPNet: &interfaceIPAndRoute, Label: "", Flags: 0, Scope: 0, Broadcast: net.ParseIP("0.0.0.0")}
+	addr := &netlink.Addr{IPNet: &interfaceIPAndRoute, Peer: &interfaceIPAndRoute, Label: "", Flags: 0, Scope: 0, Broadcast: net.ParseIP("0.0.0.0")}
 	// `ip addr add $addr dev $link`
 	if err := netlink.AddrAdd(iface, addr); err != nil {
 		logrus.Errorf("config ip and route failed, cause: %s", err.Error())
