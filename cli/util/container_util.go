@@ -106,7 +106,7 @@ func CreateOrRunContainer(id string, bundle string, spec *specs.Spec, action Con
 		containerErr = container.Run(process)
 	}
 	if containerErr != nil {
-		return handleContainerErr(container, containerErr)
+		return handleContainerCreateOrRunErr(container, containerErr)
 	}
 	// 如果是Run命令运行容器吗，并且是前台运行，那么Run结束，即为容器进程结束，则删除容器
 	if action == ContainerActRun && !detach {
@@ -117,12 +117,12 @@ func CreateOrRunContainer(id string, bundle string, spec *specs.Spec, action Con
 	return nil
 }
 
-func handleContainerErr(container libcapsule.Container, containerErr error) error {
+func handleContainerCreateOrRunErr(container libcapsule.Container, containerErr error) error {
 	if err := container.Destroy(); err != nil {
 		logrus.Errorf(fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
 		return exception.NewGenericErrorWithContext(
 			err,
-			exception.SystemError,
+			exception.ContainerCreateOrRunError,
 			fmt.Sprintf("container create failed, try to destroy it but failed again, cause: %s", containerErr.Error()))
 	}
 	return containerErr
@@ -133,7 +133,7 @@ func handleContainerErr(container libcapsule.Container, containerErr error) erro
 */
 func GetContainer(id string) (libcapsule.Container, error) {
 	if id == "" {
-		return nil, fmt.Errorf("container id cannot be empty")
+		return nil, exception.NewGenericError(fmt.Errorf("container id is empty"), exception.ContainerIdEmptyError)
 	}
 	factory, err := libcapsule.NewFactory(true)
 	if err != nil {

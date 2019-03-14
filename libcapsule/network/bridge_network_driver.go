@@ -46,22 +46,22 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 
 	// 1.创建bridge
 	if err := createBridgeInterface(bridgeName, driver.NetworkLabel()); err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create bridge")
+		return nil, exception.NewGenericErrorWithContext(err, exception.BridgeNetworkCreateError, "create bridge")
 	}
 
 	// 2.设置Bridge的IP地址和路由
 	if err := setInterfaceIPAndRoute(bridgeName, *ipRange); err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set bridge ip and route")
+		return nil, exception.NewGenericErrorWithContext(err, exception.InterfaceIPAndRouteSetError, "set bridge ip and route")
 	}
 
 	// 3.启动Bridge
 	if err := setInterfaceUp(bridgeName); err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set bridge UP")
+		return nil, exception.NewGenericErrorWithContext(err, exception.InterfaceSetUpError, "set bridge UP")
 	}
 
 	// 4.设置iptables SNAT规则（MASQUERADE）
 	if err := setupIPTablesMasquerade(bridgeName, *ipRange); err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set iptables SNAT MASQUERADE RULE")
+		return nil, exception.NewGenericErrorWithContext(err, exception.IPTablesSetError, "set iptables SNAT MASQUERADE RULE")
 	}
 	return network, nil
 }
@@ -69,7 +69,7 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 	iface, err := netlink.LinkByName(name)
 	if err != nil {
-		return nil, err
+		return nil, exception.NewGenericError(err, exception.NetworkLinkNotFoundError)
 	}
 	//  `ip addr show`.
 	addrs, err := netlink.AddrList(iface, netlink.FAMILY_ALL)
@@ -77,7 +77,7 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 		return nil, err
 	}
 	if len(addrs) == 0 {
-		return nil, fmt.Errorf("addresses not found")
+		return nil, exception.NewGenericError(fmt.Errorf("addresses not found"), exception.BridgeNetworkLoadError)
 	}
 	var bridgeAddr *net.IPNet
 	for _, addr := range addrs {
@@ -87,7 +87,7 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 		}
 	}
 	if bridgeAddr == nil {
-		return nil, fmt.Errorf("addresses not found")
+		return nil, exception.NewGenericError(fmt.Errorf("label-matched addresses not found"), exception.BridgeNetworkLoadError)
 	}
 	return &Network{
 		Name:    name,
@@ -99,7 +99,7 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 func (driver *BridgeNetworkDriver) List() ([]*Network, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
-		return nil, err
+		return nil, exception.NewGenericError(err, exception.NetworkLinkNotFoundError)
 	}
 	var networks []*Network
 	for _, link := range links {
@@ -127,7 +127,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 		"POSTROUTING",
 		getSNATRuleSpecs(network.Name, network.IpRange)...,
 	); err != nil {
-		return err
+		return exception.NewGenericError(err, exception.IPTablesDeleteError)
 	}
 	// 回收gateway IP
 	allocator, err := LoadIPAllocator()
@@ -142,10 +142,10 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	// 删除interface
 	iface, err := netlink.LinkByName(name)
 	if err != nil {
-		return err
+		return exception.NewGenericError(err, exception.NetworkLinkNotFoundError)
 	}
 	if err := netlink.LinkDel(iface); err != nil {
-		return err
+		return exception.NewGenericError(err, exception.NetworkLinkDeleteError)
 	}
 	return nil
 }
@@ -153,11 +153,11 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, portMappings []string, containerInitPid int) (*Endpoint, error) {
 	allocator, err := LoadIPAllocator()
 	if err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "load ip allocator")
+		return nil, err
 	}
 	endpointIP, err := allocator.Allocate(&network.IpRange)
 	if err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "allocate ip")
+		return nil, err
 	}
 	endpoint := &Endpoint{
 		Name:         endpointId,
@@ -168,15 +168,15 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, 
 	logrus.Infof("connecting network, endpoint: %#v, veth ip: %s", endpoint, endpoint.IpAddress.String())
 	// 创建网络端点veth
 	if err := createVethPairAndSetUp(endpoint); err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "create veth and set it UP")
+		return nil, exception.NewGenericErrorWithContext(err, exception.VethPairCreateError, "create veth and set it UP")
 	}
 	// config ip address and route
 	if err := setUpContainerVethInNetNs(endpoint, containerInitPid); err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set veth ip and route")
+		return nil, exception.NewGenericErrorWithContext(err, exception.VethInitError, "set veth ip and route")
 	}
 	// config port mapping
 	if err := setupPortMappings(endpoint); err != nil {
-		return nil, exception.NewGenericErrorWithContext(err, exception.SystemError, "set up port mappings")
+		return nil, exception.NewGenericErrorWithContext(err, exception.PortMappingsConfigError, "set up port mappings")
 	}
 	return endpoint, nil
 }

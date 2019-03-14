@@ -48,29 +48,6 @@ func setupIPTablesMasquerade(name string, subnet net.IPNet) error {
 	return nil
 }
 
-func getSNATRuleSpecs(name string, subnet net.IPNet) []string {
-	_, ipNet, _ := net.ParseCIDR(subnet.String())
-	// !的意思是negative,out设备名是除了name之外的其他网络设备
-	// SNAT转换时将源IP转为某设备名,这里我们不清楚有哪些网卡,于是我们将其设置为除了我们bridge外的设备
-	// 因为bridge的IP也是私有IP,外网是不认识的
-	return []string{
-		fmt.Sprintf("-s%s", ipNet.String()),
-		"!",
-		fmt.Sprintf("-o%s", name),
-		"-jMASQUERADE",
-	}
-}
-
-func getDNATRuleSpecs(containerIP string, hostPort string, containerPort string) []string {
-	return []string{"-ptcp",
-		"-mtcp",
-		"-jDNAT",
-		"--dport",
-		hostPort,
-		"--to-destination",
-		fmt.Sprintf("%s:%s", containerIP, containerPort)}
-}
-
 // 启用
 func setInterfaceUp(name string) error {
 	logrus.Infof("setting interface %s up", name)
@@ -165,13 +142,13 @@ func setUpContainerVethInNetNs(endpoint *Endpoint, pid int) error {
 
 	// 1.把veth移动到net ns中
 	if err := netlink.LinkSetNsFd(containerVeth, int(netNsFileHandle.Fd())); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "move veth to container net ns")
+		return exception.NewGenericErrorWithContext(err, exception.VethMoveToNetNsError, "move veth to container net ns")
 	}
 
 	// 2. 进入container network namespace
 	originNetNsHandle, err := enterContainerNetNs(int(netNsFileHandle.Fd()), pid)
 	if err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "enter container net ns")
+		return exception.NewGenericErrorWithContext(err, exception.EnterNetNsError, "enter container net ns")
 	}
 	defer leaveContainerNetNs(originNetNsHandle, netNsFileHandle)
 	// 下面就进入容器网络了
@@ -183,17 +160,17 @@ func setUpContainerVethInNetNs(endpoint *Endpoint, pid int) error {
 	interfaceIP := endpoint.Network.IpRange
 	interfaceIP.IP = endpoint.IpAddress
 	if err := setInterfaceIPAndRoute(containerVethName, interfaceIP); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "set veth ip and route")
+		return exception.NewGenericErrorWithContext(err, exception.InterfaceIPAndRouteSetError, "set veth ip and route")
 	}
 
 	// 4.启用
 	if err := setInterfaceUp(containerVethName); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "set container veth UP")
+		return exception.NewGenericErrorWithContext(err, exception.InterfaceSetUpError, "set container veth UP")
 	}
 
 	// 5.启用loopback
 	if err := setInterfaceUp("lo"); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "set container loopback UP")
+		return exception.NewGenericErrorWithContext(err, exception.InterfaceSetUpError, "set container loopback UP")
 	}
 
 	// 6. 设置容器内的对外部的请求均通过容器内的veth端点访问
@@ -206,7 +183,7 @@ func setUpContainerVethInNetNs(endpoint *Endpoint, pid int) error {
 	}
 	logrus.Infof("add default route in container: %s", defaultIpRange)
 	if err := netlink.RouteAdd(defaultRoute); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "add default route")
+		return exception.NewGenericErrorWithContext(err, exception.RouteAddError, "add default route")
 	}
 	// 7.离开container network namespace
 	return nil
@@ -264,4 +241,27 @@ func createVethPairAndSetUp(endpoint *Endpoint) error {
 		return err
 	}
 	return nil
+}
+
+func getSNATRuleSpecs(name string, subnet net.IPNet) []string {
+	_, ipNet, _ := net.ParseCIDR(subnet.String())
+	// !的意思是negative,out设备名是除了name之外的其他网络设备
+	// SNAT转换时将源IP转为某设备名,这里我们不清楚有哪些网卡,于是我们将其设置为除了我们bridge外的设备
+	// 因为bridge的IP也是私有IP,外网是不认识的
+	return []string{
+		fmt.Sprintf("-s%s", ipNet.String()),
+		"!",
+		fmt.Sprintf("-o%s", name),
+		"-jMASQUERADE",
+	}
+}
+
+func getDNATRuleSpecs(containerIP string, hostPort string, containerPort string) []string {
+	return []string{"-ptcp",
+		"-mtcp",
+		"-jDNAT",
+		"--dport",
+		hostPort,
+		"--to-destination",
+		fmt.Sprintf("%s:%s", containerIP, containerPort)}
 }

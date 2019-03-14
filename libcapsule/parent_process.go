@@ -41,8 +41,10 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 	logrus.Infof("creating pipes...")
 	// Config: parent 写，child(init process)读
 	childConfigPipe, parentConfigPipe, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
 	logrus.Infof("create config pipe complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
-
 	cmd, err := container.buildCommand(process, childConfigPipe)
 	if err != nil {
 		return nil, err

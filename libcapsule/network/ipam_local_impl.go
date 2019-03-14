@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/willf/bitset"
 	"io/ioutil"
 	"net"
@@ -46,7 +47,7 @@ func (ipam *LocalIPAM) Allocate(subnet *net.IPNet) (net.IP, error) {
 	nextClearIndex, allocatable := bitmap.NextClear(0)
 	if !allocatable {
 		// 说明全部为1,则
-		return nil, fmt.Errorf("no allocatable ip")
+		return nil, exception.NewGenericError(fmt.Errorf("no allocatable ip"), exception.IPRunOutError)
 	}
 	// gotcha!
 	bitmap.Set(nextClearIndex)
@@ -75,7 +76,7 @@ func (ipam *LocalIPAM) Release(subnet *net.IPNet, ip net.IP) error {
 	ipam.mutex.Lock()
 	defer ipam.mutex.Unlock()
 	if _, exist := ipam.subnetMap[subnet.String()]; !exist {
-		return fmt.Errorf("subnet %s not exists", subnet)
+		return exception.NewGenericError(fmt.Errorf("subnet %s not exists", subnet), exception.IPReleaseError)
 	}
 	logrus.Infof("releasing ip %s in subnet:%s", ip, subnet)
 	releasingIP := ip.To4()
@@ -106,16 +107,16 @@ func (ipam *LocalIPAM) load() error {
 			ipam.subnetMap = make(map[string]*bitset.BitSet)
 			return nil
 		} else {
-			return err
+			return exception.NewGenericError(err, exception.IPAMLoadError)
 		}
 	}
 	bytes, err := ioutil.ReadFile(singletonIPAM.subnetAllocatorPath)
 	if err != nil {
-		return err
+		return exception.NewGenericError(err, exception.IPAMLoadError)
 	}
 	logrus.Infof("loaded subnetMap:%v", string(bytes))
 	if err := json.Unmarshal(bytes, &ipam.subnetMap); err != nil {
-		return err
+		return exception.NewGenericError(err, exception.IPAMLoadError)
 	}
 	return nil
 }
@@ -126,20 +127,20 @@ func (ipam *LocalIPAM) dump() error {
 		// 否则覆盖原来的文件
 		dir := path.Dir(ipam.subnetAllocatorPath)
 		if err := os.MkdirAll(dir, 0644); err != nil {
-			return err
+			return exception.NewGenericError(err, exception.IPAMDumpError)
 		}
 	}
 	subnetFile, err := os.OpenFile(ipam.subnetAllocatorPath, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return err
+		return exception.NewGenericError(err, exception.IPAMDumpError)
 	}
 	defer subnetFile.Close()
 	bytes, err := json.Marshal(ipam.subnetMap)
 	if err != nil {
-		return err
+		return exception.NewGenericError(err, exception.IPAMDumpError)
 	}
 	if _, err := subnetFile.Write(bytes); err != nil {
-		return err
+		return exception.NewGenericError(err, exception.IPAMDumpError)
 	}
 	return nil
 }

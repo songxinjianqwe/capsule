@@ -23,10 +23,10 @@ func NewFactory(init bool) (Factory, error) {
 			if os.IsNotExist(err) {
 				logrus.Infof("mkdir RuntimeRoot if not exists: %s", constant.RuntimeRoot)
 				if err := os.MkdirAll(constant.RuntimeRoot, 0700); err != nil {
-					return nil, exception.NewGenericError(err, exception.SystemError)
+					return nil, exception.NewGenericError(err, exception.FactoryNewError)
 				}
 			} else {
-				return nil, err
+				return nil, exception.NewGenericError(err, exception.FactoryNewError)
 			}
 		}
 	}
@@ -164,14 +164,14 @@ func (factory *LinuxContainerFactory) loadContainerState(containerRoot, id strin
 	f, err := os.Open(stateFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, exception.NewGenericError(fmt.Errorf("container %s does not exist", id), exception.ContainerNotExists)
+			return nil, exception.NewGenericError(fmt.Errorf("container %s does not exist", id), exception.ContainerNotExistsError)
 		}
-		return nil, exception.NewGenericError(err, exception.SystemError)
+		return nil, exception.NewGenericError(err, exception.ContainerStateLoadFromDiskError)
 	}
 	defer f.Close()
 	var state *StateStorage
 	if err := json.NewDecoder(f).Decode(&state); err != nil {
-		return nil, exception.NewGenericError(err, exception.SystemError)
+		return nil, exception.NewGenericError(err, exception.ContainerStateLoadFromDiskError)
 	}
 	return state, nil
 }

@@ -116,10 +116,9 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 	if err != nil {
 		return err
 	}
-	// to avoid a PID reuse attack
 	if status == Running || status == Created {
 		if err := c.parentProcess.signal(s); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, "signaling init process")
+			return exception.NewGenericErrorWithContext(err, exception.ParentProcessSignalError, "signaling init process")
 		}
 		return nil
 	}
