@@ -44,7 +44,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 
 	// 初始化rootfs
 	if err = initializer.setUpRootfs(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/prepare rootfs")
+		return exception.NewGenericErrorWithContext(err, exception.RootfsError, "init process/prepare rootfs")
 	}
 
 	// 如果有设置Mount的Namespace，则设置rootfs与mount为read only（如果需要的话）
@@ -58,26 +58,21 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	if hostname := initializer.config.ContainerConfig.Hostname; hostname != "" {
 		logrus.WithField("init", true).Infof("init process/setting hostname: %s", hostname)
 		if err = unix.Sethostname([]byte(hostname)); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/set hostname")
+			return exception.NewGenericErrorWithContext(err, exception.HostnameError, "init process/set hostname")
 		}
 	}
 
 	// 初始化环境变量
 	for key, value := range initializer.config.ContainerConfig.Sysctl {
 		if err = writeSystemProperty(key, value); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("init process/write sysctl key %s", key))
+			return exception.NewGenericErrorWithContext(err, exception.SysctlError, fmt.Sprintf("init process/write sysctl key %s", key))
 		}
-	}
-
-	// 初始化namespace
-	if err = initializer.finalizeNamespace(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/finalize namespace")
 	}
 
 	// look path 可以在系统的PATH里面寻找命令的绝对路径
 	name, err := exec.LookPath(initializer.config.ProcessConfig.Args[0])
 	if err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/look path cmd")
+		return exception.NewGenericErrorWithContext(err, exception.LookPathError, "init process/look path cmd")
 	}
 	logrus.WithField("init", true).Infof("look path: %s", name)
 
@@ -85,7 +80,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	// child --------------> parent
 	// 告诉parent，init process已经初始化完毕，马上要执行命令了
 	if err := util.SyncSignal(initializer.parentPid, syscall.SIGUSR1); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "init process/sync parent ready")
+		return exception.NewGenericErrorWithContext(err, exception.SignalError, "init process/sync parent ready")
 	}
 
 	// child <-------------- parent
@@ -99,7 +94,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 	// 而前者会在覆盖当前进程的镜像、数据、堆栈等信息，包括PID。
 	logrus.WithField("init", true).Infof("syscall.Exec(name: %s, args: %v, env: %v)...", name, initializer.config.ProcessConfig.Args, os.Environ())
 	if err := syscall.Exec(name, initializer.config.ProcessConfig.Args, os.Environ()); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "start init process")
+		return exception.NewGenericErrorWithContext(err, exception.SyscallExecuteCmdError, "start init process")
 	}
 	return nil
 }
@@ -112,12 +107,13 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 	logrus.WithField("init", true).Info("setting up rootfs...")
 	containerRootfs := initializer.config.ContainerConfig.Rootfs
 	if err := rootfs.PrepareRoot(&initializer.config.ContainerConfig); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "preparing root")
+		return exception.NewGenericErrorWithContext(err, exception.PrepareRootError, "preparing root")
 	}
+
 	// 挂载
 	for _, m := range initializer.config.ContainerConfig.Mounts {
 		if err := rootfs.MountToRootfs(m, containerRootfs); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
+			return exception.NewGenericErrorWithContext(err, exception.MountError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
 		}
 	}
 	// 设备
@@ -138,18 +134,13 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 	return nil
 }
 
-func (initializer *InitializerStandardImpl) finalizeNamespace() error {
-	logrus.WithField("init", true).Info("finalizing namespace...")
-	return nil
-}
-
 func (initializer *InitializerStandardImpl) SetRootfsReadOnlyIfNeed() error {
-	// remount dev as ro if specified
+	// remount to set read only if specified
 	for _, m := range initializer.config.ContainerConfig.Mounts {
 		if util.CleanPath(m.Destination) == "/dev" {
 			if m.Flags&unix.MS_RDONLY == unix.MS_RDONLY {
 				if err := rootfs.RemountReadonly(m); err != nil {
-					return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("remounting %q as readonly", m.Destination))
+					return exception.NewGenericErrorWithContext(err, exception.MountError, fmt.Sprintf("remounting %q as readonly", m.Destination))
 				}
 			}
 			break
@@ -159,7 +150,7 @@ func (initializer *InitializerStandardImpl) SetRootfsReadOnlyIfNeed() error {
 	// set rootfs ( / ) as readonly
 	if initializer.config.ContainerConfig.Readonlyfs {
 		if err := rootfs.SetRootfsReadonly(); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, "setting rootfs as readonly")
+			return exception.NewGenericErrorWithContext(err, exception.MountError, "setting rootfs as readonly")
 		}
 	}
 	return nil

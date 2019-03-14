@@ -42,29 +42,29 @@ func (p *ParentInitProcess) detach() bool {
 func (p *ParentInitProcess) start() (err error) {
 	logrus.Infof("ParentInitProcess starting...")
 	if err = p.initProcessCmd.Start(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting init process command")
+		return exception.NewGenericErrorWithContext(err, exception.CmdStartError, "starting init process command")
 	}
 	logrus.Infof("init process started, INIT_PROCESS_PID: [%d]", p.pid())
 
 	// 将pid加入到cgroup set中
 	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "applying cgroup configuration for process")
+		return exception.NewGenericErrorWithContext(err, exception.CgroupsError, "applying cgroup configuration for process")
 	}
 	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
 
 	// 设置cgroup config
 	if err = p.container.cgroupManager.SetConfig(p.container.config.Cgroup); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "setting cgroup config for procHooks process")
+		return exception.NewGenericErrorWithContext(err, exception.CgroupsError, "setting cgroup config for procHooks process")
 	}
 
 	// 创建网络接口
 	if err = p.createNetworkInterfaces(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "creating network interfaces")
+		return exception.NewGenericErrorWithContext(err, exception.NetworkError, "creating network interfaces")
 	}
 
 	// init process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending config to init process")
+		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending config to init process")
 	}
 
 	// parent 写完就关
@@ -121,7 +121,7 @@ func (p *ParentInitProcess) startTime() (uint64, error) {
 func (p *ParentInitProcess) signal(sig os.Signal) error {
 	s, ok := sig.(syscall.Signal)
 	if !ok {
-		return exception.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), exception.SystemError)
+		return exception.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), exception.SignalError)
 	}
 	return unix.Kill(p.pid(), s)
 }

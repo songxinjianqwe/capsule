@@ -42,13 +42,13 @@ func (factory *LinuxContainerFactory) Create(id string, config *configs.Containe
 	containerRoot := filepath.Join(constant.ContainerRuntimeRoot, id)
 	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错
 	if _, err := os.Stat(containerRoot); err == nil {
-		return nil, exception.NewGenericError(fmt.Errorf("container with id exists: %v", id), exception.SystemError)
+		return nil, exception.NewGenericError(fmt.Errorf("container with id exists: %v", id), exception.ContainerIdExistsError)
 	} else if !os.IsNotExist(err) {
-		return nil, exception.NewGenericError(err, exception.SystemError)
+		return nil, exception.NewGenericError(err, exception.ContainerLoadError)
 	}
 	logrus.Infof("mkdir containerRoot: %s", containerRoot)
 	if err := os.MkdirAll(containerRoot, 0644); err != nil {
-		return nil, exception.NewGenericError(err, exception.SystemError)
+		return nil, exception.NewGenericError(err, exception.ContainerRootCreateError)
 	}
 	container := &LinuxContainer{
 		id:            id,
@@ -99,7 +99,7 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 	initPipeFd, err := strconv.Atoi(configPipeEnv)
 	logrus.WithField("init", true).Infof("got config pipe env: %d", initPipeFd)
 	if err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "converting EnvConfigPipe to int")
+		return exception.NewGenericErrorWithContext(err, exception.EnvError, "converting EnvConfigPipe to int")
 	}
 	initializerType := InitializerType(os.Getenv(constant.EnvInitializerType))
 	logrus.WithField("init", true).Infof("got initializer type: %s", initializerType)
@@ -111,7 +111,7 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 	bytes, err := ioutil.ReadAll(configPipe)
 	if err != nil {
 		logrus.WithField("init", true).Errorf("read init config failed: %s", err.Error())
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "reading init config from configPipe")
+		return exception.NewGenericErrorWithContext(err, exception.PipeError, "reading init config from configPipe")
 	}
 	// child 读完就关
 	if err = configPipe.Close(); err != nil {
@@ -120,25 +120,25 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 	logrus.Infof("read init config complete, unmarshal bytes")
 	initConfig := &InitConfig{}
 	if err = json.Unmarshal(bytes, initConfig); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "unmarshal init config")
+		return exception.NewGenericErrorWithContext(err, exception.PipeError, "unmarshal init config")
 	}
 	logrus.WithField("init", true).Infof("read init config from child pipe: %#v", initConfig)
 
 	// 环境变量设置
 	if err := populateProcessEnvironment(initConfig.ProcessConfig.Env); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "populating environment variables")
+		return exception.NewGenericErrorWithContext(err, exception.EnvError, "populating environment variables")
 	}
 
 	// 创建Initializer
 	initializer, err := NewInitializer(initializerType, initConfig, configPipe)
 	if err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "creating initializer")
+		return exception.NewGenericErrorWithContext(err, exception.InitializerCreateError, "creating initializer")
 	}
 	logrus.WithField("init", true).Infof("created initializer:%#v", initializer)
 
 	// 正式开始初始化
 	if err := initializer.Init(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "executing init command")
+		return exception.NewGenericErrorWithContext(err, exception.InitializerRunError, "executing init command")
 	}
 	return nil
 }
@@ -166,12 +166,12 @@ func (factory *LinuxContainerFactory) loadContainerState(containerRoot, id strin
 		if os.IsNotExist(err) {
 			return nil, exception.NewGenericError(fmt.Errorf("container %s does not exist", id), exception.ContainerNotExistsError)
 		}
-		return nil, exception.NewGenericError(err, exception.ContainerStateLoadFromDiskError)
+		return nil, exception.NewGenericError(err, exception.ContainerLoadError)
 	}
 	defer f.Close()
 	var state *StateStorage
 	if err := json.NewDecoder(f).Decode(&state); err != nil {
-		return nil, exception.NewGenericError(err, exception.ContainerStateLoadFromDiskError)
+		return nil, exception.NewGenericError(err, exception.ContainerLoadError)
 	}
 	return state, nil
 }

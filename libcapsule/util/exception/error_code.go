@@ -7,13 +7,34 @@ type ErrorCode int
 const (
 	ContainerCreateOrRunError = iota
 	ContainerIdEmptyError
+	ContainerIdExistsError
 	FactoryNewError
 	ContainerNotExistsError
-	ContainerStateLoadFromDiskError
-	ContainerNotRunning
+	ContainerLoadError
+	ContainerNotRunningError
+	ContainerStillRunningError
 	ParentProcessSignalError
-
+	ParentProcessCreateError
+	ParentProcessStartError
+	ParentProcessWaitError
+	ContainerRootCreateError
+	PipeError
+	EnvError
+	InitializerCreateError
+	InitializerRunError
+	PrepareRootError
+	MountError
+	SyscallExecuteCmdError
+	SignalError
+	SysctlError
+	LookPathError
+	HostnameError
+	RootfsError
+	CgroupsError
+	CmdStartError
+	CmdWaitError
 	// network
+	NetworkError
 	BridgeNetworkCreateError
 	BridgeNetworkLoadError
 	NetworkLinkNotFoundError
@@ -39,18 +60,62 @@ func (c ErrorCode) String() string {
 	case ContainerCreateOrRunError:
 		return "container create or run error"
 	case ContainerIdEmptyError:
-		return "cantainer id cant be empty"
+		return "container id cant be empty"
 	case FactoryNewError:
 		return "new factory error"
 	case ContainerNotExistsError:
-		return "container not exists"
-	case ContainerStateLoadFromDiskError:
-		return "load container state from disk error"
-	case ContainerNotRunning:
+		return "container not exists error"
+	case ContainerStillRunningError:
+		return "container still running error"
+	case ContainerLoadError:
+		return "load container error"
+	case ContainerNotRunningError:
 		return "container not running"
 	case ParentProcessSignalError:
 		return "send signal to parent process error"
+	case ParentProcessCreateError:
+		return "create parent process error"
+	case ParentProcessStartError:
+		return "start parent process error"
+	case ParentProcessWaitError:
+		return "wait parent process error"
+	case ContainerRootCreateError:
+		return "create container root error"
+	case EnvError:
+		return "environment variables error"
+	case PipeError:
+		return "pipe error"
+	case InitializerCreateError:
+		return "create initializer error"
+	case InitializerRunError:
+		return "run initializer error"
+	case ContainerIdExistsError:
+		return "container id exists error"
+	case PrepareRootError:
+		return "prepare root error"
+	case MountError:
+		return "mount error"
+	case SyscallExecuteCmdError:
+		return "execute command error"
+	case SignalError:
+		return "send signal to process error"
+	case SysctlError:
+		return "sysctl write error"
+	case LookPathError:
+		return "look path error"
+	case HostnameError:
+		return "set hostname error"
+	case RootfsError:
+		return "set up rootfs error"
+	case CgroupsError:
+		return "config cgroups error"
+	case CmdStartError:
+		return "start cmd error"
+	case CmdWaitError:
+		return "wait cmd error"
 	// network
+	case NetworkError:
+		return "network error"
 	case BridgeNetworkCreateError:
 		return "bridge network create error"
 	case InterfaceIPAndRouteSetError:

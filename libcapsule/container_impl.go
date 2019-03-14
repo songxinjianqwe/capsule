@@ -122,7 +122,7 @@ func (c *LinuxContainer) Signal(s os.Signal) error {
 		}
 		return nil
 	}
-	return exception.NewGenericErrorWithContext(err, exception.ContainerNotRunning, "signaling init process")
+	return exception.NewGenericErrorWithContext(err, exception.ContainerNotRunningError, "signaling init process")
 }
 
 // ************************************************************************************************
@@ -148,7 +148,7 @@ func (c *LinuxContainer) create(process *Process) error {
 	// 1、创建parent config
 	parent, err := NewParentProcess(c, process)
 	if err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "creating new parent process")
+		return exception.NewGenericErrorWithContext(err, exception.ParentProcessCreateError, "creating new parent process")
 	}
 	logrus.Infof("new parent process complete, parent config: %#v", parent)
 	c.parentProcess = parent
@@ -159,7 +159,7 @@ func (c *LinuxContainer) create(process *Process) error {
 		if err := c.ignoreTerminateErrors(parent.terminate()); err != nil {
 			logrus.Warn(err)
 		}
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting container process")
+		return exception.NewGenericErrorWithContext(err, exception.ParentProcessStartError, "starting container process")
 	}
 	if process.Init {
 		// 3、更新容器状态
@@ -203,8 +203,7 @@ func (c *LinuxContainer) start() error {
 	if !c.parentProcess.detach() {
 		logrus.Infof("wait child process exit...")
 		if err := c.parentProcess.wait(); err != nil {
-			util.PrintSubsystemPids("memory", c.id, "after init process exit exceptionally", false)
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, "waiting child process exit")
+			return exception.NewGenericErrorWithContext(err, exception.ParentProcessWaitError, "waiting child process exit")
 		}
 		logrus.Infof("child process exited")
 	}
@@ -435,14 +434,14 @@ func (c *LinuxContainer) loadContainerInitProcessPid() (int, error) {
 	f, err := os.Open(stateFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return -1, exception.NewGenericError(fmt.Errorf("container %s does not exist", c.id), exception.ContainerNotExists)
+			return -1, exception.NewGenericError(fmt.Errorf("container %s does not exist", c.id), exception.ContainerNotExistsError)
 		}
-		return -1, exception.NewGenericError(err, exception.SystemError)
+		return -1, exception.NewGenericError(err, exception.ContainerLoadError)
 	}
 	defer f.Close()
 	var state *StateStorage
 	if err := json.NewDecoder(f).Decode(&state); err != nil {
-		return -1, exception.NewGenericError(err, exception.SystemError)
+		return -1, exception.NewGenericError(err, exception.ContainerLoadError)
 	}
 	return state.InitProcessPid, nil
 }

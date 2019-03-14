@@ -24,7 +24,7 @@ func (behavior *RunningStatusBehavior) transition(s ContainerStatusBehavior) err
 			return err
 		}
 		if t == Running {
-			return exception.NewGenericError(fmt.Errorf("container still running"), exception.ContainerNotStopped)
+			return exception.NewGenericError(fmt.Errorf("container still running"), exception.ContainerStillRunningError)
 		}
 		behavior.c.statusBehavior = s
 		return nil
@@ -40,7 +40,7 @@ func (behavior *RunningStatusBehavior) destroy() error {
 		return err
 	}
 	if t == Running {
-		return exception.NewGenericError(fmt.Errorf("container is still running, cant be destroyed"), exception.ContainerNotStopped)
+		return exception.NewGenericError(fmt.Errorf("container is still running, cant be destroyed"), exception.ContainerStillRunningError)
 	}
 	return destroy(behavior.c)
 }

@@ -28,25 +28,25 @@ func (p *ParentExecProcess) start() error {
 	logrus.Infof("ParentExecProcess starting...")
 	err := p.execProcessCmd.Start()
 	if err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "starting init process command")
+		return exception.NewGenericErrorWithContext(err, exception.CmdStartError, "starting init process command")
 	}
 	logrus.Infof("exec process started, EXEC_PROCESS_PID: [%d]", p.pid())
 
 	// 如果启用了cgroups，那么将exec进程的pid也加进去
 	if len(p.container.cgroupManager.GetPaths()) > 0 {
 		if err := p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, fmt.Sprintf("adding pid %d to cgroups", p.pid()))
+			return exception.NewGenericErrorWithContext(err, exception.CgroupsError, fmt.Sprintf("adding pid %d to cgroups", p.pid()))
 		}
 	}
 
 	// exec process会在启动后阻塞，直至收到namespaces
 	if err := p.sendNamespaces(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending namespaces to init process")
+		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending namespaces to init process")
 	}
 
 	// 发送exec执行的命令
 	if err = p.sendCommand(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.SystemError, "sending init config to init process")
+		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending init config to init process")
 	}
 
 	// parent 写完就关
@@ -58,7 +58,7 @@ func (p *ParentExecProcess) start() error {
 	if !p.detach() {
 		logrus.Infof("wait child process exit...")
 		if err := p.wait(); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.SystemError, "waiting child process exit")
+			return exception.NewGenericErrorWithContext(err, exception.CmdWaitError, "waiting child process exit")
 		}
 		logrus.Infof("child process exited")
 	}
