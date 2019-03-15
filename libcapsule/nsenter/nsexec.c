@@ -1,9 +1,13 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sched.h>
+#include <setjmp.h>
+
 
 const char* LOG_PREFIX 	   			= "[EXEC]";
 const char* ENV_CONFIG_PIPE      	= "_LIBCAPSULE_CONFIG_PIPE";
@@ -14,58 +18,80 @@ const char*	EXEC_INITIALIZER  		= "exec";
 const int ERROR 					= 1;
 const int OK						= 0;
 
+#define JUMP_PARENT 0x00
+#define JUMP_CHILD  0xA0
+
+
 int enter_namespaces(int config_pipe_fd);
 int exec_cmd(int config_pipe_fd);
+int child_func(void *arg) __attribute__ ((noinline));
 
 // 某个进程创建后其pid namespace就固定了，使用setns和unshare改变后，其本身的pid namespace不会改变，只有fork出的子进程的pid namespace改变(改变的是每个进程的nsproxy->pid_namespace_for_children)
 // 用setns添加mnt namespace应该放在其他namespace之后，否则可能出现无法打开/proc/pid/ns/…的错误
+//
+char child_stack[4096];
+
+// 直接return是没法进入go runtime的,long jump可以回到nsexec的堆栈.
+// 函数longjmp()使程序在最近一次调用setjmp()处重新执行。
+int child_func(void *arg) {
+    printf("%s child started, just goto Go Runtime\n", LOG_PREFIX);
+    jmp_buf* env  = (jmp_buf*)arg;
+   	longjmp(*env, JUMP_CHILD);
+}
 
 void nsexec() {
+    // init和exec都会进入此段代码
 	const char* type = getenv(ENV_INITIALIZER_TYPE);
 	if (!type || strcmp(type, EXEC_INITIALIZER) != 0) {
 		return;
 	}
-	printf("%s start to read namespaces\n", LOG_PREFIX);
-	const char* config_pipe_env = getenv(ENV_CONFIG_PIPE);
-	printf("%s read config pipe env: %s\n", LOG_PREFIX, config_pipe_env);
-	int config_pipe_fd = atoi(config_pipe_env);
-	printf("%s config pipe fd: %d\n", LOG_PREFIX, config_pipe_fd);
-	if (config_pipe_fd <= 0) {
-		printf("%s converting config pipe to int failed\n", LOG_PREFIX);
-		exit(ERROR);
-	}
-	int status = enter_namespaces(config_pipe_fd);
-	if (status < 0) {
-		exit(status);
-	}
-//
-//	int child_pid = clone(nsexec, child_stack, CLONE_PARENT, &go);
-//    if (child_pid < 0) {
-//        printf("%s clone child failed, child pid is %d\n", LOG_PREFIX, child_pid);
-//        exit(ERROR);
-//    }
-//    printf("%s clone child succeeded, child pid is %d\n", LOG_PREFIX, child_pid);
-//    int_to_byte_4(intBuffer, child_pid);
-//    if (write(config_pipe_fd, intBuffer, 4) < 0) {
-//        printf("%s read namespaces failed\n", LOG_PREFIX);
-//        exit(ERROR);
-//    }
-//    printf("%s write child pid to parent pipe succeeded\n", LOG_PREFIX);
-//    exit(0);
-    status = exec_cmd(config_pipe_fd);
-    exit(status);
+    jmp_buf env;
+    switch(setjmp(env)) {
+        case JUMP_PARENT:
+            printf("%s start to read namespaces\n", LOG_PREFIX);
+            const char* config_pipe_env = getenv(ENV_CONFIG_PIPE);
+            printf("%s read config pipe env: %s\n", LOG_PREFIX, config_pipe_env);
+            int config_pipe_fd = atoi(config_pipe_env);
+            printf("%s config pipe fd: %d\n", LOG_PREFIX, config_pipe_fd);
+            if (config_pipe_fd <= 0) {
+                printf("%s converting config pipe to int failed\n", LOG_PREFIX);
+                exit(ERROR);
+            }
+            // 先加入已有的
+            int status = join_namespaces(config_pipe_fd);
+            if (status < 0) {
+                exit(status);
+            }
+            // 再创建新的
+
+            // 最后让child进入go runtime,因为自己setns后无法进入新的PID NS,只有child才能.
+            status = clone_child(config_pipe_fd, env);
+            printf("%s exec process exited\n", LOG_PREFIX);
+            exit(status);
+        case JUMP_CHILD:
+            return;
+    }
 }
 
-int enter_namespaces(int config_pipe_fd) {
-	// 读出namespaces的长度
-	char intBuffer[4];
-	if (read(config_pipe_fd, intBuffer, 4) < 0) {
-		printf("%s read namespace length failed\n", LOG_PREFIX);
-		return ERROR;
-	}
+int clone_child(int config_pipe_fd, jmp_buf* env) {
+    int child_pid = clone(child_func, child_stack, CLONE_PARENT, env);
+    if (child_pid < 0) {
+        printf("%s clone child failed, child pid is %d\n", LOG_PREFIX, child_pid);
+        return ERROR;
+    }
+    printf("%s clone child succeeded, child pid is %d\n", LOG_PREFIX, child_pid);
+    int status = writeInt(config_pipe_fd, child_pid);
+    if (status < 0) {
+        printf("%s write child pid to pipe failed, cause: %s\n", LOG_PREFIX, strerror(errno));
+    } else {
+        printf("%s write child pid to pipe succeeded\n", LOG_PREFIX);
+    }
+    return status;
+}
 
-	// big endian
-	int nsLen = byte4_to_int(intBuffer);
+int join_namespaces(int config_pipe_fd) {
+	// 读出namespaces的长度
+	int nsLen = readInt(config_pipe_fd);
 	printf("%s read namespace len: %d\n", LOG_PREFIX, nsLen);
 
 	// 再读出namespaces
@@ -90,39 +116,26 @@ int enter_namespaces(int config_pipe_fd) {
 	return OK;
 }
 
-int exec_cmd(int config_pipe_fd) {
-	char intBuffer[4];
+int readInt(int config_pipe_fd) {
+    char intBuffer[4];
 	if (read(config_pipe_fd, intBuffer, 4) < 0) {
-		printf("%s read cmd length failed\n", LOG_PREFIX);
+		printf("%s read namespace length failed\n", LOG_PREFIX);
 		return ERROR;
 	}
-
-	int cmdLen = byte4_to_int(intBuffer);
-	printf("%s read cmd len: %d\n", LOG_PREFIX, cmdLen);
-
-	char cmd[cmdLen];
-	if (read(config_pipe_fd, cmd, 1024) < 0) {
-		printf("%s read cmd failed\n", LOG_PREFIX);
-		return ERROR;
-	}
-	cmd[cmdLen] = '\0';
-	printf("%s read cmd: %s\n", LOG_PREFIX, cmd);
-
-	if (close(config_pipe_fd) < 0) {
-		printf("%s close child pipe failed, cause: %s\n", LOG_PREFIX, strerror(errno));
-	}
-	int status = system(cmd);
-	if (status < 0) {
-		printf("%s system(%s) failed, cause: %s\n", LOG_PREFIX, cmd, strerror(errno));
-		return ERROR;
-	} else {
-		printf("%s system(%s) succeeded\n", LOG_PREFIX, cmd);
-		return OK;
-	}
+	return (intBuffer[0] << 24) + (intBuffer[1] << 16) + (intBuffer[2] << 8) + intBuffer[3];
 }
 
-int byte4_to_int(char buffer[4]) {
-	return (buffer[0] << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
+int writeInt(int config_pipe_fd, int data) {
+    char intBuffer[4];
+    intBuffer[0] = data >> 24;
+    intBuffer[1] = data >> 16;
+    intBuffer[2] = data >> 8;
+    intBuffer[3] = data;
+    if(write(config_pipe_fd, intBuffer, 4) < 0) {
+        printf("%s read namespaces failed\n", LOG_PREFIX);
+        return ERROR;
+    }
+    return OK;
 }
 
 int nsenter(char* namespace_path) {

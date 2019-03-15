@@ -45,9 +45,21 @@ func (p *ParentExecProcess) start() error {
 		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending namespaces to init process")
 	}
 
-	// 发送exec执行的命令
-	if err = p.sendCommand(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending init config to init process")
+	childPid, err := util.ReadIntFromFile(p.parentConfigPipe)
+	logrus.Infof("read child pid from parent pipe: %d", childPid)
+	if err != nil {
+		return exception.NewGenericErrorWithContext(err, exception.PipeError, "reading child pid")
+	}
+	process, err := os.FindProcess(childPid)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("find new child process: %#v", process)
+	p.execProcessCmd.Process = process
+
+	// init process会在启动后阻塞，直至收到config
+	if err = p.sendConfig(); err != nil {
+		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending config to init process")
 	}
 
 	// parent 写完就关
@@ -126,7 +138,6 @@ func (p *ParentExecProcess) sendNamespaces() error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("write length of namespaces: %v", lenInBytes)
 	if _, err := p.parentConfigPipe.Write(lenInBytes); err != nil {
 		return err
 	}
@@ -150,4 +161,8 @@ func (p *ParentExecProcess) sendCommand() error {
 		return err
 	}
 	return nil
+}
+
+func (p *ParentExecProcess) sendConfig() error {
+	return sendConfig(p.container.config, *p.process, p.container.id, p.parentConfigPipe)
 }

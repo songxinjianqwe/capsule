@@ -9,8 +9,8 @@ import (
 type InitializerType string
 
 const (
-	ExecInitializer     InitializerType = "exec"
-	StandardInitializer InitializerType = "standard"
+	ExecInitializer InitializerType = "exec"
+	InitInitializer InitializerType = "init"
 )
 
 type Initializer interface {
@@ -19,11 +19,16 @@ type Initializer interface {
 
 func NewInitializer(initializerType InitializerType, config *InitConfig, configPipe *os.File) (Initializer, error) {
 	switch initializerType {
-	case StandardInitializer:
+	case InitInitializer:
 		return &InitializerStandardImpl{
 			config:     config,
 			configPipe: configPipe,
 			parentPid:  unix.Getppid(),
+		}, nil
+	case ExecInitializer:
+		return &InitializerExecImpl{
+			config:     config,
+			configPipe: configPipe,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown initializerType:%s", initializerType)

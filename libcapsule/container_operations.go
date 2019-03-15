@@ -172,7 +172,7 @@ func (c *LinuxContainer) newParentProcess(process *Process) (ParentProcess, erro
 		return nil, err
 	}
 	if process.Init {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(StandardInitializer)))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(InitInitializer)))
 		logrus.Infof("build command complete, command: %#v", cmd)
 		logrus.Infof("new parent init process...")
 		initProcess := &ParentInitProcess{

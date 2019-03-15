@@ -89,6 +89,7 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 }
 
 func (factory *LinuxContainerFactory) StartInitialization() error {
+	logrus.Infof("capsule init/StartInitialization...")
 	defer func() {
 		if e := recover(); e != nil {
 			logrus.Errorf("panic from initialization: %v, %v", e, string(debug.Stack()))
