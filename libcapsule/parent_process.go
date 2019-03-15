@@ -2,10 +2,8 @@ package libcapsule
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
-	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"os"
 )
 
@@ -30,49 +28,6 @@ type ParentProcess interface {
 
 	// detach returns the process is detach
 	detach() bool
-}
-
-/*
-创建一个ParentProcess实例，用于启动容器进程
-有可能是InitParentProcess，也有可能是ExecParentProcess
-*/
-func NewParentProcess(container *LinuxContainer, process *Process) (ParentProcess, error) {
-	logrus.Infof("new parent process...")
-	logrus.Infof("creating pipes...")
-	// Config: parent 写，child(init process)读
-	childConfigPipe, parentConfigPipe, err := os.Pipe()
-	if err != nil {
-		return nil, err
-	}
-	logrus.Infof("create config pipe complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
-	cmd, err := container.buildCommand(process, childConfigPipe)
-	if err != nil {
-		return nil, err
-	}
-	if process.Init {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(StandardInitializer)))
-		logrus.Infof("build command complete, command: %#v", cmd)
-		logrus.Infof("new parent init process...")
-		initProcess := &ParentInitProcess{
-			initProcessCmd:   cmd,
-			parentConfigPipe: parentConfigPipe,
-			container:        container,
-			process:          process,
-		}
-		// exec process不会被赋值container.parentProcess,因为它的pid,startTime返回的都exec process的,而非nochild process
-		container.parentProcess = initProcess
-		return initProcess, nil
-	} else {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(ExecInitializer)))
-		logrus.Infof("build command complete, command: %#v", cmd)
-		logrus.Infof("new parent exec process...")
-		return &ParentExecProcess{
-			execProcessCmd:   cmd,
-			parentConfigPipe: parentConfigPipe,
-			container:        container,
-			process:          process,
-		}, nil
-	}
 }
 
 // **************************************************************************************************
