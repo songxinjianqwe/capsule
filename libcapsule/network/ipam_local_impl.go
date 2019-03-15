@@ -49,8 +49,11 @@ func (ipam *LocalIPAM) Allocate(subnet *net.IPNet) (net.IP, error) {
 		// 说明全部为1,则
 		return nil, exception.NewGenericError(fmt.Errorf("no allocatable ip"), exception.IPRunOutError)
 	}
+	logrus.Infof("nextClearIndex: %d", nextClearIndex)
+	logrus.Infof("count:%d", bitmap.Count())
 	// gotcha!
 	bitmap.Set(nextClearIndex)
+	logrus.Infof("count:%d", bitmap.Count())
 	// 网段IP,注意这里一定要拷贝!!!
 	ip := make([]byte, 4)
 	copy(ip, subnet.IP.To4())
@@ -92,7 +95,10 @@ func (ipam *LocalIPAM) Release(subnet *net.IPNet, ip net.IP) error {
 		index += uint(releasingIP[byteIndex-1]-subnet.IP[byteIndex-1]) << uint((4-byteIndex)*8)
 	}
 	bitmap := ipam.subnetMap[subnet.String()]
+	logrus.Infof("count:%d", bitmap.Count())
+	logrus.Infof("index:%d", index)
 	bitmap.Clear(index)
+	logrus.Infof("count:%d", bitmap.Count())
 	if err := ipam.dump(); err != nil {
 		return err
 	}
@@ -114,9 +120,12 @@ func (ipam *LocalIPAM) load() error {
 	if err != nil {
 		return exception.NewGenericError(err, exception.IPAMLoadError)
 	}
-	logrus.Infof("loaded subnetMap:%v", string(bytes))
 	if err := json.Unmarshal(bytes, &ipam.subnetMap); err != nil {
 		return exception.NewGenericError(err, exception.IPAMLoadError)
+	}
+	logrus.Infof("loaded subnetMap")
+	for subnet, bitmap := range ipam.subnetMap {
+		logrus.Infof("[%s]allocated ip count: %d, bytes:%s", subnet, bitmap.Count(), bitmap.String())
 	}
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func createAndGetCgroupAbsolutePathIfNotExists(subsystemName string, cgroupName string) (string, error) {
+func createAndGetCgroupAbsolutePathIfNotExists(subsystemName string, cgroupName string, createIfNotExists bool) (string, error) {
 	hierarchyRoot, err := findCgroupMountpoint(subsystemName)
 	if err != nil {
 		return "", err
@@ -19,11 +19,16 @@ func createAndGetCgroupAbsolutePathIfNotExists(subsystemName string, cgroupName 
 	if _, err := os.Stat(cgroupAbsolutePath); err != nil {
 		// 目录不存在，则创建
 		if os.IsNotExist(err) {
-			logrus.Infof("cgroup path not found, then create it: %s", cgroupAbsolutePath)
-			if err := os.Mkdir(cgroupAbsolutePath, 0644); err != nil {
-				logrus.Errorf("create cgroup relative path %s failed, cause: %s", cgroupAbsolutePath, err.Error())
-				return "", err
+			if createIfNotExists {
+				logrus.Infof("cgroup path not found, then create it: %s", cgroupAbsolutePath)
+				if err := os.Mkdir(cgroupAbsolutePath, 0644); err != nil {
+					logrus.Errorf("create cgroup relative path %s failed, cause: %s", cgroupAbsolutePath, err.Error())
+					return "", err
+				}
+			} else {
+				return "", fmt.Errorf("cgroup path not found")
 			}
+
 		} else {
 			// 目录坏掉了，返回失败
 			return "", err
@@ -66,7 +71,7 @@ func findCgroupMountpoint(subsystemName string) (string, error) {
 }
 
 func writeConfigEntry(subsystemName, cgroupName, configFilename string, data []byte) error {
-	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsystemName, cgroupName)
+	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsystemName, cgroupName, true)
 	if err != nil {
 		return err
 	}

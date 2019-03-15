@@ -129,14 +129,13 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	); err != nil {
 		return exception.NewGenericError(err, exception.IPTablesDeleteError)
 	}
+
 	// 回收gateway IP
 	allocator, err := LoadIPAllocator()
 	if err != nil {
 		return err
 	}
-
-	ip, ipRange, _ := net.ParseCIDR(network.IpRange.String())
-	if err := allocator.Release(ipRange, ip); err != nil {
+	if err := allocator.Release(network.Subnet(), network.GatewayIP()); err != nil {
 		return err
 	}
 	// 删除interface
@@ -155,7 +154,7 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, 
 	if err != nil {
 		return nil, err
 	}
-	endpointIP, err := allocator.Allocate(&network.IpRange)
+	endpointIP, err := allocator.Allocate(network.Subnet())
 	if err != nil {
 		return nil, err
 	}
@@ -188,10 +187,12 @@ func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {
 		logrus.Warnf(err.Error())
 		return err
 	}
-	if err := allocator.Release(&endpoint.Network.IpRange, endpoint.IpAddress); err != nil {
+	logrus.Infof("before releasing, allocatable ip: %d", allocator.Allocatable(endpoint.Network.Subnet()))
+	if err := allocator.Release(endpoint.Network.Subnet(), endpoint.IpAddress); err != nil {
 		logrus.Warnf(err.Error())
 		return err
 	}
+	logrus.Infof("after releasing, allocatable ip: %d", allocator.Allocatable(endpoint.Network.Subnet()))
 	// 删除端口映射
 	if err := deletePortMappings(endpoint); err != nil {
 		logrus.Warnf(err.Error())

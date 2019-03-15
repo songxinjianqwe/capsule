@@ -19,6 +19,16 @@ type Network struct {
 	Driver string `json:"driver"`
 }
 
+func (network *Network) Subnet() *net.IPNet {
+	_, ipNet, _ := net.ParseCIDR(network.IpRange.String())
+	return ipNet
+}
+
+func (network *Network) GatewayIP() net.IP {
+	ip, _, _ := net.ParseCIDR(network.IpRange.String())
+	return ip
+}
+
 func (network *Network) String() string {
 	ip, ipNet, _ := net.ParseCIDR(network.IpRange.String())
 	return fmt.Sprintf("[%s]%s(ip:%s,range:%s)", network.Driver, network.Name, ip, ipNet)
@@ -33,6 +43,10 @@ type Endpoint struct {
 	Device       *netlink.Veth `json:"device"`
 	Network      *Network      `json:"network"`
 	PortMappings []string      `json:"port_mappings"`
+}
+
+func (endpoint *Endpoint) String() string {
+	return fmt.Sprintf("EndpointName: %s, IP: %s, Network:%s, PortMappings:%v", endpoint.Name, endpoint.IpAddress, endpoint.Network, endpoint.PortMappings)
 }
 
 func (endpoint *Endpoint) GetContainerVethName() string {
@@ -124,7 +138,7 @@ func Connect(endpointId string, networkName string, portMappings []string, conta
 }
 
 func Disconnect(endpoint *Endpoint) error {
-	logrus.Infof("disconnecting, endpoint: %#v", endpoint)
+	logrus.Infof("disconnecting, endpoint: %s", endpoint)
 	networkDriver, found := networkDrivers[endpoint.Network.Driver]
 	if !found {
 		return fmt.Errorf("network driver not found: %s", endpoint.Network.Driver)

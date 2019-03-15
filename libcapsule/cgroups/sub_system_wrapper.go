@@ -27,7 +27,7 @@ func (subsys *SubsystemWrapper) SetConfig(cgroupName string, cgroupConfig *confi
 }
 
 func (subsys *SubsystemWrapper) Remove(cgroupName string) error {
-	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsys.Name(), cgroupName)
+	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsys.Name(), cgroupName, false)
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (subsys *SubsystemWrapper) Remove(cgroupName string) error {
 
 func (subsys *SubsystemWrapper) Join(cgroupName string, pid int) (string, error) {
 	logrus.Infof("process is joining %s subsystem", subsys.Name())
-	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsys.Name(), cgroupName)
+	cgroupPath, err := createAndGetCgroupAbsolutePathIfNotExists(subsys.Name(), cgroupName, true)
 	if err != nil {
 		return "", err
 	}
