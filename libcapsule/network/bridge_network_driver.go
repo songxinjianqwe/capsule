@@ -39,7 +39,7 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 	ipRange.IP = gatewayIP
 	network := &Network{
 		Name:    bridgeName,
-		IpRange: *ipRange,
+		ipRange: *ipRange,
 		Driver:  driver.Name(),
 	}
 	logrus.Infof("network: %s", network)
@@ -92,7 +92,7 @@ func (driver *BridgeNetworkDriver) Load(name string) (*Network, error) {
 	return &Network{
 		Name:    name,
 		Driver:  driver.Name(),
-		IpRange: *bridgeAddr,
+		ipRange: *bridgeAddr,
 	}, nil
 }
 
@@ -125,7 +125,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	if err := tables.Delete(
 		"nat",
 		"POSTROUTING",
-		getSNATRuleSpecs(network.Name, network.IpRange)...,
+		getSNATRuleSpecs(network.Name, network.ipRange)...,
 	); err != nil {
 		return exception.NewGenericError(err, exception.IPTablesDeleteError)
 	}

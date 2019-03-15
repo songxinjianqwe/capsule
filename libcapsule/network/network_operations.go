@@ -157,7 +157,7 @@ func setUpContainerVethInNetNs(endpoint *Endpoint, pid int) error {
 	// 3. 配置IP地址与路由
 	// 此时interface的IP地址为endpoint的地址,而网段是bridge的网段
 	// 将来自该网段的网络请求转发到这个网络接口上
-	interfaceIP := endpoint.Network.IpRange
+	interfaceIP := endpoint.Network.ipRange
 	interfaceIP.IP = endpoint.IpAddress
 	if err := setInterfaceIPAndRoute(containerVethName, interfaceIP); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.InterfaceIPAndRouteSetError, "set veth ip and route")
@@ -178,7 +178,7 @@ func setUpContainerVethInNetNs(endpoint *Endpoint, pid int) error {
 	_, defaultIpRange, _ := net.ParseCIDR("0.0.0.0/0")
 	defaultRoute := &netlink.Route{
 		LinkIndex: containerVeth.Attrs().Index,
-		Gw:        endpoint.Network.IpRange.IP,
+		Gw:        endpoint.Network.ipRange.IP,
 		Dst:       defaultIpRange,
 	}
 	logrus.Infof("add default route in container: %s", defaultIpRange)

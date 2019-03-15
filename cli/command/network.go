@@ -5,7 +5,6 @@ import (
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"github.com/urfave/cli"
-	"net"
 	"os"
 	"text/tabwriter"
 )
@@ -100,11 +99,10 @@ var networkListCommand = cli.Command{
 		w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
 		fmt.Fprint(w, "NAME\tGATEWAY_IP\tSUBNET\tDRIVER\n")
 		for _, item := range networks {
-			ip, ipRange, _ := net.ParseCIDR(item.IpRange.String())
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 				item.Name,
-				ip,
-				ipRange,
+				item.GatewayIP(),
+				item.Subnet(),
 				item.Driver,
 			)
 		}

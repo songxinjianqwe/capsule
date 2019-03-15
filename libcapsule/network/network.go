@@ -14,23 +14,23 @@ type Network struct {
 	// 网络名称
 	Name string `json:"name"`
 	// 网段
-	IpRange net.IPNet `json:"ip_range"`
+	ipRange net.IPNet `json:"ip_range"`
 	// 网络驱动名（网络类型）
 	Driver string `json:"driver"`
 }
 
 func (network *Network) Subnet() *net.IPNet {
-	_, ipNet, _ := net.ParseCIDR(network.IpRange.String())
+	_, ipNet, _ := net.ParseCIDR(network.ipRange.String())
 	return ipNet
 }
 
 func (network *Network) GatewayIP() net.IP {
-	ip, _, _ := net.ParseCIDR(network.IpRange.String())
+	ip, _, _ := net.ParseCIDR(network.ipRange.String())
 	return ip
 }
 
 func (network *Network) String() string {
-	ip, ipNet, _ := net.ParseCIDR(network.IpRange.String())
+	ip, ipNet, _ := net.ParseCIDR(network.ipRange.String())
 	return fmt.Sprintf("[%s]%s(ip:%s,range:%s)", network.Driver, network.Name, ip, ipNet)
 }
 
