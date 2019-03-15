@@ -210,15 +210,8 @@ func (c *LinuxContainer) start() error {
 }
 
 func (c *LinuxContainer) currentState() (*StateStorage, error) {
-	var (
-		initProcessPid       = -1
-		initProcessStartTime uint64
-	)
-	// 如果不是exec类型的，那么都是ok的
-	if _, ok := interface{}(c.parentProcess).(ParentExecProcess); !ok {
-		initProcessPid = c.parentProcess.pid()
-		initProcessStartTime, _ = c.parentProcess.startTime()
-	}
+	initProcessPid := c.parentProcess.pid()
+	initProcessStartTime, _ := c.parentProcess.startTime()
 	state := &StateStorage{
 		ID:                   c.ID(),
 		Config:               c.config,
@@ -433,13 +426,13 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 func (c *LinuxContainer) newParentProcess(process *Process) (ParentProcess, error) {
 	logrus.Infof("new parent process...")
 	logrus.Infof("creating pipes...")
-	// Config: parent 写，child(init process)读
-	childConfigPipe, parentConfigPipe, err := os.Pipe()
+	// socket pair 双方都可以既写又读,而pipe只能一个写,一个读
+	parentConfigPipe, childConfigPipe, err := util.NewSocketPair("init")
 	if err != nil {
 		return nil, err
 	}
-	logrus.Infof("create config pipe complete, parentConfigPipe: %#v, configPipe: %#v", parentConfigPipe, childConfigPipe)
-	cmd, err := c.buildCommand(process, childConfigPipe)
+	logrus.Infof("create config pipe complete, childConfigPipe: %#v, configPipe: %#v", childConfigPipe, parentConfigPipe)
+	cmd, err := c.buildCommand(process, parentConfigPipe)
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +442,7 @@ func (c *LinuxContainer) newParentProcess(process *Process) (ParentProcess, erro
 		logrus.Infof("new parent init process...")
 		initProcess := &ParentInitProcess{
 			initProcessCmd:   cmd,
-			parentConfigPipe: parentConfigPipe,
+			parentConfigPipe: childConfigPipe,
 			container:        c,
 			process:          process,
 		}
@@ -462,7 +455,7 @@ func (c *LinuxContainer) newParentProcess(process *Process) (ParentProcess, erro
 		logrus.Infof("new parent exec process...")
 		return &ParentExecProcess{
 			execProcessCmd:   cmd,
-			parentConfigPipe: parentConfigPipe,
+			parentConfigPipe: childConfigPipe,
 			container:        c,
 			process:          process,
 		}, nil

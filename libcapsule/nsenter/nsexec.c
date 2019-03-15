@@ -19,6 +19,7 @@ int exec_cmd(int config_pipe_fd);
 
 // 某个进程创建后其pid namespace就固定了，使用setns和unshare改变后，其本身的pid namespace不会改变，只有fork出的子进程的pid namespace改变(改变的是每个进程的nsproxy->pid_namespace_for_children)
 // 用setns添加mnt namespace应该放在其他namespace之后，否则可能出现无法打开/proc/pid/ns/…的错误
+
 void nsexec() {
 	const char* type = getenv(ENV_INITIALIZER_TYPE);
 	if (!type || strcmp(type, EXEC_INITIALIZER) != 0) {
@@ -37,8 +38,22 @@ void nsexec() {
 	if (status < 0) {
 		exit(status);
 	}
-	status = exec_cmd(config_pipe_fd);
-	exit(status);
+//
+//	int child_pid = clone(nsexec, child_stack, CLONE_PARENT, &go);
+//    if (child_pid < 0) {
+//        printf("%s clone child failed, child pid is %d\n", LOG_PREFIX, child_pid);
+//        exit(ERROR);
+//    }
+//    printf("%s clone child succeeded, child pid is %d\n", LOG_PREFIX, child_pid);
+//    int_to_byte_4(intBuffer, child_pid);
+//    if (write(config_pipe_fd, intBuffer, 4) < 0) {
+//        printf("%s read namespaces failed\n", LOG_PREFIX);
+//        exit(ERROR);
+//    }
+//    printf("%s write child pid to parent pipe succeeded\n", LOG_PREFIX);
+//    exit(0);
+    status = exec_cmd(config_pipe_fd);
+    exit(status);
 }
 
 int enter_namespaces(int config_pipe_fd) {
