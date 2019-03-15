@@ -17,6 +17,8 @@ const int OK						= 0;
 int enter_namespaces(int config_pipe_fd);
 int exec_cmd(int config_pipe_fd);
 
+// 某个进程创建后其pid namespace就固定了，使用setns和unshare改变后，其本身的pid namespace不会改变，只有fork出的子进程的pid namespace改变(改变的是每个进程的nsproxy->pid_namespace_for_children)
+// 用setns添加mnt namespace应该放在其他namespace之后，否则可能出现无法打开/proc/pid/ns/…的错误
 void nsexec() {
 	const char* type = getenv(ENV_INITIALIZER_TYPE);
 	if (!type || strcmp(type, EXEC_INITIALIZER) != 0) {

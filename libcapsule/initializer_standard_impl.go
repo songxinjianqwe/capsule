@@ -49,7 +49,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 
 	// 如果有设置Mount的Namespace，则设置rootfs与mount为read only（如果需要的话）
 	if initializer.config.ContainerConfig.Namespaces.Contains(configs.NEWNS) {
-		if err := initializer.SetRootfsReadOnlyIfNeed(); err != nil {
+		if err := initializer.SetRootfsReadOnlyIfSpecified(); err != nil {
 			return err
 		}
 	}
@@ -134,9 +134,10 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 	return nil
 }
 
-func (initializer *InitializerStandardImpl) SetRootfsReadOnlyIfNeed() error {
+func (initializer *InitializerStandardImpl) SetRootfsReadOnlyIfSpecified() error {
 	// remount to set read only if specified
 	for _, m := range initializer.config.ContainerConfig.Mounts {
+		// 仅针对/dev,这个目录应该是只读
 		if util.CleanPath(m.Destination) == "/dev" {
 			if m.Flags&unix.MS_RDONLY == unix.MS_RDONLY {
 				if err := rootfs.RemountReadonly(m); err != nil {

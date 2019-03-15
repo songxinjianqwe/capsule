@@ -3,6 +3,7 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
@@ -108,13 +109,16 @@ func (p *ParentExecProcess) signal(os.Signal) error {
 }
 
 func (p *ParentExecProcess) sendNamespaces() error {
-	initProcessPid, err := p.container.loadContainerInitProcessPid()
+	var namespacePaths []string
+	state, err := p.container.currentState()
 	if err != nil {
 		return err
 	}
-	var namespacePaths []string
-	for _, ns := range p.container.config.Namespaces {
-		namespacePaths = append(namespacePaths, ns.GetPath(initProcessPid))
+	// order mnt必须在最后
+	for _, ns := range configs.AllNamespaceTypes() {
+		if path, exist := state.NamespacePaths[ns]; exist {
+			namespacePaths = append(namespacePaths, path)
+		}
 	}
 	logrus.Infof("sending namespaces: %#v", namespacePaths)
 	data := []byte(strings.Join(namespacePaths, ","))

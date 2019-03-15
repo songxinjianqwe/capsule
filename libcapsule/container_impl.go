@@ -151,7 +151,6 @@ func (c *LinuxContainer) create(process *Process) error {
 		return exception.NewGenericErrorWithContext(err, exception.ParentProcessCreateError, "creating new parent process")
 	}
 	logrus.Infof("new parent process complete, parent config: %#v", parent)
-	c.parentProcess = parent
 	// 2、启动parent config,直至child表示自己初始化完毕，等待执行命令
 	if err := parent.start(); err != nil {
 		// 启动失败，则杀掉init process，如果是已经停止，则忽略。
@@ -215,12 +214,10 @@ func (c *LinuxContainer) currentState() (*StateStorage, error) {
 		initProcessPid       = -1
 		initProcessStartTime uint64
 	)
-	if c.parentProcess != nil {
-		// 如果不是exec类型的，那么都是ok的
-		if _, ok := interface{}(c.parentProcess).(ParentExecProcess); !ok {
-			initProcessPid = c.parentProcess.pid()
-			initProcessStartTime, _ = c.parentProcess.startTime()
-		}
+	// 如果不是exec类型的，那么都是ok的
+	if _, ok := interface{}(c.parentProcess).(ParentExecProcess); !ok {
+		initProcessPid = c.parentProcess.pid()
+		initProcessStartTime, _ = c.parentProcess.startTime()
 	}
 	state := &StateStorage{
 		ID:                   c.ID(),
@@ -427,21 +424,4 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 		cmd.Stderr = os.Stderr
 	}
 	return cmd, nil
-}
-
-func (c *LinuxContainer) loadContainerInitProcessPid() (int, error) {
-	stateFilePath := filepath.Join(c.root, constant.StateFilename)
-	f, err := os.Open(stateFilePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return -1, exception.NewGenericError(fmt.Errorf("container %s does not exist", c.id), exception.ContainerNotExistsError)
-		}
-		return -1, exception.NewGenericError(err, exception.ContainerLoadError)
-	}
-	defer f.Close()
-	var state *StateStorage
-	if err := json.NewDecoder(f).Decode(&state); err != nil {
-		return -1, exception.NewGenericError(err, exception.ContainerLoadError)
-	}
-	return state.InitProcessPid, nil
 }

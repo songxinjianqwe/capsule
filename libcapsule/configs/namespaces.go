@@ -15,6 +15,16 @@ const (
 	NEWIPC NamespaceType = "NEWIPC"
 )
 
+func AllNamespaceTypes() []NamespaceType {
+	return []NamespaceType{
+		NEWIPC,
+		NEWUTS,
+		NEWNET,
+		NEWPID,
+		NEWNS,
+	}
+}
+
 // Namespace defines configuration for each namespace.  It specifies an
 // alternate path that is able to be joined via setns.
 type Namespace struct {

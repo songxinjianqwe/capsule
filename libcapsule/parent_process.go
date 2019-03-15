@@ -53,12 +53,15 @@ func NewParentProcess(container *LinuxContainer, process *Process) (ParentProces
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(StandardInitializer)))
 		logrus.Infof("build command complete, command: %#v", cmd)
 		logrus.Infof("new parent init process...")
-		return &ParentInitProcess{
+		initProcess := &ParentInitProcess{
 			initProcessCmd:   cmd,
 			parentConfigPipe: parentConfigPipe,
 			container:        container,
 			process:          process,
-		}, nil
+		}
+		// exec process不会被赋值container.parentProcess,因为它的pid,startTime返回的都exec process的,而非nochild process
+		container.parentProcess = initProcess
+		return initProcess, nil
 	} else {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(ExecInitializer)))
 		logrus.Infof("build command complete, command: %#v", cmd)
