@@ -21,22 +21,18 @@ const int OK						= 0;
 #define JUMP_PARENT 0x00
 #define JUMP_CHILD  0xA0
 
-int enter_namespaces(int config_pipe_fd);
+int join_namespaces(int config_pipe_fd);
+int readInt(int config_pipe_fd);
+int writeInt(int config_pipe_fd, int data);
+int nsenter(char* namespace_path);
 int child_func(void *arg) __attribute__ ((noinline));
+int clone_child(int config_pipe_fd, jmp_buf* env);
 
 // 1.某个进程创建后其pid namespace就固定了，使用setns和unshare改变后，其本身的pid namespace不会改变，只有fork出的子进程的pid namespace改变(改变的是每个进程的nsproxy->pid_namespace_for_children)
 // 因为PID对用户态的函数而言是一个固定值,不存在更换PID Namespace的问题,它意味着更换PID,会出问题.
 // 2.用setns进入mnt namespace应该放在其他namespace之后，否则可能出现无法打开/proc/pid/ns/…的错误
-
 char child_stack[4096] __attribute__ ((aligned(16)));
 
-// 直接return是没法进入go runtime的,long jump可以回到nsexec的堆栈.
-// 函数longjmp()使程序在最近一次调用setjmp()处重新执行。
-int child_func(void *arg) {
-    printf("%s child started, just goto Go Runtime\n", LOG_PREFIX);
-    jmp_buf* env  = (jmp_buf*)arg;
-   	longjmp(*env, JUMP_CHILD);
-}
 
 void nsexec() {
     // init和exec都会进入此段代码
@@ -64,7 +60,7 @@ void nsexec() {
             // 再创建新的
 
             // 最后让child进入go runtime,因为自己setns后无法进入新的PID NS,只有child才能.
-            status = clone_child(config_pipe_fd, env);
+            status = clone_child(config_pipe_fd, &env);
             printf("%s exec process exited\n", LOG_PREFIX);
             exit(status);
         case JUMP_CHILD:
@@ -87,6 +83,14 @@ int clone_child(int config_pipe_fd, jmp_buf* env) {
         printf("%s write child pid to pipe succeeded\n", LOG_PREFIX);
     }
     return status;
+}
+
+// 直接return是没法进入go runtime的,long jump可以回到nsexec的堆栈.
+// 函数longjmp()使程序在最近一次调用setjmp()处重新执行。
+int child_func(void *arg) {
+    printf("%s child started, just goto Go Runtime\n", LOG_PREFIX);
+    jmp_buf* env  = (jmp_buf*)arg;
+   	longjmp(*env, JUMP_CHILD);
 }
 
 int join_namespaces(int config_pipe_fd) {
