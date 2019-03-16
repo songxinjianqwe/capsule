@@ -8,7 +8,6 @@ void nsexec();
 // https://lists.linux-foundation.org/pipermail/containers/2013-January/031565.html
 __attribute__((constructor)) void init(void) {
 	nsexec();
-	printf("nsexec finished\n");
 }
 */
 import "C"

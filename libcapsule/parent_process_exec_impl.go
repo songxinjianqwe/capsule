@@ -33,13 +33,6 @@ func (p *ParentExecProcess) start() error {
 	}
 	logrus.Infof("exec process started, EXEC_PROCESS_PID: [%d]", p.pid())
 
-	// 如果启用了cgroups，那么将exec进程的pid也加进去
-	if len(p.container.cgroupManager.GetPaths()) > 0 {
-		if err := p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
-			return exception.NewGenericErrorWithContext(err, exception.CgroupsError, fmt.Sprintf("adding pid %d to cgroups", p.pid()))
-		}
-	}
-
 	// exec process会在启动后阻塞，直至收到namespaces
 	if err := p.sendNamespaces(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending namespaces to init process")
@@ -57,7 +50,14 @@ func (p *ParentExecProcess) start() error {
 	logrus.Infof("find new child process: %#v", process)
 	p.execProcessCmd.Process = process
 
-	// init process会在启动后阻塞，直至收到config
+	// 如果启用了cgroups，那么将exec进程的pid也加进去
+	if len(p.container.cgroupManager.GetPaths()) > 0 {
+		if err := p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
+			return exception.NewGenericErrorWithContext(err, exception.CgroupsError, fmt.Sprintf("adding pid %d to cgroups", p.pid()))
+		}
+	}
+
+	// exec process会在启动后阻塞，直至收到config
 	if err = p.sendConfig(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending config to init process")
 	}
