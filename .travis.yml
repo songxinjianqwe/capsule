@@ -2,7 +2,7 @@ language: go
 go:
   - master
 script:
-  - chown -R $USER:$USER /var/run/capsule
+  - chown -R $USER:$USER /var/run
   - mkdir /var/run/capsule
   - go test ./... -race -v -coverprofile=coverage.txt -covermode=atomic
 after_success:
