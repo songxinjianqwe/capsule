@@ -21,7 +21,6 @@ const int OK						= 0;
 
 
 int join_namespaces(int config_pipe_fd);
-int unshare_ns(int config_pipe_fd);
 int readInt(int config_pipe_fd);
 int writeInt(int config_pipe_fd, int data);
 int nsenter(char* namespace_path);
@@ -57,7 +56,6 @@ void nsexec() {
             }
             // 最后让child进入go runtime,因为自己setns后无法进入新的PID NS,只有child才能.
             status = clone_child(config_pipe_fd, &env);
-            printf("%s clone status: %d\n", LOG_PREFIX, status);
             exit(status);
         case JUMP_CHILD:
             printf("%s JUMP_CHILD succeeded\n", LOG_PREFIX);
@@ -107,18 +105,6 @@ int clone_child(int config_pipe_fd, jmp_buf* env) {
     }
     return status;
 }
-
-//int unshare_ns(int config_pipe_fd) {
-//
-//    // 使当前进程进入新的NS
-//    int unshare_status = unshare(clone_flags);
-//    if (unshare_status < 0) {
-//        printf("%s unshare failed, cause: %s\n", LOG_PREFIX, strerror(errno));
-//        return ERROR;
-//    }
-//    printf("%s unshare succeeded\n", LOG_PREFIX);
-//    return OK;
-//}
 
 // 直接return是没法进入go runtime的,long jump可以回到nsexec的堆栈.
 // 函数longjmp()使程序在最近一次调用setjmp()处重新执行。
