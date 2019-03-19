@@ -3,6 +3,8 @@ go:
   - master
 script:
   - sudo mkdir /var/run/capsule
+  - sudo mkdir /var/run/capsule/network
+  - sudo mkdir /var/run/capsule/containers
   - go test ./... -race -v -coverprofile=coverage.txt -covermode=atomic
 after_success:
   - bash <(curl -s https://codecov.io/bash)
