@@ -22,7 +22,7 @@ func TestBridgeNetworkDriver_Create_Load_Delete(t *testing.T) {
 	assert.Nil(t, err)
 	t.Logf("Network: %s", network)
 
-	checkBridgeData(t, name, createdNetwork.IpRange, network)
+	checkBridgeData(t, name, *createdNetwork.Subnet(), network)
 	checkBridgeRoute(t, name, subnet)
 	checkBridgeUp(t, name)
 	checkSNAT(t, name, subnet)
@@ -36,7 +36,7 @@ func TestBridgeNetworkDriver_Create_Load_Delete(t *testing.T) {
 func checkBridgeData(t *testing.T, name string, ipRange net.IPNet, network *Network) {
 	assert.Equal(t, name, network.Name, "network name is wrong")
 	assert.Equal(t, "bridge", network.Driver, "network driver is wrong")
-	assert.Equal(t, ipRange.String(), network.IpRange.String(), "network addr is wrong")
+	assert.Equal(t, ipRange.String(), network.Subnet().String(), "network addr is wrong")
 }
 
 func checkBridgeRoute(t *testing.T, name string, subnet string) {
