@@ -78,7 +78,7 @@ func setInterfaceIPAndRoute(name string, interfaceIPAndRoute net.IPNet) error {
 	// 2、配置了路由表，将来自该网段的网络请求转发到这个网络接口上
 	// 设置Broadcast为nil,即为0.0.0.0,不能设置为网段的广播地址,否则会出现ARP找不到容器内IP的情况
 
-	addr := &netlink.Addr{IPNet: &interfaceIPAndRoute, Peer: &interfaceIPAndRoute, Label: "", Flags: 0, Scope: 0}
+	addr := &netlink.Addr{IPNet: &interfaceIPAndRoute}
 	// `ip addr add $addr dev $link`
 	if err := netlink.AddrAdd(iface, addr); err != nil {
 		logrus.Errorf("config ip and route failed, cause: %s", err.Error())

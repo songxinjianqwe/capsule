@@ -11,6 +11,7 @@ import (
 )
 
 type BridgeNetworkDriver struct {
+	runtimeRoot string
 }
 
 func (driver *BridgeNetworkDriver) Name() string {
@@ -27,7 +28,7 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 	if err != nil {
 		return nil, err
 	}
-	allocator, err := LoadIPAllocator()
+	allocator, err := LoadIPAllocator(driver.runtimeRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +132,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	}
 
 	// 回收gateway IP
-	allocator, err := LoadIPAllocator()
+	allocator, err := LoadIPAllocator(driver.runtimeRoot)
 	if err != nil {
 		return err
 	}
@@ -150,7 +151,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 }
 
 func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, portMappings []string, containerInitPid int) (*Endpoint, error) {
-	allocator, err := LoadIPAllocator()
+	allocator, err := LoadIPAllocator(driver.runtimeRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +183,7 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, 
 
 func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {
 	// 回收IP地址
-	allocator, err := LoadIPAllocator()
+	allocator, err := LoadIPAllocator(driver.runtimeRoot)
 	if err != nil {
 		logrus.Warnf(err.Error())
 		return err

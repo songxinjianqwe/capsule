@@ -7,16 +7,16 @@ const (
 	NotExecFlagFilename = "not-exec.flag"
 
 	// 运行时文件的存放目录
-	RuntimeRoot = "/var/run/capsule"
+	DefaultRuntimeRoot = "/var/run/capsule"
 	// 各个容器的运行时文件的存放目录
-	ContainerRuntimeRoot = RuntimeRoot + "/containers"
+	ContainerRelatedDir = "containers"
 	// 容器配置文件，存放在运行capsule的cwd下
 	ContainerConfigFilename = "config.json"
 	// 容器Init进程的日志
 	ContainerInitLogFilename = "container.log"
 	// 容器Exec进程的日志名模板
 	ContainerExecLogFilenamePattern = "exec-%s.log"
-	IPAMDefaultAllocatorPath        = RuntimeRoot + "/network/ipam/subnet.json"
+	IPAMDefaultAllocatorPath        = "/network/ipam/subnet.json"
 
 	// 重新执行本应用的command，相当于 重新执行./capsule
 	ContainerInitCmd = "/proc/self/exe"

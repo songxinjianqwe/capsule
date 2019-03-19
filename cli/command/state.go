@@ -20,7 +20,7 @@ var StateCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
-		vo, err := util.GetContainerStateVO(ctx.Args().First())
+		vo, err := util.GetContainerStateVO(ctx.GlobalString("root"), ctx.Args().First())
 		if err != nil {
 			return err
 		}

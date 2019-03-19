@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-var driver = BridgeNetworkDriver{}
+var driver BridgeNetworkDriver
 
 func TestBridgeNetworkDriver_Create_Load_Delete(t *testing.T) {
 	subnet := "192.168.10.0/24"

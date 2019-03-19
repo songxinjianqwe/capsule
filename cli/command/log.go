@@ -25,7 +25,7 @@ var LogCommand = cli.Command{
 			return err
 		}
 		containerId := ctx.Args().First()
-		_, err := util.GetContainer(containerId)
+		_, err := util.GetContainer(ctx.GlobalString("root"), containerId)
 		if err != nil {
 			return err
 		}
@@ -33,10 +33,10 @@ var LogCommand = cli.Command{
 		logrus.Infof("exec param: %s", ctx.String("exec"))
 		if ctx.String("exec") != "" {
 			// exec detach log
-			logFilename = path.Join(constant.RuntimeRoot, containerId, fmt.Sprintf(constant.ContainerExecLogFilenamePattern, ctx.String("exec")))
+			logFilename = path.Join(constant.DefaultRuntimeRoot, containerId, fmt.Sprintf(constant.ContainerExecLogFilenamePattern, ctx.String("exec")))
 		} else {
 			// container detach log
-			logFilename = path.Join(constant.RuntimeRoot, containerId, constant.ContainerInitLogFilename)
+			logFilename = path.Join(constant.DefaultRuntimeRoot, containerId, constant.ContainerInitLogFilename)
 		}
 		file, err := os.Open(logFilename)
 		if err != nil {

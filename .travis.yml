@@ -2,9 +2,6 @@ language: go
 go:
   - master
 script:
-  - sudo mkdir -p /var/run/capsule
-  - sudo mkdir -p /var/run/capsule/network/ipam
-  - sudo mkdir -p /var/run/capsule/containers
   - go test ./... -race -v -coverprofile=coverage.txt -covermode=atomic
 after_success:
   - bash <(curl -s https://codecov.io/bash)

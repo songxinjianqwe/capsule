@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	capsuleCli "github.com/songxinjianqwe/capsule/cli/command"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"github.com/urfave/cli"
 	"os"
 )
@@ -25,6 +26,13 @@ func main() {
 	app.Name = AppName
 	app.Version = AppVersion
 	app.Usage = Usage
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "root",
+			Value: constant.DefaultRuntimeRoot,
+			Usage: "root directory for storage of container state (this should be located in tmpfs)",
+		},
+	}
 	app.Commands = []cli.Command{
 		capsuleCli.CreateCommand,
 		capsuleCli.StartCommand,

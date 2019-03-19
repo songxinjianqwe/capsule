@@ -11,6 +11,7 @@ import (
 	specutil "github.com/songxinjianqwe/capsule/libcapsule/util/spec"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 type ContainerAction uint8
@@ -34,9 +35,9 @@ func (action ContainerAction) String() string {
 /*
 进入容器执行一个Process
 */
-func ExecContainer(id string, detach bool, args []string, cwd string, env []string) (string, error) {
+func ExecContainer(runtimeRoot string, id string, detach bool, args []string, cwd string, env []string) (string, error) {
 	logrus.Infof("exec container: %s, detach: %t, args: %v, cwd: %s, env: %v", id, detach, args, cwd, env)
-	container, err := GetContainer(id)
+	container, err := GetContainer(runtimeRoot, id)
 	if err != nil {
 		return "", err
 	}
@@ -84,9 +85,9 @@ or
 create and start
 Process一定为Init Process
 */
-func CreateOrRunContainer(id string, bundle string, spec *specs.Spec, action ContainerAction, detach bool, network string, portMappings []string) error {
+func CreateOrRunContainer(runtimeRoot string, id string, bundle string, spec *specs.Spec, action ContainerAction, detach bool, network string, portMappings []string) error {
 	logrus.Infof("create or run container: %s, action: %s", id, action)
-	container, err := CreateContainer(id, bundle, spec, network, portMappings)
+	container, err := CreateContainer(runtimeRoot, id, bundle, spec, network, portMappings)
 	if err != nil {
 		return err
 	}
@@ -131,11 +132,11 @@ func handleContainerCreateOrRunErr(container libcapsule.Container, containerErr 
 /*
 根据id读取一个Container
 */
-func GetContainer(id string) (libcapsule.Container, error) {
+func GetContainer(runtimeRoot, id string) (libcapsule.Container, error) {
 	if id == "" {
 		return nil, exception.NewGenericError(fmt.Errorf("container id is empty"), exception.ContainerIdEmptyError)
 	}
-	factory, err := libcapsule.NewFactory(true)
+	factory, err := libcapsule.NewFactory(runtimeRoot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -145,14 +146,18 @@ func GetContainer(id string) (libcapsule.Container, error) {
 /*
 查询所有的id
 */
-func GetContainerIds() ([]string, error) {
+func GetContainerIds(runtimeRoot string) ([]string, error) {
+	if runtimeRoot == "" {
+		runtimeRoot = constant.DefaultRuntimeRoot
+	}
+	containersRuntimeRoot := filepath.Join(runtimeRoot, constant.ContainerRelatedDir)
 	var ids []string
-	if _, err := os.Stat(constant.ContainerRuntimeRoot); err != nil {
+	if _, err := os.Stat(containersRuntimeRoot); err != nil {
 		if os.IsNotExist(err) {
 			return []string{}, nil
 		}
 	}
-	list, err := ioutil.ReadDir(constant.ContainerRuntimeRoot)
+	list, err := ioutil.ReadDir(containersRuntimeRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +170,7 @@ func GetContainerIds() ([]string, error) {
 /*
 创建容器实例
 */
-func CreateContainer(id string, bundle string, spec *specs.Spec, network string, portMappings []string) (libcapsule.Container, error) {
+func CreateContainer(runtimeRoot string, id string, bundle string, spec *specs.Spec, network string, portMappings []string) (libcapsule.Container, error) {
 	logrus.Infof("creating container: %s", id)
 	if id == "" {
 		return nil, fmt.Errorf("container id cannot be empty")
@@ -177,7 +182,7 @@ func CreateContainer(id string, bundle string, spec *specs.Spec, network string,
 		return nil, err
 	}
 	// 2、创建容器工厂
-	factory, err := libcapsule.NewFactory(true)
+	factory, err := libcapsule.NewFactory(runtimeRoot, true)
 	if err != nil {
 		return nil, err
 	}

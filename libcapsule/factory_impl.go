@@ -17,13 +17,16 @@ import (
 	"strings"
 )
 
-func NewFactory(init bool) (Factory, error) {
+func NewFactory(runtimeRoot string, init bool) (Factory, error) {
 	//logrus.Infof("new container factory ...")
+	if runtimeRoot == "" {
+		runtimeRoot = constant.DefaultRuntimeRoot
+	}
 	if init {
-		if _, err := os.Stat(constant.RuntimeRoot); err != nil {
+		if _, err := os.Stat(runtimeRoot); err != nil {
 			if os.IsNotExist(err) {
-				logrus.Infof("mkdir RuntimeRoot if not exists: %s", constant.RuntimeRoot)
-				if err := os.MkdirAll(constant.RuntimeRoot, 0700); err != nil {
+				logrus.Infof("mkdir DefaultRuntimeRoot if not exists: %s", runtimeRoot)
+				if err := os.MkdirAll(runtimeRoot, 0700); err != nil {
 					return nil, exception.NewGenericError(err, exception.FactoryNewError)
 				}
 			} else {
@@ -31,16 +34,22 @@ func NewFactory(init bool) (Factory, error) {
 			}
 		}
 	}
-	factory := &LinuxContainerFactory{}
+	factory := &LinuxContainerFactory{root: runtimeRoot}
+	network.InitNetworkDrivers(runtimeRoot)
 	return factory, nil
 }
 
 type LinuxContainerFactory struct {
+	root string
+}
+
+func (factory *LinuxContainerFactory) GetRuntimeRoot() string {
+	return factory.root
 }
 
 func (factory *LinuxContainerFactory) Create(id string, config *configs.ContainerConfig) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
-	containerRoot := filepath.Join(constant.ContainerRuntimeRoot, id)
+	containerRoot := filepath.Join(factory.root, constant.ContainerRelatedDir, id)
 	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错
 	if _, err := os.Stat(containerRoot); err == nil {
 		return nil, exception.NewGenericError(fmt.Errorf("container with id exists: %v", id), exception.ContainerIdExistsError)
@@ -63,7 +72,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configs.Containe
 }
 
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
-	containerRoot := filepath.Join(constant.ContainerRuntimeRoot, id)
+	containerRoot := filepath.Join(factory.root, constant.ContainerRelatedDir, id)
 	state, err := factory.loadContainerState(containerRoot, id)
 	if err != nil {
 		return nil, err

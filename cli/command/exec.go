@@ -33,6 +33,7 @@ var ExecCommand = cli.Command{
 			args = strings.Split(args[0], " ")
 		}
 		execId, err := util.ExecContainer(
+			ctx.GlobalString("root"),
 			ctx.Args().First(),
 			ctx.Bool("detach"),
 			args,

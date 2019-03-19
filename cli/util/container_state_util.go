@@ -30,10 +30,10 @@ type ContainerStateVO struct {
 	Detail      *libcapsule.StateStorage `json:"detail"`
 }
 
-func GetContainerStateVOs(ids []string) ([]*ContainerStateVO, error) {
+func GetContainerStateVOs(runtimeRoot string, ids []string) ([]*ContainerStateVO, error) {
 	var vos []*ContainerStateVO
 	for _, id := range ids {
-		vo, err := GetContainerStateVO(id)
+		vo, err := GetContainerStateVO(runtimeRoot, id)
 		if err != nil {
 			return nil, err
 		}
@@ -42,8 +42,8 @@ func GetContainerStateVOs(ids []string) ([]*ContainerStateVO, error) {
 	return vos, nil
 }
 
-func GetContainerStateVO(id string) (*ContainerStateVO, error) {
-	container, err := GetContainer(id)
+func GetContainerStateVO(runtimeRoot string, id string) (*ContainerStateVO, error) {
+	container, err := GetContainer(runtimeRoot, id)
 	if err != nil {
 		return nil, err
 	}

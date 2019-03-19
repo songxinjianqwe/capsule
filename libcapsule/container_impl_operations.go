@@ -119,7 +119,8 @@ func (c *LinuxContainer) deleteFlagFileIfExists() error {
 构造一个command对象
 */
 func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
-	cmd := exec.Command(constant.ContainerInitCmd, constant.ContainerInitArgs)
+	// 将factory runtime root作为参数传给init/exec进程
+	cmd := exec.Command(constant.ContainerInitCmd, "--root", filepath.Dir(c.root), constant.ContainerInitArgs)
 	cmd.Dir = c.config.Rootfs
 	cmd.ExtraFiles = append(cmd.ExtraFiles, childConfigPipe)
 	cmd.Env = append(cmd.Env,
@@ -134,7 +135,7 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 		} else {
 			logFileName = fmt.Sprintf(constant.ContainerExecLogFilenamePattern, process.ID)
 		}
-		logFile, err := os.Create(path.Join(constant.ContainerRuntimeRoot, c.id, logFileName))
+		logFile, err := os.Create(path.Join(c.root, logFileName))
 		if err != nil {
 			return nil, err
 		}

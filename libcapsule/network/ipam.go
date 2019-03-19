@@ -3,6 +3,7 @@ package network
 import (
 	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"net"
+	"path/filepath"
 	"sync"
 )
 
@@ -13,14 +14,14 @@ type IPAM interface {
 	Allocatable(subnet *net.IPNet) uint
 }
 
-var once sync.Once
+var onceForIPAM sync.Once
 var singletonIPAM *LocalIPAM
 var singletonErr error
 
-func LoadIPAllocator() (IPAM, error) {
-	once.Do(func() {
+func LoadIPAllocator(runtimeRoot string) (IPAM, error) {
+	onceForIPAM.Do(func() {
 		singletonIPAM = &LocalIPAM{
-			subnetAllocatorPath: constant.IPAMDefaultAllocatorPath,
+			subnetAllocatorPath: filepath.Join(runtimeRoot, constant.IPAMDefaultAllocatorPath),
 		}
 		singletonErr = singletonIPAM.load()
 	})

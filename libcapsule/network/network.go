@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"net"
+	"sync"
 )
 
 const (
@@ -66,8 +67,16 @@ func (endpoint *Endpoint) GetHostVethName() string {
 如果receiver是指针类型，则接口值必须为指针；如果receiver均为值类型，则接口值可以是指针，也可以是值。
 一点规则：有值，未必能取得指针；反之一定可以。
 */
-var networkDrivers = map[string]NetworkDriver{
-	"bridge": &BridgeNetworkDriver{},
+var networkDrivers map[string]NetworkDriver
+var onceForNetworkDrivers sync.Once
+
+func InitNetworkDrivers(runtimeRoot string) {
+	onceForNetworkDrivers.Do(func() {
+		networkDrivers = make(map[string]NetworkDriver)
+		networkDrivers["bridge"] = &BridgeNetworkDriver{
+			runtimeRoot: runtimeRoot,
+		}
+	})
 }
 
 func CreateNetwork(driver string, subnet string, name string) (*Network, error) {

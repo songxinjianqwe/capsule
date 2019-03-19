@@ -24,7 +24,7 @@ var KillCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 2, util.MaxArgs); err != nil {
 			return err
 		}
-		container, err := util.GetContainer(ctx.Args().First())
+		container, err := util.GetContainer(ctx.GlobalString("root"), ctx.Args().First())
 		if err != nil {
 			return err
 		}

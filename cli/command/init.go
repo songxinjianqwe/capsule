@@ -11,7 +11,7 @@ import (
 
 func init() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		logrus.Infof("set go max procs = 1")
+		logrus.Infof("setting go max procs = 1")
 		runtime.GOMAXPROCS(1)
 		runtime.LockOSThread()
 	}
@@ -24,7 +24,7 @@ var InitCommand = cli.Command{
 	Name:  "init",
 	Usage: "init a container(execute init/exec process)",
 	Action: func(ctx *cli.Context) error {
-		factory, err := libcapsule.NewFactory(false)
+		factory, err := libcapsule.NewFactory(ctx.GlobalString("root"), false)
 		if err != nil {
 			return err
 		}

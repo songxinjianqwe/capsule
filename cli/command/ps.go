@@ -16,6 +16,7 @@ var PsCommand = cli.Command{
 			return err
 		}
 		if _, err := util.ExecContainer(
+			ctx.GlobalString("root"),
 			ctx.Args().First(),
 			false,
 			[]string{"ps", "-ef"},

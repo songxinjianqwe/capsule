@@ -12,11 +12,6 @@ import (
 
 var allocator IPAM
 
-func TestMain(m *testing.M) {
-	allocator, _ = LoadIPAllocator()
-	m.Run()
-}
-
 func TestLocalIPAM_Allocate_Release(t *testing.T) {
 	_, subnet, _ := net.ParseCIDR("192.168.1.0/24")
 	originalAllocatable := allocator.Allocatable(subnet)
