@@ -27,10 +27,10 @@ type StateStorage struct {
 	// with the value as the path.
 	CgroupPaths map[string]string `json:"cgroup_paths"`
 
-	// NamespacePaths are filepaths to the container's namespaces. Key is the namespace type
+	// NamespacePaths are filepaths to the container's namespacePathMap. Key is the namespace type
 	// with the value as the path.
 	NamespacePaths map[configs.NamespaceType]string `json:"namespace_paths"`
 
 	// Endpoint is container veth
-	Endpoint network.Endpoint `json:"endpoint"`
+	Endpoint *network.Endpoint `json:"endpoint"`
 }

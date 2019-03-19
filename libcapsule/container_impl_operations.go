@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
@@ -123,7 +124,7 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 	// 注意！Exec进程不需要新建namespace，而是进入已有的namespace
 	if process.Init {
 		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Cloneflags: c.config.Namespaces.CloneFlags(),
+			Cloneflags: c.config.Namespaces.CloneFlagsOfEmptyPath(),
 		}
 	}
 	cmd.Dir = c.config.Rootfs
@@ -175,24 +176,40 @@ func (c *LinuxContainer) newParentProcess(process *Process) (ParentProcess, erro
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(InitInitializer)))
 		logrus.Infof("build command complete, command: %#v", cmd)
 		logrus.Infof("new parent init process...")
-		initProcess := &ParentInitProcess{
-			initProcessCmd:   cmd,
+		namepaces := make(map[configs.NamespaceType]string)
+		for _, ns := range c.config.Namespaces {
+			if ns.Path != "" {
+				namepaces[ns.Type] = ns.Path
+			}
+		}
+		initProcess := &ParentAbstractProcess{
+			processCmd:       cmd,
 			parentConfigPipe: childConfigPipe,
 			container:        c,
 			process:          process,
+			cloneFlags:       c.config.Namespaces.CloneFlagsOfEmptyPath(),
+			namespacePathMap: namepaces,
+			stackHook:        initStartHook,
 		}
-		// exec process不会赋到container.parentProcess,因为它的pid,startTime返回的都exec process的,而非nochild process
+		// exec process不会赋到container.parentProcess,因为它的pid,startTime返回的都是exec process的,而非nochild process(反映的是init process的)
 		c.parentProcess = initProcess
 		return initProcess, nil
 	} else {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", constant.EnvInitializerType, string(ExecInitializer)))
 		logrus.Infof("build command complete, command: %#v", cmd)
 		logrus.Infof("new parent exec process...")
-		return &ParentExecProcess{
-			execProcessCmd:   cmd,
+		currentState, err := c.currentState()
+		if err != nil {
+			return nil, err
+		}
+		return &ParentAbstractProcess{
+			processCmd:       cmd,
 			parentConfigPipe: childConfigPipe,
 			container:        c,
 			process:          process,
+			cloneFlags:       0,
+			namespacePathMap: currentState.NamespacePaths,
+			stackHook:        execStartHook,
 		}, nil
 	}
 }

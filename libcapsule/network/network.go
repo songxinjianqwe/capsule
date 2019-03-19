@@ -7,6 +7,11 @@ import (
 	"net"
 )
 
+const (
+	DefaultSubnet     = "192.168.1.0/24"
+	DefaultBridgeName = "capsule_bridge0"
+)
+
 /*
 对应一个网段，Driver取值有Bridge
 */

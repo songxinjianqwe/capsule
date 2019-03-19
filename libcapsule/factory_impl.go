@@ -78,7 +78,7 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 		createdTime:   state.Created,
 		root:          containerRoot,
 		config:        state.Config,
-		endpoint:      &state.Endpoint,
+		endpoint:      state.Endpoint,
 		cgroupManager: cgroups.NewCroupManager(id, state.CgroupPaths),
 	}
 	container.parentProcess = NewParentNoChildProcess(state.InitProcessPid, state.InitProcessStartTime, container)
@@ -124,7 +124,7 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
 	logrus.Infof("read init config complete, unmarshal bytes")
-	initConfig := &InitConfig{}
+	initConfig := &InitExecConfig{}
 	if err = json.Unmarshal(bytes, initConfig); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.PipeError, "unmarshal init config")
 	}

@@ -17,7 +17,7 @@ import (
 )
 
 type InitializerStandardImpl struct {
-	config     *InitConfig
+	config     *InitExecConfig
 	configPipe *os.File
 	parentPid  int
 }

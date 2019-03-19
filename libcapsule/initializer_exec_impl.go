@@ -9,7 +9,7 @@ import (
 )
 
 type InitializerExecImpl struct {
-	config     *InitConfig
+	config     *InitExecConfig
 	configPipe *os.File
 }
 

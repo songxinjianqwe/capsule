@@ -211,7 +211,7 @@ func (c *LinuxContainer) currentState() (*StateStorage, error) {
 		Created:              c.createdTime,
 		CgroupPaths:          c.cgroupManager.GetPaths(),
 		NamespacePaths:       make(map[configs.NamespaceType]string),
-		Endpoint:             *c.endpoint,
+		Endpoint:             c.endpoint,
 	}
 	if initProcessPid > 0 {
 		for _, ns := range c.config.Namespaces {

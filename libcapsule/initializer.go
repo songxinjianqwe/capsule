@@ -17,7 +17,7 @@ type Initializer interface {
 	Init() error
 }
 
-func NewInitializer(initializerType InitializerType, config *InitConfig, configPipe *os.File) (Initializer, error) {
+func NewInitializer(initializerType InitializerType, config *InitExecConfig, configPipe *os.File) (Initializer, error) {
 	switch initializerType {
 	case InitInitializer:
 		return &InitializerStandardImpl{

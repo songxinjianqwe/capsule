@@ -8,19 +8,16 @@
 #include <sched.h>
 #include <setjmp.h>
 
-
 const char* LOG_PREFIX 	   			= "[EXEC]";
 const char* ENV_CONFIG_PIPE      	= "_LIBCAPSULE_CONFIG_PIPE";
-const char* ENV_INITIALIZER_TYPE 	= "_LIBCAPSULE_INITIALIZER_TYPE";
 const char* NS_DELIMETER 			= ",";
-const char* CMD_DELIMETER 			= " ";
-const char*	EXEC_INITIALIZER  		= "exec";
 const int ERROR 					= 1;
 const int OK						= 0;
 
 #define JUMP_PARENT 0x00
 #define JUMP_CHILD  0xA0
 #define STACK_SIZE 4096
+
 int join_namespaces(int config_pipe_fd);
 int readInt(int config_pipe_fd);
 int writeInt(int config_pipe_fd, int data);
@@ -33,32 +30,28 @@ int clone_child(int config_pipe_fd, jmp_buf* env);
 // 2.用setns进入mnt namespace应该放在其他namespace之后，否则可能出现无法打开/proc/pid/ns/…的错误
 char child_stack[STACK_SIZE] __attribute__ ((aligned(16)));
 
-
 void nsexec() {
     // init和exec都会进入此段代码
-	const char* type = getenv(ENV_INITIALIZER_TYPE);
-	if (!type || strcmp(type, EXEC_INITIALIZER) != 0) {
+	const char* config_pipe_env = getenv(ENV_CONFIG_PIPE);
+	if (!config_pipe_env) {
 		return;
 	}
+    printf("%s read config pipe env: %s\n", LOG_PREFIX, config_pipe_env);
+    int config_pipe_fd = atoi(config_pipe_env);
+    if (config_pipe_fd <= 0) {
+        printf("%s converting config pipe to int failed\n", LOG_PREFIX);
+        exit(ERROR);
+    }
+    printf("%s config pipe fd: %d\n", LOG_PREFIX, config_pipe_fd);
     jmp_buf env;
     switch(setjmp(env)) {
         case JUMP_PARENT:
             printf("%s start to read namespaces\n", LOG_PREFIX);
-            const char* config_pipe_env = getenv(ENV_CONFIG_PIPE);
-            printf("%s read config pipe env: %s\n", LOG_PREFIX, config_pipe_env);
-            int config_pipe_fd = atoi(config_pipe_env);
-            printf("%s config pipe fd: %d\n", LOG_PREFIX, config_pipe_fd);
-            if (config_pipe_fd <= 0) {
-                printf("%s converting config pipe to int failed\n", LOG_PREFIX);
-                exit(ERROR);
-            }
             // 先加入已有的
             int status = join_namespaces(config_pipe_fd);
             if (status < 0) {
                 exit(status);
             }
-            // 再创建新的
-
             // 最后让child进入go runtime,因为自己setns后无法进入新的PID NS,只有child才能.
             status = clone_child(config_pipe_fd, &env);
             printf("%s exec process exited\n", LOG_PREFIX);
@@ -70,9 +63,15 @@ void nsexec() {
 }
 
 int clone_child(int config_pipe_fd, jmp_buf* env) {
-    int child_pid = clone(child_func, &child_stack[STACK_SIZE], CLONE_PARENT, env);
+    int clone_flags = readInt(config_pipe_fd);
+    if (clone_flags == ERROR) {
+        printf("%s read clone flags failed, cause: %s\n", LOG_PREFIX, strerror(errno));
+        return ERROR;
+    }
+    printf("%s read clone flags: %d\n", LOG_PREFIX, clone_flags);
+    int child_pid = clone(child_func, &child_stack[STACK_SIZE], CLONE_PARENT | clone_flags, env);
     if (child_pid < 0) {
-        printf("%s clone child failed, child pid is %d\n", LOG_PREFIX, child_pid);
+        printf("%s clone child failed, cause: %s: \n", LOG_PREFIX, strerror(errno));
         return ERROR;
     }
     printf("%s clone child succeeded, child pid is %d\n", LOG_PREFIX, child_pid);
@@ -96,6 +95,10 @@ int child_func(void *arg) {
 int join_namespaces(int config_pipe_fd) {
 	// 读出namespaces的长度
 	int nsLen = readInt(config_pipe_fd);
+	if (nsLen == ERROR) {
+	    printf("%s read nsLen failed, cause: %s\n", LOG_PREFIX, strerror(errno));
+        return ERROR;
+	}
 	printf("%s read namespace len: %d\n", LOG_PREFIX, nsLen);
 
 	// 再读出namespaces
@@ -147,7 +150,7 @@ int nsenter(char* namespace_path) {
     int fd = open(namespace_path, O_RDONLY);
     if (fd < 0) {
         printf("%s open %s failed, cause: %s\n", LOG_PREFIX, namespace_path, strerror(errno));
-        return -1;
+        return ERROR;
     }
     // int setns(int fd, int nstype)
     // 参数fd表示我们要加入的namespace的文件描述符,它是一个指向/proc/[pid]/ns目录的文件描述符，可以通过直接打开该目录下的链接或者打开一个挂载了该目录下链接的文件得到。
@@ -157,10 +160,10 @@ int nsenter(char* namespace_path) {
         // Linux中系统调用的错误都存储于 errno中，errno由操作系统维护，存储就近发生的错误，即下一次的错误码会覆盖掉上一次的错误。
         // 字符串显示错误信息 / strerror
         printf("%s enter namespace %s failed, cause: %s\n", LOG_PREFIX, namespace_path, strerror(errno));
-        return -1;
+        return ERROR;
     } else {
         close(fd);
         printf("%s enter namespace %s succeeded\n", LOG_PREFIX, namespace_path);
-    	return 0;
+    	return OK;
     }
 }

@@ -1,8 +1,6 @@
 package libcapsule
 
 import (
-	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"os"
 )
@@ -30,21 +28,8 @@ type ParentProcess interface {
 	detach() bool
 }
 
-// **************************************************************************************************
-// util
-// **************************************************************************************************
-
-func sendConfig(containerConfig configs.ContainerConfig, process Process, id string, pipe *os.File) error {
-	initConfig := &InitConfig{
-		ContainerConfig: containerConfig,
-		ProcessConfig:   process,
-		ID:              id,
-	}
-	logrus.Infof("sending config: %#v", initConfig)
-	bytes, err := json.Marshal(initConfig)
-	if err != nil {
-		return err
-	}
-	_, err = pipe.WriteString(string(bytes))
-	return err
+type InitExecConfig struct {
+	ContainerConfig configs.ContainerConfig `json:"container_config"`
+	ProcessConfig   Process                 `json:"process_config"`
+	ID              string                  `json:"id"`
 }

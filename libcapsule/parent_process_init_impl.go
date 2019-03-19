@@ -3,73 +3,35 @@ package libcapsule
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
-	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
-	"golang.org/x/sys/unix"
-	"os"
-	"os/exec"
 	"syscall"
 )
 
-const (
-	DefaultSubnet     = "192.168.1.0/24"
-	DefaultBridgeName = "capsule_bridge0"
-)
-
-type InitConfig struct {
-	ContainerConfig configs.ContainerConfig `json:"container_config"`
-	ProcessConfig   Process                 `json:"process_config"`
-	ID              string                  `json:"id"`
-}
-
 /*
-ParentProcess接口的实现类，包裹了InitProcess，它返回的进程信息均为容器Init进程的信息
+init进程的启动hook
 */
-type ParentInitProcess struct {
-	initProcessCmd   *exec.Cmd
-	parentConfigPipe *os.File
-	container        *LinuxContainer
-	process          *Process
-}
-
-func (p *ParentInitProcess) detach() bool {
-	return p.process.Detach
-}
-
-func (p *ParentInitProcess) start() (err error) {
-	logrus.Infof("ParentInitProcess starting...")
-	if err = p.initProcessCmd.Start(); err != nil {
-		return exception.NewGenericErrorWithContext(err, exception.CmdStartError, "starting init process command")
-	}
-	logrus.Infof("init process started, INIT_PROCESS_PID: [%d]", p.pid())
-
+func initStartHook(p *ParentAbstractProcess) error {
 	// 将pid加入到cgroup set中
-	if err = p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
+	if err := p.container.cgroupManager.JoinCgroupSet(p.pid()); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.CgroupsError, "applying cgroup configuration for process")
 	}
 	util.PrintSubsystemPids("memory", p.container.id, "after cgroup manager init", false)
 
 	// 设置cgroup config
-	if err = p.container.cgroupManager.SetConfig(p.container.config.Cgroup); err != nil {
+	if err := p.container.cgroupManager.SetConfig(p.container.config.Cgroup); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.CgroupsError, "setting cgroup config for procHooks process")
 	}
 
 	// 创建网络接口
-	if err = p.createNetworkInterfaces(); err != nil {
+	if err := createNetworkInterfaces(p); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.NetworkError, "creating network interfaces")
 	}
 
 	// init process会在启动后阻塞，直至收到config
-	if err = p.sendConfig(); err != nil {
+	if err := p.sendConfigAndClosePipe(); err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.PipeError, "sending config to init process")
-	}
-
-	// parent 写完就关
-	if err = p.parentConfigPipe.Close(); err != nil {
-		logrus.Errorf("closing parent pipe failed: %s", err.Error())
 	}
 
 	// 等待init process到达在初始化之后，执行命令之前的状态
@@ -85,58 +47,17 @@ func (p *ParentInitProcess) start() (err error) {
 	return nil
 }
 
-func (p *ParentInitProcess) pid() int {
-	return p.initProcessCmd.Process.Pid
-}
-
-func (p *ParentInitProcess) terminate() error {
-	if p.initProcessCmd.Process == nil {
-		return nil
-	}
-	err := p.initProcessCmd.Process.Kill()
-	if err := p.wait(); err == nil {
-		return err
-	}
-	return err
-}
-
-func (p *ParentInitProcess) wait() error {
-	logrus.Infof("starting to wait init process exit")
-	err := p.initProcessCmd.Wait()
-	if err != nil {
-		return err
-	}
-	logrus.Infof("wait init process exit complete")
-	return nil
-}
-
-func (p *ParentInitProcess) startTime() (uint64, error) {
-	stat, err := proc.GetProcessStat(p.pid())
-	if err != nil {
-		return 0, err
-	}
-	return stat.StartTime, err
-}
-
-func (p *ParentInitProcess) signal(sig os.Signal) error {
-	s, ok := sig.(syscall.Signal)
-	if !ok {
-		return exception.NewGenericError(fmt.Errorf("os: unsupported signal type:%v", sig), exception.SignalError)
-	}
-	return unix.Kill(p.pid(), s)
-}
-
 // ******************************************************************************************************
 // biz methods
 // ******************************************************************************************************
 
-func (p *ParentInitProcess) createNetworkInterfaces() error {
+func createNetworkInterfaces(p *ParentAbstractProcess) error {
 	logrus.Infof("creating network interfaces")
 	// 创建一个Bridge，如果没有的话
 	var bridge *network.Network
-	bridge, err := network.LoadNetwork("bridge", DefaultBridgeName)
+	bridge, err := network.LoadNetwork("bridge", network.DefaultBridgeName)
 	if err != nil {
-		bridge, err = network.CreateNetwork("bridge", DefaultSubnet, DefaultBridgeName)
+		bridge, err = network.CreateNetwork("bridge", network.DefaultSubnet, network.DefaultBridgeName)
 		if err != nil {
 			return err
 		}
@@ -152,8 +73,4 @@ func (p *ParentInitProcess) createNetworkInterfaces() error {
 	}
 	p.container.endpoint = endpoint
 	return nil
-}
-
-func (p *ParentInitProcess) sendConfig() error {
-	return sendConfig(p.container.config, *p.process, p.container.id, p.parentConfigPipe)
 }

@@ -2,22 +2,22 @@ package spec
 
 import (
 	"github.com/satori/go.uuid"
-	"github.com/songxinjianqwe/capsule/libcapsule"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/network"
 )
 
-func createNetworkConfig(config *configs.ContainerConfig, network string, portMappings []string) error {
+func createNetworkConfig(config *configs.ContainerConfig, networkName string, portMappings []string) error {
 	// veth端点
 	id, err := uuid.NewV4()
 	if err != nil {
 		return err
 	}
-	if network == "" {
-		network = libcapsule.DefaultBridgeName
+	if networkName == "" {
+		networkName = network.DefaultBridgeName
 	}
 	config.Endpoint = configs.EndpointConfig{
 		ID:           id.String(),
-		NetworkName:  network,
+		NetworkName:  networkName,
 		PortMappings: portMappings,
 	}
 	return nil
