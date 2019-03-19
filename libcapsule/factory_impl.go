@@ -7,6 +7,7 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule/cgroups"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
 	"github.com/songxinjianqwe/capsule/libcapsule/constant"
+	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"io/ioutil"
 	"os"
@@ -67,6 +68,11 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 	if err != nil {
 		return nil, err
 	}
+	loadedNetwork, err := network.LoadNetwork(state.Endpoint.Network.Driver, state.Endpoint.Network.Name)
+	if err != nil {
+		return nil, err
+	}
+	state.Endpoint.Network = loadedNetwork
 	container := &LinuxContainer{
 		id:            id,
 		createdTime:   state.Created,

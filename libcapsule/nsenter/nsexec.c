@@ -20,7 +20,7 @@ const int OK						= 0;
 
 #define JUMP_PARENT 0x00
 #define JUMP_CHILD  0xA0
-
+#define STACK_SIZE 4096
 int join_namespaces(int config_pipe_fd);
 int readInt(int config_pipe_fd);
 int writeInt(int config_pipe_fd, int data);
@@ -31,7 +31,7 @@ int clone_child(int config_pipe_fd, jmp_buf* env);
 // 1.某个进程创建后其pid namespace就固定了，使用setns和unshare改变后，其本身的pid namespace不会改变，只有fork出的子进程的pid namespace改变(改变的是每个进程的nsproxy->pid_namespace_for_children)
 // 因为PID对用户态的函数而言是一个固定值,不存在更换PID Namespace的问题,它意味着更换PID,会出问题.
 // 2.用setns进入mnt namespace应该放在其他namespace之后，否则可能出现无法打开/proc/pid/ns/…的错误
-char child_stack[4096] __attribute__ ((aligned(16)));
+char child_stack[STACK_SIZE] __attribute__ ((aligned(16)));
 
 
 void nsexec() {
@@ -70,7 +70,7 @@ void nsexec() {
 }
 
 int clone_child(int config_pipe_fd, jmp_buf* env) {
-    int child_pid = clone(child_func, child_stack, CLONE_PARENT, env);
+    int child_pid = clone(child_func, &child_stack[STACK_SIZE], CLONE_PARENT, env);
     if (child_pid < 0) {
         printf("%s clone child failed, child pid is %d\n", LOG_PREFIX, child_pid);
         return ERROR;
