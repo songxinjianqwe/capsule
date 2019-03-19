@@ -103,6 +103,7 @@ func (p *ParentAbstractProcess) start() error {
 
 func (p *ParentAbstractProcess) sendCloneFlags() error {
 	// 这里只传没有Path(即需要新建)的NS的clone flags
+	logrus.Infof("sending clone flags: %d", p.cloneFlags)
 	bytes, err := util.Int32ToBytes(int32(p.cloneFlags))
 	if err != nil {
 		return err

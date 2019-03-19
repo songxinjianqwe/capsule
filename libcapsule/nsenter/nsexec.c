@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sched.h>
 #include <setjmp.h>
+#include <signal.h>
 
 const char* LOG_PREFIX 	   			= "[EXEC]";
 const char* ENV_CONFIG_PIPE      	= "_LIBCAPSULE_CONFIG_PIPE";
@@ -18,7 +19,9 @@ const int OK						= 0;
 #define JUMP_CHILD  0xA0
 #define STACK_SIZE 4096
 
+
 int join_namespaces(int config_pipe_fd);
+int unshare_ns(int config_pipe_fd);
 int readInt(int config_pipe_fd);
 int writeInt(int config_pipe_fd, int data);
 int nsenter(char* namespace_path);
@@ -29,6 +32,7 @@ int clone_child(int config_pipe_fd, jmp_buf* env);
 // 因为PID对用户态的函数而言是一个固定值,不存在更换PID Namespace的问题,它意味着更换PID,会出问题.
 // 2.用setns进入mnt namespace应该放在其他namespace之后，否则可能出现无法打开/proc/pid/ns/…的错误
 char child_stack[STACK_SIZE] __attribute__ ((aligned(16)));
+
 
 void nsexec() {
     // init和exec都会进入此段代码
@@ -44,23 +48,28 @@ void nsexec() {
     }
     printf("%s config pipe fd: %d\n", LOG_PREFIX, config_pipe_fd);
     jmp_buf env;
+    int status;
     switch(setjmp(env)) {
         case JUMP_PARENT:
-            printf("%s start to read namespaces\n", LOG_PREFIX);
-            // 先加入已有的
-            int status = join_namespaces(config_pipe_fd);
-            if (status < 0) {
+            status = join_namespaces(config_pipe_fd);
+            if (status != 0) {
                 exit(status);
             }
             // 最后让child进入go runtime,因为自己setns后无法进入新的PID NS,只有child才能.
             status = clone_child(config_pipe_fd, &env);
-            printf("%s exec process exited\n", LOG_PREFIX);
+            printf("%s clone status: %d\n", LOG_PREFIX, status);
             exit(status);
         case JUMP_CHILD:
             printf("%s JUMP_CHILD succeeded\n", LOG_PREFIX);
             return;
     }
 }
+
+
+// ***************************************************************************************************
+// utils
+// ***************************************************************************************************
+
 
 int clone_child(int config_pipe_fd, jmp_buf* env) {
     int clone_flags = readInt(config_pipe_fd);
@@ -69,6 +78,21 @@ int clone_child(int config_pipe_fd, jmp_buf* env) {
         return ERROR;
     }
     printf("%s read clone flags: %d\n", LOG_PREFIX, clone_flags);
+    if (clone_flags & CLONE_NEWIPC) {
+        printf("%s got CLONE_NEWIPC\n", LOG_PREFIX);
+    }
+    if (clone_flags & CLONE_NEWNET) {
+        printf("%s got CLONE_NEWNET\n", LOG_PREFIX);
+    }
+    if (clone_flags & CLONE_NEWNS) {
+        printf("%s got CLONE_NEWNS\n", LOG_PREFIX);
+    }
+    if (clone_flags & CLONE_NEWPID) {
+        printf("%s got CLONE_NEWPID\n", LOG_PREFIX);
+    }
+    if (clone_flags & CLONE_NEWUTS) {
+        printf("%s got CLONE_NEWUTS\n", LOG_PREFIX);
+    }
     int child_pid = clone(child_func, &child_stack[STACK_SIZE], CLONE_PARENT | clone_flags, env);
     if (child_pid < 0) {
         printf("%s clone child failed, cause: %s: \n", LOG_PREFIX, strerror(errno));
@@ -83,6 +107,18 @@ int clone_child(int config_pipe_fd, jmp_buf* env) {
     }
     return status;
 }
+
+//int unshare_ns(int config_pipe_fd) {
+//
+//    // 使当前进程进入新的NS
+//    int unshare_status = unshare(clone_flags);
+//    if (unshare_status < 0) {
+//        printf("%s unshare failed, cause: %s\n", LOG_PREFIX, strerror(errno));
+//        return ERROR;
+//    }
+//    printf("%s unshare succeeded\n", LOG_PREFIX);
+//    return OK;
+//}
 
 // 直接return是没法进入go runtime的,long jump可以回到nsexec的堆栈.
 // 函数longjmp()使程序在最近一次调用setjmp()处重新执行。

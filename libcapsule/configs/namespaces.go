@@ -71,10 +71,9 @@ func (ns NamespaceType) NsFlag() uintptr {
 func (n *Namespaces) CloneFlagsOfEmptyPath() uintptr {
 	var flags uintptr
 	for _, ns := range *n {
-		if ns.Path != "" {
-			continue
+		if ns.Path == "" {
+			flags |= ns.Type.NsFlag()
 		}
-		flags |= ns.Type.NsFlag()
 	}
 	return flags
 }
