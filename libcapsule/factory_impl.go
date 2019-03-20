@@ -35,7 +35,9 @@ func NewFactory(runtimeRoot string, init bool) (Factory, error) {
 		}
 	}
 	factory := &LinuxContainerFactory{root: runtimeRoot}
-	network.InitNetworkDrivers(runtimeRoot)
+	if err := network.InitNetworkDrivers(runtimeRoot); err != nil {
+		return nil, err
+	}
 	return factory, nil
 }
 

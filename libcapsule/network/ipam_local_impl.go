@@ -13,9 +13,28 @@ import (
 	"sync"
 )
 
+type IPAMMode int
+
+const (
+	IPAMPersistentMode = iota
+	IPAMMemoryMode
+)
+
+func (m IPAMMode) String() string {
+	switch m {
+	case IPAMMemoryMode:
+		return "memory"
+	case IPAMPersistentMode:
+		return "persistent"
+	default:
+		return "unknown mode"
+	}
+}
+
 // BitSet的文档:
 // https://godoc.org/github.com/willf/bitset#BitSet
 type LocalIPAM struct {
+	mode                IPAMMode
 	subnetAllocatorPath string
 	subnetMap           map[string]*bitset.BitSet
 	mutex               sync.Mutex
@@ -107,7 +126,7 @@ func (ipam *LocalIPAM) Release(subnet *net.IPNet, ip net.IP) error {
 
 func (ipam *LocalIPAM) load() error {
 	// load
-	if _, err := os.Stat(singletonIPAM.subnetAllocatorPath); err != nil {
+	if _, err := os.Stat(ipam.subnetAllocatorPath); err != nil {
 		if os.IsNotExist(err) {
 			// 不存在，则构造一个新的Map
 			ipam.subnetMap = make(map[string]*bitset.BitSet)
@@ -116,7 +135,7 @@ func (ipam *LocalIPAM) load() error {
 			return exception.NewGenericError(err, exception.IPAMLoadError)
 		}
 	}
-	bytes, err := ioutil.ReadFile(singletonIPAM.subnetAllocatorPath)
+	bytes, err := ioutil.ReadFile(ipam.subnetAllocatorPath)
 	if err != nil {
 		return exception.NewGenericError(err, exception.IPAMLoadError)
 	}
@@ -131,6 +150,9 @@ func (ipam *LocalIPAM) load() error {
 }
 
 func (ipam *LocalIPAM) dump() error {
+	if ipam.mode == IPAMMemoryMode {
+		return nil
+	}
 	if _, err := os.Stat(ipam.subnetAllocatorPath); err != nil && os.IsNotExist(err) {
 		// 如果文件之前不存在，则先创建目录，再创建文件
 		// 否则覆盖原来的文件

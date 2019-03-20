@@ -7,7 +7,9 @@ import (
 
 func TestMain(m *testing.M) {
 	userObj, _ := user.Current()
-	driver = BridgeNetworkDriver{runtimeRoot: userObj.HomeDir}
-	allocator, _ = LoadIPAllocator(userObj.HomeDir)
+	ipam, _ := NewMemoryIPAllocator()
+	driver = BridgeNetworkDriver{runtimeRoot: userObj.HomeDir, allocator: ipam}
+
+	allocator, _ = NewMemoryIPAllocator()
 	m.Run()
 }

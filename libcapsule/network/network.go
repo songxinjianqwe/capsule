@@ -69,14 +69,19 @@ func (endpoint *Endpoint) GetHostVethName() string {
 */
 var networkDrivers map[string]NetworkDriver
 var onceForNetworkDrivers sync.Once
+var initErr error
 
-func InitNetworkDrivers(runtimeRoot string) {
+func InitNetworkDrivers(runtimeRoot string) error {
 	onceForNetworkDrivers.Do(func() {
 		networkDrivers = make(map[string]NetworkDriver)
+		ipam, err := NewPersistentIPAllocator(runtimeRoot)
+		initErr = err
 		networkDrivers["bridge"] = &BridgeNetworkDriver{
 			runtimeRoot: runtimeRoot,
+			allocator:   ipam,
 		}
 	})
+	return initErr
 }
 
 func CreateNetwork(driver string, subnet string, name string) (*Network, error) {

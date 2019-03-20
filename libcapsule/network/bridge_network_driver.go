@@ -12,6 +12,7 @@ import (
 
 type BridgeNetworkDriver struct {
 	runtimeRoot string
+	allocator   IPAM
 }
 
 func (driver *BridgeNetworkDriver) Name() string {
@@ -28,11 +29,10 @@ func (driver *BridgeNetworkDriver) Create(subnet string, bridgeName string) (*Ne
 	if err != nil {
 		return nil, err
 	}
-	allocator, err := LoadIPAllocator(driver.runtimeRoot)
 	if err != nil {
 		return nil, err
 	}
-	gatewayIP, err := allocator.Allocate(ipRange)
+	gatewayIP, err := driver.allocator.Allocate(ipRange)
 	if err != nil {
 		return nil, err
 	}
@@ -132,11 +132,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 	}
 
 	// 回收gateway IP
-	allocator, err := LoadIPAllocator(driver.runtimeRoot)
-	if err != nil {
-		return err
-	}
-	if err := allocator.Release(network.Subnet(), network.GatewayIP()); err != nil {
+	if err := driver.allocator.Release(network.Subnet(), network.GatewayIP()); err != nil {
 		return err
 	}
 	// 删除interface
@@ -151,11 +147,7 @@ func (driver *BridgeNetworkDriver) Delete(name string) error {
 }
 
 func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, portMappings []string, containerInitPid int) (*Endpoint, error) {
-	allocator, err := LoadIPAllocator(driver.runtimeRoot)
-	if err != nil {
-		return nil, err
-	}
-	endpointIP, err := allocator.Allocate(network.Subnet())
+	endpointIP, err := driver.allocator.Allocate(network.Subnet())
 	if err != nil {
 		return nil, err
 	}
@@ -183,21 +175,16 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, 
 
 func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {
 	// 回收IP地址
-	allocator, err := LoadIPAllocator(driver.runtimeRoot)
-	if err != nil {
+	logrus.Infof("before releasing, allocatable ip: %d", driver.allocator.Allocatable(endpoint.Network.Subnet()))
+	if err := driver.allocator.Release(endpoint.Network.Subnet(), endpoint.IpAddress); err != nil {
 		logrus.Warnf(err.Error())
 		return err
 	}
-	logrus.Infof("before releasing, allocatable ip: %d", allocator.Allocatable(endpoint.Network.Subnet()))
-	if err := allocator.Release(endpoint.Network.Subnet(), endpoint.IpAddress); err != nil {
-		logrus.Warnf(err.Error())
-		return err
-	}
-	logrus.Infof("after releasing, allocatable ip: %d", allocator.Allocatable(endpoint.Network.Subnet()))
+	logrus.Infof("after releasing, allocatable ip: %d", driver.allocator.Allocatable(endpoint.Network.Subnet()))
 	// 删除端口映射
 	if err := deletePortMappings(endpoint); err != nil {
 		logrus.Warnf(err.Error())
 	}
 	// 删除宿主机上的网络端点(前面kill掉容器init process后,容器net namespace被销毁,容器内veth被销毁,宿主机与之peer的veth也随之被销毁)
-	return err
+	return nil
 }
