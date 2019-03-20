@@ -12,6 +12,9 @@ import (
 var driver BridgeNetworkDriver
 
 func TestBridgeNetworkDriver_Create_Load_Delete(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	subnet := "192.168.10.0/24"
 	name := "test_bridge0"
 	defer driver.Delete(name)
