@@ -15,6 +15,8 @@ import (
 	"syscall"
 )
 
+type ParentProcessStartHook func(*ParentAbstractProcess) error
+
 type ParentAbstractProcess struct {
 	// init or exec process cmd
 	processCmd       *exec.Cmd
@@ -24,7 +26,7 @@ type ParentAbstractProcess struct {
 	cloneFlags       uintptr
 	namespacePathMap map[configs.NamespaceType]string
 	// 模板方法模式
-	stackHook func(*ParentAbstractProcess) error
+	startHook ParentProcessStartHook
 }
 
 func (p *ParentAbstractProcess) pid() int {
@@ -98,7 +100,7 @@ func (p *ParentAbstractProcess) start() error {
 	}
 	logrus.Infof("find new child process: %#v", process)
 	p.processCmd.Process = process
-	return p.stackHook(p)
+	return p.startHook(p)
 }
 
 func (p *ParentAbstractProcess) sendCloneFlags() error {

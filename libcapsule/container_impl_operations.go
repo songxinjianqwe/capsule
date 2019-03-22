@@ -183,7 +183,7 @@ func (c *LinuxContainer) newParentProcess(process *Process) (ParentProcess, erro
 			process:          process,
 			cloneFlags:       c.config.Namespaces.CloneFlagsOfEmptyPath(),
 			namespacePathMap: namepaces,
-			stackHook:        initStartHook,
+			startHook:        initStartHook,
 		}
 		// exec process不会赋到container.parentProcess,因为它的pid,startTime返回的都是exec process的,而非nochild process(反映的是init process的)
 		c.parentProcess = initProcess
@@ -203,7 +203,7 @@ func (c *LinuxContainer) newParentProcess(process *Process) (ParentProcess, erro
 			process:          process,
 			cloneFlags:       0,
 			namespacePathMap: currentState.NamespacePaths,
-			stackHook:        execStartHook,
+			startHook:        execStartHook,
 		}, nil
 	}
 }
