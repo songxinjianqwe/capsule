@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/urfave/cli"
 	"os"
-	"path/filepath"
 )
 
 const (
@@ -47,19 +46,4 @@ func CheckNoFile(fileName string) error {
 		return err
 	}
 	return nil
-}
-
-func revisePidFile(context *cli.Context) error {
-	pidFile := context.String("pid-file")
-	if pidFile == "" {
-		return nil
-	}
-
-	// convert pid-file to an absolute path so we can write to the right
-	// file after chdir to bundle
-	pidFile, err := filepath.Abs(pidFile)
-	if err != nil {
-		return err
-	}
-	return context.Set("pid-file", pidFile)
 }
