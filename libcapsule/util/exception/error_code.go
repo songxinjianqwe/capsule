@@ -144,6 +144,8 @@ func (c ErrorCode) String() string {
 		return "create veth pair error"
 	case VethInitError:
 		return "init veth error"
+	case VethMoveToNetNsError:
+		return "move veth to net ns error"
 	case PortMappingsConfigError:
 		return "config port mappings error"
 	case RouteAddError:
