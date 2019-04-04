@@ -53,6 +53,10 @@ const (
 	PortMappingsConfigError
 	RouteAddError
 	EnterNetNsError
+	// image
+	ImageServiceError
+	ImageIdExistsError
+	ImageLoadError
 )
 
 func (c ErrorCode) String() string {
@@ -152,6 +156,13 @@ func (c ErrorCode) String() string {
 		return "route add error"
 	case EnterNetNsError:
 		return "enter network namespace error"
+	// image
+	case ImageServiceError:
+		return "image service error"
+	case ImageIdExistsError:
+		return "image id exists error"
+	case ImageLoadError:
+		return "load image error"
 	default:
 		return "unknown error"
 	}

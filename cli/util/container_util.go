@@ -150,7 +150,7 @@ func GetContainerIds(runtimeRoot string) ([]string, error) {
 	if runtimeRoot == "" {
 		runtimeRoot = constant.DefaultRuntimeRoot
 	}
-	containersRuntimeRoot := filepath.Join(runtimeRoot, constant.ContainerRelatedDir)
+	containersRuntimeRoot := filepath.Join(runtimeRoot, constant.ContainerDir)
 	var ids []string
 	if _, err := os.Stat(containersRuntimeRoot); err != nil {
 		if os.IsNotExist(err) {

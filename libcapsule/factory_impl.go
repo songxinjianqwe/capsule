@@ -51,7 +51,7 @@ func (factory *LinuxContainerFactory) GetRuntimeRoot() string {
 
 func (factory *LinuxContainerFactory) Create(id string, config *configs.ContainerConfig) (Container, error) {
 	logrus.Infof("container factory creating container: %s", id)
-	containerRoot := filepath.Join(factory.root, constant.ContainerRelatedDir, id)
+	containerRoot := filepath.Join(factory.root, constant.ContainerDir, id)
 	// 如果该目录已经存在(err == nil)，则报错；如果有其他错误(忽略目录不存在的错，我们希望目录不存在)，则报错
 	if _, err := os.Stat(containerRoot); err == nil {
 		return nil, exception.NewGenericError(fmt.Errorf("container with id exists: %v", id), exception.ContainerIdExistsError)
@@ -74,7 +74,7 @@ func (factory *LinuxContainerFactory) Create(id string, config *configs.Containe
 }
 
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
-	containerRoot := filepath.Join(factory.root, constant.ContainerRelatedDir, id)
+	containerRoot := filepath.Join(factory.root, constant.ContainerDir, id)
 	state, err := factory.loadContainerState(containerRoot, id)
 	if err != nil {
 		return nil, err
