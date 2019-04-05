@@ -35,7 +35,7 @@ var CreateCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		if err := facade.CreateOrRunContainer(ctx.GlobalString("root"), ctx.Args().First(), ctx.String("bundle"), spec, util.ContainerActCreate, false, ctx.String("network"), ctx.StringSlice("port")); err != nil {
+		if err := facade.CreateOrRunContainer(ctx.GlobalString("root"), ctx.Args().First(), ctx.String("bundle"), spec, facade.ContainerActCreate, false, ctx.String("network"), ctx.StringSlice("port")); err != nil {
 			return err
 		}
 		return nil

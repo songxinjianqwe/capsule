@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/urfave/cli"
 )
 
