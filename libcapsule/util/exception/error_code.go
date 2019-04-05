@@ -57,6 +57,7 @@ const (
 	ImageServiceError
 	ImageIdExistsError
 	ImageLoadError
+	ImageCreateError
 )
 
 func (c ErrorCode) String() string {
@@ -163,6 +164,8 @@ func (c ErrorCode) String() string {
 		return "image id exists error"
 	case ImageLoadError:
 		return "load image error"
+	case ImageCreateError:
+		return "create image error"
 	default:
 		return "unknown error"
 	}

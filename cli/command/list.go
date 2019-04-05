@@ -2,7 +2,7 @@ package command
 
 import (
 	"fmt"
-	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/urfave/cli"
 	"os"
 	"text/tabwriter"
@@ -13,11 +13,11 @@ var ListCommand = cli.Command{
 	Name:  "list",
 	Usage: "list all containers",
 	Action: func(ctx *cli.Context) error {
-		ids, err := util.GetContainerIds(ctx.GlobalString("root"))
+		ids, err := facade.GetContainerIds(ctx.GlobalString("root"))
 		if err != nil {
 			return err
 		}
-		vos, err := util.GetContainerStateVOs(ctx.GlobalString("root"), ids)
+		vos, err := facade.GetContainerStateVOs(ctx.GlobalString("root"), ids)
 		if err != nil {
 			return err
 		}

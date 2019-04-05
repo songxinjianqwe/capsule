@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/urfave/cli"
 )
 
@@ -39,11 +40,11 @@ var RunCommand = cli.Command{
 		// 将spec转为container config对象
 		// 加载factory
 		// 调用factory.create
-		spec, err := util.LoadSpec(ctx.String("bundle"))
+		spec, err := facade.LoadSpec(ctx.String("bundle"))
 		if err != nil {
 			return err
 		}
-		if err := util.CreateOrRunContainer(ctx.GlobalString("root"), ctx.Args().First(), ctx.String("bundle"), spec, util.ContainerActRun, ctx.Bool("detach"), ctx.String("network"), ctx.StringSlice("port")); err != nil {
+		if err := facade.CreateOrRunContainer(ctx.GlobalString("root"), ctx.Args().First(), ctx.String("bundle"), spec, util.ContainerActRun, ctx.Bool("detach"), ctx.String("network"), ctx.StringSlice("port")); err != nil {
 			return err
 		}
 		return nil

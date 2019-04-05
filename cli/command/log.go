@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/constant"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/urfave/cli"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,7 @@ var LogCommand = cli.Command{
 			return err
 		}
 		containerId := ctx.Args().First()
-		_, err := util.GetContainer(ctx.GlobalString("root"), containerId)
+		_, err := facade.GetContainer(ctx.GlobalString("root"), containerId)
 		if err != nil {
 			return err
 		}

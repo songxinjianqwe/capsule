@@ -1,4 +1,4 @@
-package util
+package facade
 
 import (
 	"github.com/songxinjianqwe/capsule/libcapsule"

@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/urfave/cli"
 	"golang.org/x/sys/unix"
 	"strconv"
@@ -24,7 +25,7 @@ var KillCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 2, util.MaxArgs); err != nil {
 			return err
 		}
-		container, err := util.GetContainer(ctx.GlobalString("root"), ctx.Args().First())
+		container, err := facade.GetContainer(ctx.GlobalString("root"), ctx.Args().First())
 		if err != nil {
 			return err
 		}

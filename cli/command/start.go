@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/songxinjianqwe/capsule/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/urfave/cli"
 )
 
@@ -15,7 +16,7 @@ var StartCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
-		container, err := util.GetContainer(ctx.GlobalString("root"), ctx.Args().First())
+		container, err := facade.GetContainer(ctx.GlobalString("root"), ctx.Args().First())
 		if err != nil {
 			return err
 		}

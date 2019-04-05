@@ -1,6 +1,7 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/image"
@@ -18,6 +19,7 @@ var ImageCommand = cli.Command{
 		imageCreateCommand,
 		imageDeleteCommand,
 		imageListCommand,
+		imageGetCommand,
 		imageRunCommand,
 	},
 }
@@ -63,9 +65,6 @@ var imageListCommand = cli.Command{
 	Name:  "list",
 	Usage: "list images",
 	Action: func(ctx *cli.Context) error {
-		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
-			return err
-		}
 		imageService, err := image.NewImageService(ctx.GlobalString("root"))
 		if err != nil {
 			return err
@@ -75,15 +74,40 @@ var imageListCommand = cli.Command{
 			return err
 		}
 		w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
-		fmt.Fprint(w, "ID\tCREATED\n")
+		fmt.Fprint(w, "ID\tCREATED\tSIZE\n")
 		for _, item := range images {
-			fmt.Fprintf(w, "%s\t%s\n",
+			fmt.Fprintf(w, "%s\t%s\t%s\n",
 				item.Id,
-				item.CreateTime.Format(time.RFC3339Nano))
+				item.CreateTime.Format(time.RFC3339Nano),
+				fmt.Sprintf("%dMB", item.Size))
 		}
 		if err := w.Flush(); err != nil {
 			return err
 		}
+		return nil
+	},
+}
+
+var imageGetCommand = cli.Command{
+	Name:  "get",
+	Usage: "get a image",
+	Action: func(ctx *cli.Context) error {
+		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
+			return err
+		}
+		imageService, err := image.NewImageService(ctx.GlobalString("root"))
+		if err != nil {
+			return err
+		}
+		image, err := imageService.Get(ctx.Args().First())
+		if err != nil {
+			return err
+		}
+		data, err := json.MarshalIndent(image, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
 		return nil
 	},
 }

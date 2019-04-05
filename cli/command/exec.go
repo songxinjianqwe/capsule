@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/urfave/cli"
 	"strings"
 )
@@ -32,7 +33,7 @@ var ExecCommand = cli.Command{
 		if len(args) == 1 && strings.Contains(args[0], " ") {
 			args = strings.Split(args[0], " ")
 		}
-		execId, err := util.ExecContainer(
+		execId, err := facade.ExecContainer(
 			ctx.GlobalString("root"),
 			ctx.Args().First(),
 			ctx.Bool("detach"),

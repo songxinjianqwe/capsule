@@ -15,7 +15,7 @@ var PsCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
-		if _, err := util.ExecContainer(
+		if _, err := facade.ExecContainer(
 			ctx.GlobalString("root"),
 			ctx.Args().First(),
 			false,

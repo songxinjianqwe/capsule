@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/urfave/cli"
 )
 
@@ -20,7 +21,7 @@ var StateCommand = cli.Command{
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
-		vo, err := util.GetContainerStateVO(ctx.GlobalString("root"), ctx.Args().First())
+		vo, err := facade.GetContainerStateVO(ctx.GlobalString("root"), ctx.Args().First())
 		if err != nil {
 			return err
 		}

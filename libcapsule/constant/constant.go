@@ -9,9 +9,8 @@ const (
 	// 运行时文件的存放目录
 	DefaultRuntimeRoot = "/var/run/capsule"
 	// 各个容器的运行时文件的存放目录
-	ContainerDir              = "containers"
-	ImageDir                  = "images"
-	ImageRepositoriesFilename = "repositories.json"
+	ContainerDir = "containers"
+	ImageDir     = "images"
 	// 容器配置文件，存放在运行capsule的cwd下
 	ContainerConfigFilename = "config.json"
 	// 容器Init进程的日志
