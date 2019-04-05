@@ -3,11 +3,16 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/cli/util"
+	"github.com/songxinjianqwe/capsule/libcapsule"
+	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/songxinjianqwe/capsule/libcapsule/image"
 	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"github.com/urfave/cli"
+	"golang.org/x/sys/unix"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 )
@@ -20,7 +25,8 @@ var ImageCommand = cli.Command{
 		imageDeleteCommand,
 		imageListCommand,
 		imageGetCommand,
-		imageRunCommand,
+		imageRunContainerCommand,
+		imageDestroyContainerCommand,
 	},
 }
 
@@ -74,10 +80,11 @@ var imageListCommand = cli.Command{
 			return err
 		}
 		w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
-		fmt.Fprint(w, "ID\tCREATED\tSIZE\n")
+		fmt.Fprint(w, "ID\tLAYER_ID\tCREATED\tSIZE\n")
 		for _, item := range images {
-			fmt.Fprintf(w, "%s\t%s\t%s\n",
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 				item.Id,
+				item.LayerId,
 				item.CreateTime.Format(time.RFC3339Nano),
 				fmt.Sprintf("%dMB", item.Size))
 		}
@@ -126,7 +133,7 @@ var imageGetCommand = cli.Command{
 // -network $network_name
 // -port xx:xxx
 // -label a=b
-var imageRunCommand = cli.Command{
+var imageRunContainerCommand = cli.Command{
 	Name:  "run",
 	Usage: "run container in image way",
 	Flags: []cli.Flag{
@@ -135,7 +142,7 @@ var imageRunCommand = cli.Command{
 			Usage: "detach from the container's process",
 		},
 		cli.StringFlag{
-			Name:  "name",
+			Name:  "id",
 			Usage: "container unique id",
 		},
 		cli.StringFlag{
@@ -176,6 +183,56 @@ var imageRunCommand = cli.Command{
 		},
 	},
 	Action: func(ctx *cli.Context) error {
+		if err := util.CheckArgs(ctx, 2, util.MinArgs); err != nil {
+			return err
+		}
+		imageService, err := image.NewImageService(ctx.GlobalString("root"))
+		if err != nil {
+			return err
+		}
+		containerId := ctx.String("id")
+		if containerId == "" {
+			return fmt.Errorf("container id can not be empty")
+		}
+		hostname := ctx.String("hostname")
+		if hostname == "" {
+			hostname = containerId
+		}
+		annotations := make(map[string]string)
+		for _, label := range ctx.StringSlice("label") {
+			splits := strings.SplitN(label, "=", 2)
+			annotations[splits[0]] = splits[1]
+		}
+		if err := imageService.Run(&image.ImageRunArgs{
+			ImageId:      ctx.Args().First(),
+			ContainerId:  containerId,
+			Args:         ctx.Args()[1:],
+			Env:          ctx.StringSlice("env"),
+			Cwd:          ctx.String("cwd"),
+			Hostname:     hostname,
+			Cpushare:     ctx.Uint64("cpushare"),
+			Memory:       ctx.Int64("memory"),
+			Annotations:  annotations,
+			Network:      ctx.String("network"),
+			PortMappings: ctx.StringSlice("port"),
+			Detach:       ctx.Bool("detach"),
+		}); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var imageDestroyContainerCommand = cli.Command{
+	Name:  "destroy",
+	Usage: "destroy container in image way",
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "force, f",
+			Usage: "Force delete the container even it is still running (uses SIGKILL)",
+		},
+	},
+	Action: func(ctx *cli.Context) error {
 		if err := util.CheckArgs(ctx, 1, util.ExactArgs); err != nil {
 			return err
 		}
@@ -183,12 +240,29 @@ var imageRunCommand = cli.Command{
 		if err != nil {
 			return err
 		}
-		imageName := ctx.Args().First()
-		loadedImage, err := imageService.Get(imageName)
+		container, err := facade.GetContainer(ctx.GlobalString("root"), ctx.Args().First())
 		if err != nil {
 			return err
 		}
-		loadedImage.Run()
-		return nil
+		if ctx.Bool("force") {
+			_ = container.Signal(unix.SIGKILL)
+			for i := 0; i < 100; i++ {
+				time.Sleep(100 * time.Millisecond)
+				return destroyContainer(container, imageService)
+			}
+			return fmt.Errorf("waiting container dead timed out")
+		} else {
+			return destroyContainer(container, imageService)
+		}
 	},
+}
+
+func destroyContainer(container libcapsule.Container, imageService image.ImageService) (err error) {
+	if err = container.Destroy(); err != nil {
+		logrus.Warnf(err.Error())
+	}
+	if err = imageService.Destroy(container.ID()); err != nil {
+		logrus.Warnf(err.Error())
+	}
+	return err
 }

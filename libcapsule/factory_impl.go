@@ -73,6 +73,12 @@ func (factory *LinuxContainerFactory) Create(id string, config *configs.Containe
 	return container, nil
 }
 
+func (factory *LinuxContainerFactory) Exists(id string) bool {
+	containerRoot := filepath.Join(factory.root, constant.ContainerDir, id)
+	_, err := factory.loadContainerState(containerRoot, id)
+	return err == nil
+}
+
 func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 	containerRoot := filepath.Join(factory.root, constant.ContainerDir, id)
 	state, err := factory.loadContainerState(containerRoot, id)

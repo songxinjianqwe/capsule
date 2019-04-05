@@ -5,7 +5,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
-	"os"
 	"path/filepath"
 )
 
@@ -14,30 +13,9 @@ import (
 */
 func CreateContainerConfig(bundle string, spec *specs.Spec, network string, portMappings []string) (*configs.ContainerConfig, error) {
 	logrus.Infof("converting specs.Spec to libcapsule.ContainerConfig...")
-
-	if spec.Root == nil {
-		return nil, fmt.Errorf("root must be specified")
-	}
-
-	// runc's cwd will always be the bundle path
-	var cwd string
-	if bundle == "" {
-		rcwd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		// 拿到当前路径，即bundle path
-		if cwd, err = filepath.Abs(rcwd); err != nil {
-			return nil, err
-		}
-	} else {
-		cwd = bundle
-	}
-
-	// rootfs path要么是绝对路径，要么是cwd+rootfs转为绝对路径
 	rootfsPath := spec.Root.Path
 	if !filepath.IsAbs(rootfsPath) {
-		rootfsPath = filepath.Join(cwd, rootfsPath)
+		rootfsPath = filepath.Join(bundle, rootfsPath)
 	}
 	logrus.Infof("rootfs path is %s", rootfsPath)
 
@@ -52,12 +30,12 @@ func CreateContainerConfig(bundle string, spec *specs.Spec, network string, port
 		Rootfs:     rootfsPath,
 		Readonlyfs: spec.Root.Readonly,
 		Hostname:   spec.Hostname,
-		Labels:     append(labels, fmt.Sprintf("bundle=%s", cwd)),
+		Labels:     append(labels, fmt.Sprintf("bundle=%s", bundle)),
 	}
 
 	// 转换挂载
 	for _, m := range spec.Mounts {
-		mount := createMount(cwd, m)
+		mount := createMount(bundle, m)
 		logrus.Infof("convert mount complete: %#v", mount)
 		config.Mounts = append(config.Mounts, mount)
 	}

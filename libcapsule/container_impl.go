@@ -94,7 +94,7 @@ func (c *LinuxContainer) Start() error {
 	return c.start()
 }
 
-func (c *LinuxContainer) Destroy() error {
+func (c *LinuxContainer) Destroy() (err error) {
 	c.mutex.Lock()
 	c.mutex.Unlock()
 	return c.statusBehavior.destroy()

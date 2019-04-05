@@ -11,6 +11,8 @@ type Factory interface {
 	// 加载一个容器
 	Load(id string) (Container, error)
 
+	Exists(id string) bool
+
 	// 用于init/exec进程初始化
 	StartInitialization() error
 

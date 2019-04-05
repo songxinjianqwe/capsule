@@ -58,6 +58,8 @@ const (
 	ImageIdExistsError
 	ImageLoadError
 	ImageCreateError
+	ImageRepositoriesDumpError
+	SpecSaveError
 )
 
 func (c ErrorCode) String() string {
@@ -166,6 +168,10 @@ func (c ErrorCode) String() string {
 		return "load image error"
 	case ImageCreateError:
 		return "create image error"
+	case ImageRepositoriesDumpError:
+		return "image repositories dump error"
+	case SpecSaveError:
+		return "save spec error"
 	default:
 		return "unknown error"
 	}
