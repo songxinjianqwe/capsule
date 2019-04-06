@@ -56,10 +56,13 @@ const (
 	// image
 	ImageServiceError
 	ImageIdExistsError
+	ImageIdNotExistsError
 	ImageLoadError
 	ImageCreateError
 	ImageRepositoriesDumpError
 	SpecSaveError
+	UnionFsError
+	UnionFsMountError
 )
 
 func (c ErrorCode) String() string {
@@ -172,6 +175,12 @@ func (c ErrorCode) String() string {
 		return "image repositories dump error"
 	case SpecSaveError:
 		return "save spec error"
+	case UnionFsError:
+		return "union fs error"
+	case ImageIdNotExistsError:
+		return "image id not exists error"
+	case UnionFsMountError:
+		return "union fs mount error"
 	default:
 		return "unknown error"
 	}

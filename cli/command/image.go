@@ -3,9 +3,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/cli/util"
-	"github.com/songxinjianqwe/capsule/libcapsule"
 	"github.com/songxinjianqwe/capsule/libcapsule/facade"
 	"github.com/songxinjianqwe/capsule/libcapsule/image"
 	"github.com/songxinjianqwe/capsule/libcapsule/network"
@@ -248,21 +246,11 @@ var imageDestroyContainerCommand = cli.Command{
 			_ = container.Signal(unix.SIGKILL)
 			for i := 0; i < 100; i++ {
 				time.Sleep(100 * time.Millisecond)
-				return destroyContainer(container, imageService)
+				return imageService.Destroy(container)
 			}
 			return fmt.Errorf("waiting container dead timed out")
 		} else {
-			return destroyContainer(container, imageService)
+			return imageService.Destroy(container)
 		}
 	},
-}
-
-func destroyContainer(container libcapsule.Container, imageService image.ImageService) (err error) {
-	if err = container.Destroy(); err != nil {
-		logrus.Warnf(err.Error())
-	}
-	if err = imageService.Destroy(container.ID()); err != nil {
-		logrus.Warnf(err.Error())
-	}
-	return err
 }

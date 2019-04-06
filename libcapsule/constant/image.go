@@ -2,6 +2,7 @@ package constant
 
 const (
 	ImageDir                  = "images"
+	ImageContainersDir        = "containers"
 	ImageLayersDir            = "layers"
 	ImageMountsDir            = "mounts"
 	ImageRepositoriesFilename = "repositories.json"
@@ -12,8 +13,8 @@ const (
 // - /layers/$layer_id/解压后的rootfs
 
 // - /mounts/$container_id
-//	- read_layer: 存放镜像的layer id/image_id
-//  - write_layer: 存放读写层的layer_id
-//  - mount: 存放挂载后的layer_id
+//	- read_only: 存放镜像的layer_id
+//  - read_write: 存放读写层的layer_id
+//  - init: 存放挂载后的layer_id
 
 // runtimeRoot/images/repositories.json image_name->layer_id

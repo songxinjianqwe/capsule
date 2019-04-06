@@ -17,13 +17,21 @@ import (
 	"sync"
 )
 
+type layerType string
+
+const (
+	readOnlyLayer  layerType = "read_only"
+	readWriteLayer           = "read_write"
+	initLayer                = "init"
+)
+
 type ImageService interface {
 	Create(id string, tarPath string) error
 	Delete(id string) error
 	List() ([]Image, error)
 	Get(id string) (Image, error)
 	Run(imageRunArgs *ImageRunArgs) error
-	Destroy(containerId string) error
+	Destroy(container libcapsule.Container) error
 }
 
 func NewImageService(runtimeRoot string) (ImageService, error) {
@@ -31,11 +39,10 @@ func NewImageService(runtimeRoot string) (ImageService, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 这里是将一个存在的tar文件作为新的rootfs
 	imageRoot := filepath.Join(runtimeRoot, constant.ImageDir)
 	if _, err := os.Stat(imageRoot); err != nil {
 		if os.IsNotExist(err) {
-			//logrus.Infof("mkdir generateImageDir if not exists: %s", imageRoot)
+			logrus.Infof("mkdir generateLayerPath if not exists: %s", imageRoot)
 			if err := os.MkdirAll(imageRoot, 0700); err != nil {
 				return nil, exception.NewGenericError(err, exception.ImageServiceError)
 			}
@@ -78,9 +85,68 @@ type imageService struct {
 	repositories map[string]string
 }
 
-func (service *imageService) Destroy(containerId string) error {
+func (service *imageService) Destroy(container libcapsule.Container) (err error) {
 	// 删除layer
-	panic("implement me")
+	if err = container.Destroy(); err != nil {
+		logrus.Warnf(err.Error())
+	}
+	if err = service.cleanContainer(container.ID()); err != nil {
+		logrus.Warnf(err.Error())
+	}
+	return err
+}
+
+func (service *imageService) cleanContainer(containerId string) (err error) {
+	// umount init layer
+	// 删除 /var/run/capsule/images/layers/$init_layer
+	// 删除 /var/run/capsule/images/layers/$read_write_layer
+	// 删除 /var/run/capsule/images/mounts/$container_id
+	// 删除 /var/run/capsule/images/containers/$container_id
+	// 1.
+	initLayer := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId, initLayer)
+	var initLayerIdBytes []byte
+	if initLayerIdBytes, err = ioutil.ReadFile(initLayer); err != nil {
+		logrus.Warnf(err.Error())
+	} else {
+		initLayerPath := filepath.Join(service.imageRoot, constant.ImageLayersDir, string(initLayerIdBytes))
+		logrus.Infof("umount %s", initLayerPath)
+		cmd := exec.Command("umount", initLayerPath)
+		if err := cmd.Run(); err != nil {
+			logrus.Warnf("unmount failed, cause: %s", err.Error())
+		}
+
+		// 2.
+		logrus.Infof("removing container init layer data, layer id is %s", string(initLayerIdBytes))
+		if err := os.RemoveAll(initLayerPath); err != nil {
+			logrus.Warnf(err.Error())
+		}
+	}
+
+	// 3.
+	readWriteLayer := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId, readWriteLayer)
+	var rwLayerIdBytes []byte
+	if rwLayerIdBytes, err = ioutil.ReadFile(readWriteLayer); err != nil {
+		logrus.Warnf(err.Error())
+	}
+	logrus.Infof("removing container read write layer data, layer id is %s", string(rwLayerIdBytes))
+	if err := os.RemoveAll(filepath.Join(service.imageRoot, constant.ImageLayersDir, string(rwLayerIdBytes))); err != nil {
+		logrus.Warnf(err.Error())
+	}
+
+	// 4.
+	containerMountPath := filepath.Join(service.imageRoot, constant.ImageContainersDir, containerId)
+	logrus.Infof("removing container mount path: %s", containerMountPath)
+	if err := os.RemoveAll(containerMountPath); err != nil {
+		logrus.Warnf(err.Error())
+	}
+
+	// 5.
+	containerConfigPath := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId)
+	logrus.Infof("removing container config path: %s", containerConfigPath)
+	if err := os.RemoveAll(containerConfigPath); err != nil {
+		logrus.Warnf(err.Error())
+	}
+	return err
 }
 
 func (service *imageService) Run(imageRunArgs *ImageRunArgs) (err error) {
@@ -91,32 +157,85 @@ func (service *imageService) Run(imageRunArgs *ImageRunArgs) (err error) {
 	if exists := service.factory.Exists(imageRunArgs.ContainerId); exists {
 		return exception.NewGenericError(fmt.Errorf("container already exists: %s", imageRunArgs.ContainerId), exception.ContainerIdExistsError)
 	}
-	bundle := filepath.Join(service.factory.GetRuntimeRoot(), constant.ContainerDir, imageRunArgs.ContainerId)
-	// 创建一个write layer
-	var rootfsPath string
-	var spec *specs.Spec
-	rootfsPath, err = service.prepareUnionFs(imageRunArgs.ImageId)
-	if err != nil {
-		return err
+	// /var/run/capsule/images/containers/$container_id
+	bundle := filepath.Join(service.imageRoot, constant.ImageContainersDir, imageRunArgs.ContainerId)
+	if _, err := os.Stat(bundle); err != nil && !os.IsNotExist(err) {
+		return exception.NewGenericError(err, exception.ContainerIdExistsError)
 	}
 	defer func() {
 		if err != nil {
-			logrus.Warnf("run container in image way failed, clean union fs")
-
+			logrus.Warnf("imageService#Run failed, clean data")
+			if cleanErr := service.cleanContainer(imageRunArgs.ContainerId); cleanErr != nil {
+				logrus.Warnf(cleanErr.Error())
+			}
 		}
 	}()
-	spec, err = service.prepareBundle(rootfsPath, bundle, imageRunArgs)
-	if err != nil {
+	var rootfsPath string
+	var spec *specs.Spec
+	if rootfsPath, err = service.prepareUnionFs(imageRunArgs.ContainerId, imageRunArgs.ImageId); err != nil {
 		return err
 	}
-	if err = facade.CreateOrRunContainer(service.factory.GetRuntimeRoot(), imageRunArgs.ContainerId, bundle, spec, facade.ContainerActRun, imageRunArgs.Detach, imageRunArgs.Network, imageRunArgs.PortMappings); err != nil {
+	if spec, err = service.prepareBundle(rootfsPath, bundle, imageRunArgs); err != nil {
 		return err
+	}
+	// 如果运行出错,或者前台运行正常退出,则清理
+	if err = facade.CreateOrRunContainer(service.factory.GetRuntimeRoot(), imageRunArgs.ContainerId, bundle, spec, facade.ContainerActRun, imageRunArgs.Detach, imageRunArgs.Network, imageRunArgs.PortMappings); err != nil {
+		if cleanErr := service.cleanContainer(imageRunArgs.ContainerId); cleanErr != nil {
+			logrus.Warnf(cleanErr.Error())
+		}
+		return err
+	}
+	if !imageRunArgs.Detach {
+		if cleanErr := service.cleanContainer(imageRunArgs.ContainerId); cleanErr != nil {
+			logrus.Warnf(cleanErr.Error())
+		}
 	}
 	return nil
 }
 
-func (service *imageService) prepareUnionFs(image string) (string, error) {
-	return "", nil
+func (service *imageService) prepareUnionFs(containerId string, imageId string) (string, error) {
+	// 1. 拿到read only layer path, 并将其作为容器的read only layer
+	if _, exists := service.repositories[imageId]; !exists {
+		return "", exception.NewGenericError(fmt.Errorf("image %s not exists", imageId), exception.ImageIdNotExistsError)
+	}
+	roLayerPath := service.generateLayerPath(imageId)
+	if _, err := os.Stat(roLayerPath); err != nil {
+		return "", exception.NewGenericError(err, exception.ImageIdNotExistsError)
+	}
+	if _, err := service.prepareMountPath(containerId, service.repositories[imageId], readOnlyLayer); err != nil {
+		return "", exception.NewGenericError(err, exception.UnionFsError)
+	}
+	// 2. 创建read write layer
+	rwUuids, err := uuid.NewV4()
+	if err != nil {
+		return "", exception.NewGenericError(err, exception.UnionFsError)
+	}
+	rwLayerId := rwUuids.String()
+	rwLayerPath, err := service.prepareMountPath(containerId, rwLayerId, readWriteLayer)
+	if err != nil {
+		return "", exception.NewGenericError(err, exception.UnionFsError)
+	}
+
+	// 3. 创建init layer
+	initUuids, err := uuid.NewV4()
+	if err != nil {
+		return "", exception.NewGenericError(err, exception.UnionFsError)
+	}
+	initLayerId := initUuids.String()
+	initLayerPath, err := service.prepareMountPath(containerId, initLayerId, initLayer)
+	if err != nil {
+		return "", exception.NewGenericError(err, exception.UnionFsError)
+	}
+
+	// 4. 将ro,rw 一起mount到init layer中
+	// 这里dirs是第一个为rw,后面的均为ro
+	dirs := fmt.Sprintf("dirs=%s:%s", rwLayerPath, roLayerPath)
+	cmd := exec.Command("mount", "-t", "aufs", "-o", dirs, "none", initLayerPath)
+	logrus.Infof("executing %v", cmd.Args)
+	if err := cmd.Run(); err != nil {
+		return "", exception.NewGenericError(err, exception.UnionFsMountError)
+	}
+	return initLayerPath, nil
 }
 
 func (service *imageService) prepareBundle(rootfsPath string, bundle string, imageRunArgs *ImageRunArgs) (*specs.Spec, error) {
@@ -139,8 +258,39 @@ func (service *imageService) prepareBundle(rootfsPath string, bundle string, ima
 	return spec, nil
 }
 
-func (service *imageService) generateImageDir(id string) string {
-	return filepath.Join(service.imageRoot, constant.ImageLayersDir, service.repositories[id])
+func (service *imageService) generateLayerPath(imageId string) string {
+	return filepath.Join(service.imageRoot, constant.ImageLayersDir, service.repositories[imageId])
+}
+
+/*
+1. 在/var/run/capsule/images/mounts/$container_id/ 下创建对应layerType的文件,文件名为layerType的值,文件内容为layer_id
+2. 在/var/run/capsule/images/layers/$layer_id 下创建对应的目录(对于read only不需要)
+*/
+func (service *imageService) prepareMountPath(containerId string, layerId string, t layerType) (string, error) {
+	// 1.
+	containerMountPath := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId)
+	logrus.Infof("preparing container[%s] %s layer, layerId is %s", containerId, t, layerId)
+	if err := os.MkdirAll(containerMountPath, 0644); err != nil {
+		return "", err
+	}
+	file, err := os.Create(filepath.Join(containerMountPath, string(t)))
+	if err != nil {
+		return "", err
+	}
+	if _, err := file.WriteString(layerId); err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	// 2.
+	layerPath := filepath.Join(service.imageRoot, constant.ImageLayersDir, layerId)
+	if t != readOnlyLayer {
+		// 对于读写和init layer,都需要创建
+		if err := os.MkdirAll(layerPath, 0644); err != nil {
+			return "", err
+		}
+	}
+	return layerPath, nil
 }
 
 func (service *imageService) flushRepositories() error {
@@ -172,7 +322,7 @@ func (service *imageService) Create(id string, tarPath string) (err error) {
 	layerId := uuids.String()
 	service.repositories[id] = layerId
 	// /var/run/capsule/images/layers/$layerId
-	imageDir := service.generateImageDir(id)
+	imageDir := service.generateLayerPath(id)
 	if err := os.MkdirAll(imageDir, 0700); err != nil {
 		return err
 	}
@@ -203,12 +353,12 @@ func (service *imageService) Delete(id string) error {
 	service.mutex.Lock()
 	service.mutex.Unlock()
 	if _, exist := service.repositories[id]; !exist {
-		return exception.NewGenericError(fmt.Errorf("image %s not exists: %v", id), exception.ImageLoadError)
+		return exception.NewGenericError(fmt.Errorf("image %s not exists", id), exception.ImageIdNotExistsError)
 	}
 
-	imageDir := service.generateImageDir(id)
-	if _, err := os.Stat(imageDir); err != nil && os.IsNotExist(err) {
-		return exception.NewGenericError(fmt.Errorf("image %s not exists", id), exception.ImageLoadError)
+	imageDir := service.generateLayerPath(id)
+	if _, err := os.Stat(imageDir); err != nil {
+		return exception.NewGenericError(err, exception.ImageIdNotExistsError)
 	}
 	if err := os.RemoveAll(imageDir); err != nil {
 		return err
@@ -225,7 +375,7 @@ func (service *imageService) List() ([]Image, error) {
 	service.mutex.Unlock()
 	var images []Image
 	for id := range service.repositories {
-		fileInfo, err := os.Stat(service.generateImageDir(id))
+		fileInfo, err := os.Stat(service.generateLayerPath(id))
 		if err != nil {
 			return nil, exception.NewGenericError(err, exception.ImageLoadError)
 		}
@@ -245,7 +395,7 @@ func (service *imageService) Get(id string) (Image, error) {
 	if _, exist := service.repositories[id]; !exist {
 		return Image{}, exception.NewGenericError(fmt.Errorf("image %s not exists", id), exception.ImageLoadError)
 	}
-	imageDir := service.generateImageDir(id)
+	imageDir := service.generateLayerPath(id)
 	fileInfo, err := os.Stat(imageDir)
 	if err != nil {
 		if os.IsNotExist(err) {

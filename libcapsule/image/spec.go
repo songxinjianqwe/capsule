@@ -9,7 +9,7 @@ func buildSpec(rootfsPath string, args []string, env []string, cwd string, hostn
 		Version: specs.Version,
 		Root: &specs.Root{
 			Path:     rootfsPath,
-			Readonly: true,
+			Readonly: false,
 		},
 		Process: &specs.Process{
 			Args: args,
