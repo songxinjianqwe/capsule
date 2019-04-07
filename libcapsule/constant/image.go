@@ -5,6 +5,7 @@ const (
 	ImageContainersDir        = "containers"
 	ImageLayersDir            = "layers"
 	ImageMountsDir            = "mounts"
+	ImageVolumesDir           = "volumes"
 	ImageRepositoriesFilename = "repositories.json"
 )
 

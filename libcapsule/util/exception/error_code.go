@@ -66,6 +66,7 @@ const (
 	UnionFsMountError
 	DnsError
 	HostsError
+	VolumeError
 )
 
 func (c ErrorCode) String() string {
@@ -190,6 +191,8 @@ func (c ErrorCode) String() string {
 		return "dns error"
 	case HostsError:
 		return "hosts error"
+	case VolumeError:
+		return "volume error"
 	default:
 		return "unknown error"
 	}

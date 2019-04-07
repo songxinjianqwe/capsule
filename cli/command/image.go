@@ -132,7 +132,7 @@ var imageGetCommand = cli.Command{
 // -port xx:xxx
 // -label a=b
 var imageRunContainerCommand = cli.Command{
-	Name:  "run",
+	Name:  "runc",
 	Usage: "run container in image way",
 	Flags: []cli.Flag{
 		cli.BoolFlag{
@@ -179,6 +179,14 @@ var imageRunContainerCommand = cli.Command{
 			Name:  "label, l",
 			Usage: "container label",
 		},
+		cli.StringSliceFlag{
+			Name:  "volume, v",
+			Usage: "-v container_dir, or -v host_dir:container_dir",
+		},
+		cli.StringSliceFlag{
+			Name:  "link",
+			Usage: "-link container_id:alias",
+		},
 	},
 	Action: func(ctx *cli.Context) error {
 		if err := util.CheckArgs(ctx, 2, util.MinArgs); err != nil {
@@ -214,6 +222,8 @@ var imageRunContainerCommand = cli.Command{
 			Network:      ctx.String("network"),
 			PortMappings: ctx.StringSlice("port"),
 			Detach:       ctx.Bool("detach"),
+			Volumes:      ctx.StringSlice("volume"),
+			Links:        ctx.StringSlice("link"),
 		}); err != nil {
 			return err
 		}
@@ -222,7 +232,7 @@ var imageRunContainerCommand = cli.Command{
 }
 
 var imageDestroyContainerCommand = cli.Command{
-	Name:  "destroy",
+	Name:  "destroyc",
 	Usage: "destroy container in image way",
 	Flags: []cli.Flag{
 		cli.BoolFlag{

@@ -22,4 +22,6 @@ type ImageRunArgs struct {
 	Network      string
 	PortMappings []string
 	Detach       bool
+	Volumes      []string
+	Links        []string
 }

@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -82,8 +83,7 @@ type imageService struct {
 	imageRoot string
 	// key -> image id
 	// value -> layer id
-	repositoriesFile *os.File
-	repositories     map[string]string
+	repositories map[string]string
 }
 
 func (service *imageService) Destroy(container libcapsule.Container) (err error) {
@@ -106,7 +106,8 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 	// 1. umount
 	initLayer := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId, initLayer)
 	var initLayerIdBytes []byte
-	if initLayerIdBytes, err = ioutil.ReadFile(initLayer); err != nil {
+	if initLayerIdBytes, err = ioutil.ReadFile(initLayer); err != nil || len(initLayerIdBytes) == 0 {
+		logrus.Warnf("read init layer id failed, skip clean init layer")
 		logrus.Warnf(err.Error())
 	} else {
 		initLayerPath := filepath.Join(service.imageRoot, constant.ImageLayersDir, string(initLayerIdBytes))
@@ -115,7 +116,6 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 		if err := cmd.Run(); err != nil {
 			logrus.Warnf("unmount failed, cause: %s", err.Error())
 		}
-
 		// 2. 删除init layer
 		logrus.Infof("removing container init layer data, layer id is %s", string(initLayerIdBytes))
 		if err := os.RemoveAll(initLayerPath); err != nil {
@@ -126,12 +126,14 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 	// 3. 删除read write layer
 	readWriteLayer := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId, readWriteLayer)
 	var rwLayerIdBytes []byte
-	if rwLayerIdBytes, err = ioutil.ReadFile(readWriteLayer); err != nil {
+	if rwLayerIdBytes, err = ioutil.ReadFile(readWriteLayer); err != nil || len(rwLayerIdBytes) == 0 {
+		logrus.Warnf("read read write layer id failed, skip clean read write layer")
 		logrus.Warnf(err.Error())
-	}
-	logrus.Infof("removing container read write layer data, layer id is %s", string(rwLayerIdBytes))
-	if err := os.RemoveAll(filepath.Join(service.imageRoot, constant.ImageLayersDir, string(rwLayerIdBytes))); err != nil {
-		logrus.Warnf(err.Error())
+	} else {
+		logrus.Infof("removing container read write layer data, layer id is %s", string(rwLayerIdBytes))
+		if err := os.RemoveAll(filepath.Join(service.imageRoot, constant.ImageLayersDir, string(rwLayerIdBytes))); err != nil {
+			logrus.Warnf(err.Error())
+		}
 	}
 
 	// 4. 删除container mount数据
@@ -151,11 +153,6 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 }
 
 func (service *imageService) Run(imageRunArgs *ImageRunArgs) (err error) {
-	// 首先要准备spec
-	// 1. 后面会添加一个/etc/hosts, /etc/resolv.conf
-	// 2. mount
-	// 3. 创建spec
-
 	// 1. 检查是否已经存在该容器
 	if exists := service.factory.Exists(imageRunArgs.ContainerId); exists {
 		return exception.NewGenericError(fmt.Errorf("container already exists: %s", imageRunArgs.ContainerId), exception.ContainerIdExistsError)
@@ -191,17 +188,25 @@ func (service *imageService) Run(imageRunArgs *ImageRunArgs) (err error) {
 		return err
 	}
 
-	// 5. 准备rootfs
+	// 5. 准备volume
+	volumeMounts, err := service.prepareVolumes(imageRunArgs.Volumes)
+	if err != nil {
+		return err
+	}
+
+	// 6. 准备rootfs
 	if rootfsPath, err = service.prepareUnionFs(imageRunArgs.ContainerId, imageRunArgs.ImageId); err != nil {
 		return err
 	}
 
-	// 6. 准备spec
-	if spec, err = service.prepareSpec(rootfsPath, bundle, imageRunArgs, hostsMount, dnsMount); err != nil {
+	// 7. 准备spec
+	specMounts := []specs.Mount{hostsMount, dnsMount}
+	specMounts = append(specMounts, volumeMounts...)
+	if spec, err = service.prepareSpec(rootfsPath, bundle, imageRunArgs, specMounts); err != nil {
 		return err
 	}
 
-	// 7. 运行容器,如果运行出错,或者前台运行正常退出,则清理
+	// 8. 运行容器,如果运行出错,或者前台运行正常退出,则清理
 	if err = facade.CreateOrRunContainer(service.factory.GetRuntimeRoot(), imageRunArgs.ContainerId, bundle, spec, facade.ContainerActRun, imageRunArgs.Detach, imageRunArgs.Network, imageRunArgs.PortMappings); err != nil {
 		if cleanErr := service.cleanContainer(imageRunArgs.ContainerId); cleanErr != nil {
 			logrus.Warnf(cleanErr.Error())
@@ -261,7 +266,7 @@ func (service *imageService) prepareUnionFs(containerId string, imageId string) 
 	return initLayerPath, nil
 }
 
-func (service *imageService) prepareSpec(rootfsPath string, bundle string, imageRunArgs *ImageRunArgs, mounts ...specs.Mount) (*specs.Spec, error) {
+func (service *imageService) prepareSpec(rootfsPath string, bundle string, imageRunArgs *ImageRunArgs, mounts []specs.Mount) (*specs.Spec, error) {
 	spec := buildSpec(rootfsPath, imageRunArgs.Args, imageRunArgs.Env, imageRunArgs.Cwd, imageRunArgs.Hostname, imageRunArgs.Cpushare, imageRunArgs.Memory, imageRunArgs.Annotations, mounts)
 	specFile, err := os.OpenFile(filepath.Join(bundle, constant.ContainerConfigFilename), os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -357,6 +362,45 @@ func (service *imageService) prepareDns(containerId string) (specs.Mount, error)
 			"rprivate",
 		},
 	}, nil
+}
+
+func (service *imageService) prepareVolumes(volumes []string) ([]specs.Mount, error) {
+	var mounts []specs.Mount
+	for _, volume := range volumes {
+		var hostDir string
+		var containerDir string
+		if strings.Contains(volume, ":") {
+			// host_dir:container_dir
+			splits := strings.SplitN(volume, ":", 2)
+			hostDir = splits[0]
+			containerDir = splits[1]
+			if _, err := os.Stat(hostDir); err != nil {
+				return nil, exception.NewGenericError(err, exception.VolumeError)
+			}
+		} else {
+			// random_dir:container_dir
+			uuids, err := uuid.NewV4()
+			if err != nil {
+				return nil, exception.NewGenericError(err, exception.VolumeError)
+			}
+			volumeId := uuids.String()
+			hostDir = filepath.Join(service.imageRoot, constant.ImageVolumesDir, volumeId)
+			if err := os.MkdirAll(hostDir, 0644); err != nil {
+				return nil, err
+			}
+			containerDir = volume
+		}
+		mounts = append(mounts, specs.Mount{
+			Destination: containerDir,
+			Type:        "bind",
+			Source:      hostDir,
+			Options: []string{
+				"rbind",
+				"rprivate",
+			},
+		})
+	}
+	return mounts, nil
 }
 
 func (service *imageService) flushRepositories() error {
