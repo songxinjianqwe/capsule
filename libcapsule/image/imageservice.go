@@ -82,7 +82,8 @@ type imageService struct {
 	imageRoot string
 	// key -> image id
 	// value -> layer id
-	repositories map[string]string
+	repositoriesFile *os.File
+	repositories     map[string]string
 }
 
 func (service *imageService) Destroy(container libcapsule.Container) (err error) {
@@ -102,7 +103,7 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 	// 删除 /var/run/capsule/images/layers/$read_write_layer
 	// 删除 /var/run/capsule/images/mounts/$container_id
 	// 删除 /var/run/capsule/images/containers/$container_id
-	// 1.
+	// 1. umount
 	initLayer := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId, initLayer)
 	var initLayerIdBytes []byte
 	if initLayerIdBytes, err = ioutil.ReadFile(initLayer); err != nil {
@@ -115,14 +116,14 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 			logrus.Warnf("unmount failed, cause: %s", err.Error())
 		}
 
-		// 2.
+		// 2. 删除init layer
 		logrus.Infof("removing container init layer data, layer id is %s", string(initLayerIdBytes))
 		if err := os.RemoveAll(initLayerPath); err != nil {
 			logrus.Warnf(err.Error())
 		}
 	}
 
-	// 3.
+	// 3. 删除read write layer
 	readWriteLayer := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId, readWriteLayer)
 	var rwLayerIdBytes []byte
 	if rwLayerIdBytes, err = ioutil.ReadFile(readWriteLayer); err != nil {
@@ -133,14 +134,14 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 		logrus.Warnf(err.Error())
 	}
 
-	// 4.
+	// 4. 删除container mount数据
 	containerMountPath := filepath.Join(service.imageRoot, constant.ImageContainersDir, containerId)
 	logrus.Infof("removing container mount path: %s", containerMountPath)
 	if err := os.RemoveAll(containerMountPath); err != nil {
 		logrus.Warnf(err.Error())
 	}
 
-	// 5.
+	// 5. 删除container config数据
 	containerConfigPath := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId)
 	logrus.Infof("removing container config path: %s", containerConfigPath)
 	if err := os.RemoveAll(containerConfigPath); err != nil {
@@ -154,13 +155,19 @@ func (service *imageService) Run(imageRunArgs *ImageRunArgs) (err error) {
 	// 1. 后面会添加一个/etc/hosts, /etc/resolv.conf
 	// 2. mount
 	// 3. 创建spec
+
+	// 1. 检查是否已经存在该容器
 	if exists := service.factory.Exists(imageRunArgs.ContainerId); exists {
 		return exception.NewGenericError(fmt.Errorf("container already exists: %s", imageRunArgs.ContainerId), exception.ContainerIdExistsError)
 	}
+	// 2. 创建bundle目录
 	// /var/run/capsule/images/containers/$container_id
 	bundle := filepath.Join(service.imageRoot, constant.ImageContainersDir, imageRunArgs.ContainerId)
 	if _, err := os.Stat(bundle); err != nil && !os.IsNotExist(err) {
 		return exception.NewGenericError(err, exception.ContainerIdExistsError)
+	}
+	if err := os.MkdirAll(bundle, 0644); err != nil {
+		return exception.NewGenericError(err, exception.BundleCreateError)
 	}
 	defer func() {
 		if err != nil {
@@ -172,13 +179,29 @@ func (service *imageService) Run(imageRunArgs *ImageRunArgs) (err error) {
 	}()
 	var rootfsPath string
 	var spec *specs.Spec
+	// 3. 准备/etc/hosts,会在/var/run/capsule/images/containers/$container_id下创建一个hosts
+	hostsMount, err := service.prepareHosts(imageRunArgs.ContainerId)
+	if err != nil {
+		return err
+	}
+
+	// 4. 准备/etc/resolv.conf,会在/var/run/capsule/images/containers/$container_id下创建一个resolv.conf
+	dnsMount, err := service.prepareDns(imageRunArgs.ContainerId)
+	if err != nil {
+		return err
+	}
+
+	// 5. 准备rootfs
 	if rootfsPath, err = service.prepareUnionFs(imageRunArgs.ContainerId, imageRunArgs.ImageId); err != nil {
 		return err
 	}
-	if spec, err = service.prepareBundle(rootfsPath, bundle, imageRunArgs); err != nil {
+
+	// 6. 准备spec
+	if spec, err = service.prepareSpec(rootfsPath, bundle, imageRunArgs, hostsMount, dnsMount); err != nil {
 		return err
 	}
-	// 如果运行出错,或者前台运行正常退出,则清理
+
+	// 7. 运行容器,如果运行出错,或者前台运行正常退出,则清理
 	if err = facade.CreateOrRunContainer(service.factory.GetRuntimeRoot(), imageRunArgs.ContainerId, bundle, spec, facade.ContainerActRun, imageRunArgs.Detach, imageRunArgs.Network, imageRunArgs.PortMappings); err != nil {
 		if cleanErr := service.cleanContainer(imageRunArgs.ContainerId); cleanErr != nil {
 			logrus.Warnf(cleanErr.Error())
@@ -238,11 +261,8 @@ func (service *imageService) prepareUnionFs(containerId string, imageId string) 
 	return initLayerPath, nil
 }
 
-func (service *imageService) prepareBundle(rootfsPath string, bundle string, imageRunArgs *ImageRunArgs) (*specs.Spec, error) {
-	spec := buildSpec(rootfsPath, imageRunArgs.Args, imageRunArgs.Env, imageRunArgs.Cwd, imageRunArgs.Hostname, imageRunArgs.Cpushare, imageRunArgs.Memory, imageRunArgs.Annotations)
-	if err := os.MkdirAll(bundle, 0644); err != nil {
-		return nil, err
-	}
+func (service *imageService) prepareSpec(rootfsPath string, bundle string, imageRunArgs *ImageRunArgs, mounts ...specs.Mount) (*specs.Spec, error) {
+	spec := buildSpec(rootfsPath, imageRunArgs.Args, imageRunArgs.Env, imageRunArgs.Cwd, imageRunArgs.Hostname, imageRunArgs.Cpushare, imageRunArgs.Memory, imageRunArgs.Annotations, mounts)
 	specFile, err := os.OpenFile(filepath.Join(bundle, constant.ContainerConfigFilename), os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, exception.NewGenericError(err, exception.SpecSaveError)
@@ -291,6 +311,52 @@ func (service *imageService) prepareMountPath(containerId string, layerId string
 		}
 	}
 	return layerPath, nil
+}
+
+func (service *imageService) prepareHosts(containerId string) (specs.Mount, error) {
+	hostsPath := filepath.Join(service.imageRoot, constant.ImageContainersDir, containerId, "hosts")
+	file, err := os.OpenFile(hostsPath, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return specs.Mount{}, exception.NewGenericError(err, exception.HostsError)
+	}
+	defer file.Close()
+	if _, err := file.WriteString("127.0.0.1	localhost\n"); err != nil {
+		return specs.Mount{}, exception.NewGenericError(err, exception.HostsError)
+	}
+	return specs.Mount{
+		Destination: "/etc/hosts",
+		Type:        "bind",
+		Source:      hostsPath,
+		Options: []string{
+			"rbind",
+			"rprivate",
+		},
+	}, nil
+}
+
+func (service *imageService) prepareDns(containerId string) (specs.Mount, error) {
+	resolvPath := filepath.Join(service.imageRoot, constant.ImageContainersDir, containerId, "resolv.conf")
+	file, err := os.OpenFile(resolvPath, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return specs.Mount{}, exception.NewGenericError(err, exception.DnsError)
+	}
+	defer file.Close()
+	bytes, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		return specs.Mount{}, exception.NewGenericError(err, exception.DnsError)
+	}
+	if _, err := file.Write(bytes); err != nil {
+		return specs.Mount{}, exception.NewGenericError(err, exception.DnsError)
+	}
+	return specs.Mount{
+		Destination: "/etc/resolv.conf",
+		Type:        "bind",
+		Source:      resolvPath,
+		Options: []string{
+			"rbind",
+			"rprivate",
+		},
+	}, nil
 }
 
 func (service *imageService) flushRepositories() error {

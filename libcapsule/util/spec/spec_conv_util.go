@@ -5,6 +5,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"os"
 	"path/filepath"
 )
 
@@ -13,6 +14,13 @@ import (
 */
 func CreateContainerConfig(bundle string, spec *specs.Spec, network string, portMappings []string) (*configs.ContainerConfig, error) {
 	logrus.Infof("converting specs.Spec to libcapsule.ContainerConfig...")
+	if bundle == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		bundle = cwd
+	}
 	rootfsPath := spec.Root.Path
 	if !filepath.IsAbs(rootfsPath) {
 		rootfsPath = filepath.Join(bundle, rootfsPath)

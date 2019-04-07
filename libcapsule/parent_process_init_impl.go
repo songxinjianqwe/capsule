@@ -62,7 +62,7 @@ func createNetworkInterfaces(p *ParentAbstractProcess) error {
 			return err
 		}
 	}
-	logrus.Infof("create or load bridge complete, bridge: %#v", bridge)
+	logrus.Infof("create or load bridge complete, bridge: %s", bridge)
 
 	// 创建端点
 	endpointConfig := p.container.config.Endpoint

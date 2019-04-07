@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/cli/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/network"
 	"github.com/urfave/cli"
@@ -12,6 +13,13 @@ import (
 var NetworkCommand = cli.Command{
 	Name:  "network",
 	Usage: "container network commands",
+	Before: func(ctx *cli.Context) error {
+		logrus.Infof("init network drivers...")
+		if err := network.InitNetworkDrivers(ctx.GlobalString("root")); err != nil {
+			return err
+		}
+		return nil
+	},
 	Subcommands: []cli.Command{
 		networkCreateCommand,
 		networkDeleteCommand,

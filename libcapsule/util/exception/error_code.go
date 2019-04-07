@@ -60,9 +60,12 @@ const (
 	ImageLoadError
 	ImageCreateError
 	ImageRepositoriesDumpError
+	BundleCreateError
 	SpecSaveError
 	UnionFsError
 	UnionFsMountError
+	DnsError
+	HostsError
 )
 
 func (c ErrorCode) String() string {
@@ -181,6 +184,12 @@ func (c ErrorCode) String() string {
 		return "image id not exists error"
 	case UnionFsMountError:
 		return "union fs mount error"
+	case BundleCreateError:
+		return "create bundle error"
+	case DnsError:
+		return "dns error"
+	case HostsError:
+		return "hosts error"
 	default:
 		return "unknown error"
 	}
