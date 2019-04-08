@@ -172,12 +172,12 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 // current processes's environment.
 func populateProcessEnvironment(env []string) error {
 	for _, pair := range env {
-		p := strings.SplitN(pair, "=", 2)
-		if len(p) < 2 {
+		splits := strings.SplitN(pair, "=", 2)
+		if len(splits) < 2 {
 			return fmt.Errorf("invalid environment '%v'", pair)
 		}
-		logrus.WithField("init", true).Infof("set env: key:%s, value:%s", p[0], p[1])
-		if err := os.Setenv(p[0], p[1]); err != nil {
+		logrus.WithField("init", true).Infof("set env: key:%s, value:%s", splits[0], splits[1])
+		if err := os.Setenv(splits[0], splits[1]); err != nil {
 			return err
 		}
 	}

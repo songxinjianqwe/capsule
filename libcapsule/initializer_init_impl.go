@@ -82,7 +82,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 		}
 	}
 
-	// 初始化环境变量
+	// 初始化sysctl环境变量
 	for key, value := range initializer.config.ContainerConfig.Sysctl {
 		if err = writeSystemProperty(key, value); err != nil {
 			return exception.NewGenericErrorWithContext(err, exception.SysctlError, fmt.Sprintf("init process/write sysctl key %s", key))

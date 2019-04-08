@@ -47,7 +47,7 @@ func main() {
 		capsuleCli.SpecCommand,
 		capsuleCli.LogCommand,
 		capsuleCli.NetworkCommand,
-		capsuleCli.ImageCommand,
+		capsuleCli.ImagesCommand,
 	}
 	// 日志是放在文件中的，而fmt.Printf是给用户看的
 	// 暂时将日志输出到stdout中

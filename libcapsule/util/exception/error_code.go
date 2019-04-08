@@ -197,10 +197,3 @@ func (c ErrorCode) String() string {
 		return "unknown error"
 	}
 }
-
-// Error is the API util type.
-type Error interface {
-	error
-	// Returns the util code for this util.
-	Code() ErrorCode
-}

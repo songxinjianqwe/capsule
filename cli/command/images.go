@@ -15,9 +15,9 @@ import (
 	"time"
 )
 
-var ImageCommand = cli.Command{
-	Name:  "image",
-	Usage: "container image commands",
+var ImagesCommand = cli.Command{
+	Name:  "images",
+	Usage: "image management",
 	Subcommands: []cli.Command{
 		imageCreateCommand,
 		imageDeleteCommand,

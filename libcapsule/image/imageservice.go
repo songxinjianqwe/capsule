@@ -86,18 +86,24 @@ type imageService struct {
 	repositories map[string]string
 }
 
-func (service *imageService) Destroy(container libcapsule.Container) (err error) {
+func (service *imageService) Destroy(container libcapsule.Container) error {
 	// 删除layer
-	if err = container.Destroy(); err != nil {
+	err := container.Destroy()
+	if err != nil {
 		logrus.Warnf(err.Error())
 	}
-	if err = service.cleanContainer(container.ID()); err != nil {
+	// 如果是容器仍在运行的错误,则返回该错误
+	e, ok := err.(exception.Error)
+	if ok && e.Code() == exception.ContainerStillRunningError {
+		return e
+	}
+	if err := service.cleanContainer(container.ID()); err != nil {
 		logrus.Warnf(err.Error())
 	}
 	return err
 }
 
-func (service *imageService) cleanContainer(containerId string) (err error) {
+func (service *imageService) cleanContainer(containerId string) error {
 	// umount init layer
 	// 删除 /var/run/capsule/images/layers/$init_layer
 	// 删除 /var/run/capsule/images/layers/$read_write_layer
@@ -106,9 +112,12 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 	// 1. umount
 	initLayer := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId, initLayer)
 	var initLayerIdBytes []byte
-	if initLayerIdBytes, err = ioutil.ReadFile(initLayer); err != nil || len(initLayerIdBytes) == 0 {
+	initLayerIdBytes, err := ioutil.ReadFile(initLayer)
+	if err != nil || len(initLayerIdBytes) == 0 {
 		logrus.Warnf("read init layer id failed, skip clean init layer")
-		logrus.Warnf(err.Error())
+		if err != nil {
+			logrus.Warnf(err.Error())
+		}
 	} else {
 		initLayerPath := filepath.Join(service.imageRoot, constant.ImageLayersDir, string(initLayerIdBytes))
 		logrus.Infof("umount %s", initLayerPath)
@@ -125,10 +134,12 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 
 	// 3. 删除read write layer
 	readWriteLayer := filepath.Join(service.imageRoot, constant.ImageMountsDir, containerId, readWriteLayer)
-	var rwLayerIdBytes []byte
-	if rwLayerIdBytes, err = ioutil.ReadFile(readWriteLayer); err != nil || len(rwLayerIdBytes) == 0 {
+	rwLayerIdBytes, err := ioutil.ReadFile(readWriteLayer)
+	if err != nil || len(rwLayerIdBytes) == 0 {
 		logrus.Warnf("read read write layer id failed, skip clean read write layer")
-		logrus.Warnf(err.Error())
+		if err != nil {
+			logrus.Warnf(err.Error())
+		}
 	} else {
 		logrus.Infof("removing container read write layer data, layer id is %s", string(rwLayerIdBytes))
 		if err := os.RemoveAll(filepath.Join(service.imageRoot, constant.ImageLayersDir, string(rwLayerIdBytes))); err != nil {
@@ -149,7 +160,7 @@ func (service *imageService) cleanContainer(containerId string) (err error) {
 	if err := os.RemoveAll(containerConfigPath); err != nil {
 		logrus.Warnf(err.Error())
 	}
-	return err
+	return nil
 }
 
 func (service *imageService) Run(imageRunArgs *ImageRunArgs) (err error) {

@@ -35,6 +35,13 @@ func NewGenericErrorWithContext(err error, c ErrorCode, context string) Error {
 	return genericError
 }
 
+// Error is the API util type.
+type Error interface {
+	error
+	// Returns the util code for this util.
+	Code() ErrorCode
+}
+
 type GenericError struct {
 	Timestamp time.Time
 	ErrorCode ErrorCode
