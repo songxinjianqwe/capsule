@@ -23,7 +23,7 @@ func (initializer *InitializerExecImpl) Init() error {
 	if initializer.config.ProcessConfig.Detach {
 		// 输出重定向
 		// /var/run/capsule/containers/$container_id/exec-$exec-id.log
-		logFile, err := os.Create(filepath.Join(initializer.containerRoot, fmt.Sprintf(constant.ContainerExecLogFilenamePattern, initializer.config.ProcessConfig.ID)))
+		logFile, err := os.OpenFile(filepath.Join(initializer.containerRoot, fmt.Sprintf(constant.ContainerExecLogFilenamePattern, initializer.config.ProcessConfig.ID)), os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
 		if err != nil {
 			return err
 		}

@@ -125,7 +125,6 @@ func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf(constant.EnvConfigPipe+"=%d", constant.DefaultStdFdCount+len(cmd.ExtraFiles)-1),
 	)
-
 	// 这里cmd是指init进程,init进程后面还会启动一个进入go runtime的进程,而init进程并不会进入,所以进程的stdin等置为os的
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

@@ -39,7 +39,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 		logrus.Infof("detach -> replace stdout to log file")
 		// 输出重定向
 		// /var/run/capsule/containers/$container_id/container.log
-		logFile, err := os.Create(filepath.Join(initializer.containerRoot, constant.ContainerInitLogFilename))
+		logFile, err := os.OpenFile(filepath.Join(initializer.containerRoot, constant.ContainerInitLogFilename), os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
 		if err != nil {
 			return err
 		}
@@ -50,6 +50,7 @@ func (initializer *InitializerStandardImpl) Init() (err error) {
 			return err
 		}
 	}
+
 	defer func() {
 		// 后面再出现err就不管了
 		if err != nil {

@@ -34,10 +34,10 @@ var LogCommand = cli.Command{
 		logrus.Infof("exec param: %s", ctx.String("exec"))
 		if ctx.String("exec") != "" {
 			// exec detach log
-			logFilename = path.Join(constant.DefaultRuntimeRoot, containerId, fmt.Sprintf(constant.ContainerExecLogFilenamePattern, ctx.String("exec")))
+			logFilename = path.Join(ctx.GlobalString("root"), constant.ContainerDir, containerId, fmt.Sprintf(constant.ContainerExecLogFilenamePattern, ctx.String("exec")))
 		} else {
 			// container detach log
-			logFilename = path.Join(constant.DefaultRuntimeRoot, containerId, constant.ContainerInitLogFilename)
+			logFilename = path.Join(ctx.GlobalString("root"), constant.ContainerDir, containerId, constant.ContainerInitLogFilename)
 		}
 		file, err := os.Open(logFilename)
 		if err != nil {
