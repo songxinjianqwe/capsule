@@ -10,7 +10,6 @@ import (
 	"github.com/songxinjianqwe/capsule/libcapsule/util/proc"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -38,7 +37,7 @@ func (c *LinuxContainer) detectContainerStatus() (ContainerStatus, error) {
 	// 容器进程存在的话，会有两种情况：一种是调用完create方法，容器进程阻塞在cmd之前；一种是容器进程解除阻塞，执行了cmd
 	// 在容器创建后，会创建该标记；在容器启动后，会删除该标记
 	// 如果标记存在，则说明是创建容器之后，启动容器之前
-	if _, err := os.Stat(filepath.Join(c.root, constant.NotExecFlagFilename)); err == nil {
+	if _, err := os.Stat(filepath.Join(c.containerRoot, constant.NotExecFlagFilename)); err == nil {
 		return Created, nil
 	}
 	return Running, nil
@@ -74,7 +73,7 @@ func (c *LinuxContainer) saveState() error {
 		return err
 	}
 	logrus.Infof("current state is %#v", state)
-	stateFilePath := filepath.Join(c.root, constant.StateFilename)
+	stateFilePath := filepath.Join(c.containerRoot, constant.StateFilename)
 	logrus.Infof("saving state in file: %s", stateFilePath)
 	file, err := os.Create(stateFilePath)
 	if err != nil {
@@ -93,7 +92,7 @@ func (c *LinuxContainer) saveState() error {
 }
 
 func (c *LinuxContainer) createFlagFile() error {
-	flagFilePath := filepath.Join(c.root, constant.NotExecFlagFilename)
+	flagFilePath := filepath.Join(c.containerRoot, constant.NotExecFlagFilename)
 	logrus.Infof("creating not exec flag in file: %s", flagFilePath)
 	file, err := os.Create(flagFilePath)
 	if err != nil {
@@ -105,7 +104,7 @@ func (c *LinuxContainer) createFlagFile() error {
 }
 
 func (c *LinuxContainer) deleteFlagFileIfExists() error {
-	flagFilePath := filepath.Join(c.root, constant.NotExecFlagFilename)
+	flagFilePath := filepath.Join(c.containerRoot, constant.NotExecFlagFilename)
 	_, err := os.Stat(flagFilePath)
 	if err == nil {
 		// 如果文件存在，则删除
@@ -120,32 +119,17 @@ func (c *LinuxContainer) deleteFlagFileIfExists() error {
 */
 func (c *LinuxContainer) buildCommand(process *Process, childConfigPipe *os.File) (*exec.Cmd, error) {
 	// 将factory runtime root作为参数传给init/exec进程
-	cmd := exec.Command(constant.ContainerInitCmd, "--root", filepath.Dir(c.root), constant.ContainerInitArgs)
+	cmd := exec.Command(constant.ContainerInitCmd, "--root", c.runtimeRoot, constant.ContainerInitArgs)
 	cmd.Dir = c.config.Rootfs
 	cmd.ExtraFiles = append(cmd.ExtraFiles, childConfigPipe)
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf(constant.EnvConfigPipe+"=%d", constant.DefaultStdFdCount+len(cmd.ExtraFiles)-1),
 	)
-	// 如果后台运行，则将stdout输出到日志文件中
-	if process.Detach {
-		var logFileName string
-		// 输出重定向
-		if process.Init {
-			logFileName = constant.ContainerInitLogFilename
-		} else {
-			logFileName = fmt.Sprintf(constant.ContainerExecLogFilenamePattern, process.ID)
-		}
-		logFile, err := os.Create(path.Join(c.root, logFileName))
-		if err != nil {
-			return nil, err
-		}
-		cmd.Stdout = logFile
-	} else {
-		// 如果启用终端，则将进程的stdin等置为os的
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
+
+	// 这里cmd是指init进程,init进程后面还会启动一个进入go runtime的进程,而init进程并不会进入,所以进程的stdin等置为os的
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd, nil
 }
 

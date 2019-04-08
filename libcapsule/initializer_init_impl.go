@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/songxinjianqwe/capsule/libcapsule/configs"
+	"github.com/songxinjianqwe/capsule/libcapsule/constant"
 	"github.com/songxinjianqwe/capsule/libcapsule/util"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/exception"
 	"github.com/songxinjianqwe/capsule/libcapsule/util/rootfs"
@@ -12,14 +13,16 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 )
 
 type InitializerStandardImpl struct {
-	config     *InitExecConfig
-	configPipe *os.File
-	parentPid  int
+	config        *InitExecConfig
+	configPipe    *os.File
+	parentPid     int
+	containerRoot string
 }
 
 // **************************************************************************************************
@@ -31,6 +34,22 @@ type InitializerStandardImpl struct {
 */
 func (initializer *InitializerStandardImpl) Init() (err error) {
 	logrus.WithField("init", true).Infof("InitializerStandardImpl Init()")
+	// 如果后台运行，则将stdout输出到日志文件中
+	if initializer.config.ProcessConfig.Detach {
+		logrus.Infof("detach -> replace stdout to log file")
+		// 输出重定向
+		// /var/run/capsule/containers/$container_id/container.log
+		logFile, err := os.Create(filepath.Join(initializer.containerRoot, constant.ContainerInitLogFilename))
+		if err != nil {
+			return err
+		}
+		if err := syscall.Dup2(int(logFile.Fd()), 1); err != nil {
+			return err
+		}
+		if err := syscall.Dup2(int(logFile.Fd()), 2); err != nil {
+			return err
+		}
+	}
 	defer func() {
 		// 后面再出现err就不管了
 		if err != nil {

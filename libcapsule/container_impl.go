@@ -15,9 +15,10 @@ import (
 )
 
 type LinuxContainer struct {
-	id     string
-	root   string
-	config configs.ContainerConfig
+	id            string
+	runtimeRoot   string
+	containerRoot string
+	config        configs.ContainerConfig
 	// runtime info
 	cgroupManager  cgroups.CgroupManager
 	endpoint       *network.Endpoint

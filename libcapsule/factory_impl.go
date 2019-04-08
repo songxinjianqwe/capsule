@@ -58,13 +58,14 @@ func (factory *LinuxContainerFactory) Create(id string, config *configs.Containe
 	} else if !os.IsNotExist(err) {
 		return nil, exception.NewGenericError(err, exception.ContainerLoadError)
 	}
-	logrus.Infof("mkdir containerRoot: %s", containerRoot)
+	logrus.Infof("mkdir root: %s", containerRoot)
 	if err := os.MkdirAll(containerRoot, 0644); err != nil {
 		return nil, exception.NewGenericError(err, exception.ContainerRootCreateError)
 	}
 	container := &LinuxContainer{
 		id:            id,
-		root:          containerRoot,
+		runtimeRoot:   factory.root,
+		containerRoot: containerRoot,
 		config:        *config,
 		cgroupManager: cgroups.NewCroupManager(id, make(map[string]string)),
 	}
@@ -93,7 +94,8 @@ func (factory *LinuxContainerFactory) Load(id string) (Container, error) {
 	container := &LinuxContainer{
 		id:            id,
 		createdTime:   state.Created,
-		root:          containerRoot,
+		runtimeRoot:   factory.root,
+		containerRoot: containerRoot,
 		config:        state.Config,
 		endpoint:      state.Endpoint,
 		cgroupManager: cgroups.NewCroupManager(id, state.CgroupPaths),
@@ -153,7 +155,7 @@ func (factory *LinuxContainerFactory) StartInitialization() error {
 	}
 
 	// 创建Initializer
-	initializer, err := NewInitializer(initializerType, initConfig, configPipe)
+	initializer, err := NewInitializer(initializerType, initConfig, configPipe, factory.root)
 	if err != nil {
 		return exception.NewGenericErrorWithContext(err, exception.InitializerCreateError, "creating initializer")
 	}

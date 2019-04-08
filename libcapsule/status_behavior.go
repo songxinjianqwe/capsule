@@ -58,7 +58,7 @@ func destroy(c *LinuxContainer) (err error) {
 		}
 	}
 	logrus.Infof("removing container root files...")
-	removeErr := os.RemoveAll(c.root)
+	removeErr := os.RemoveAll(c.containerRoot)
 	if removeErr != nil {
 		logrus.Warnf("remove container root runtime files failed, cause: %s", err.Error())
 		err = removeErr
