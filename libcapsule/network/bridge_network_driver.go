@@ -174,6 +174,10 @@ func (driver *BridgeNetworkDriver) Connect(endpointId string, network *Network, 
 }
 
 func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {
+	// 删除端口映射,不能放在后面,不知道为啥,endpoint的ip地址会变
+	if err := deletePortMappings(endpoint); err != nil {
+		logrus.Warnf(err.Error())
+	}
 	// 回收IP地址
 	logrus.Infof("before releasing, allocatable ip: %d", driver.allocator.Allocatable(endpoint.Network.Subnet()))
 	if err := driver.allocator.Release(endpoint.Network.Subnet(), endpoint.IpAddress); err != nil {
@@ -181,10 +185,6 @@ func (driver *BridgeNetworkDriver) Disconnect(endpoint *Endpoint) error {
 		return err
 	}
 	logrus.Infof("after releasing, allocatable ip: %d", driver.allocator.Allocatable(endpoint.Network.Subnet()))
-	// 删除端口映射
-	if err := deletePortMappings(endpoint); err != nil {
-		logrus.Warnf(err.Error())
-	}
 	// 删除宿主机上的网络端点(前面kill掉容器init process后,容器net namespace被销毁,容器内veth被销毁,宿主机与之peer的veth也随之被销毁)
 	return nil
 }

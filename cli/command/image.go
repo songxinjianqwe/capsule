@@ -209,10 +209,14 @@ var imageRunContainerCommand = cli.Command{
 			splits := strings.SplitN(label, "=", 2)
 			annotations[splits[0]] = splits[1]
 		}
+		args := ctx.Args()[1:]
+		if len(args) == 1 && strings.Contains(args[0], " ") {
+			args = strings.Split(args[0], " ")
+		}
 		if err := imageService.Run(&image.ImageRunArgs{
 			ImageId:      ctx.Args().First(),
 			ContainerId:  containerId,
-			Args:         ctx.Args()[1:],
+			Args:         args,
 			Env:          ctx.StringSlice("env"),
 			Cwd:          ctx.String("cwd"),
 			Hostname:     hostname,

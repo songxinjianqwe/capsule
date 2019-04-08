@@ -118,6 +118,7 @@ func deletePortMappings(endpoint *Endpoint) error {
 		split := strings.Split(mapping, ":")
 		hostPort := split[0]
 		containerPort := split[1]
+		logrus.Infof("delete port mapping:%s", endpoint.IpAddress.String())
 		if err := tables.Delete(
 			"nat",
 			"PREROUTING",
