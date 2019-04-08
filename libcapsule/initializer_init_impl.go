@@ -116,6 +116,7 @@ func (initializer *InitializerStandardImpl) setUpRootfs() error {
 			return exception.NewGenericErrorWithContext(err, exception.MountError, fmt.Sprintf("mounting %q to rootfs %q at %q", m.Source, initializer.config.ContainerConfig.Rootfs, m.Destination))
 		}
 	}
+
 	// 设备
 	for _, node := range initializer.config.ContainerConfig.Devices {
 		// containers running in a user namespace are not allowed to mknod

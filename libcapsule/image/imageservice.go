@@ -177,7 +177,7 @@ func (service *imageService) Run(imageRunArgs *ImageRunArgs) (err error) {
 	var rootfsPath string
 	var spec *specs.Spec
 	// 3. 准备/etc/hosts,会在/var/run/capsule/images/containers/$container_id下创建一个hosts
-	hostsMount, err := service.prepareHosts(imageRunArgs.ContainerId)
+	hostsMount, err := service.prepareHosts(imageRunArgs.ContainerId, imageRunArgs.Links)
 	if err != nil {
 		return err
 	}
@@ -318,15 +318,32 @@ func (service *imageService) prepareMountPath(containerId string, layerId string
 	return layerPath, nil
 }
 
-func (service *imageService) prepareHosts(containerId string) (specs.Mount, error) {
+func (service *imageService) prepareHosts(containerId string, links []string) (specs.Mount, error) {
 	hostsPath := filepath.Join(service.imageRoot, constant.ImageContainersDir, containerId, "hosts")
 	file, err := os.OpenFile(hostsPath, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return specs.Mount{}, exception.NewGenericError(err, exception.HostsError)
 	}
 	defer file.Close()
-	if _, err := file.WriteString("127.0.0.1	localhost\n"); err != nil {
+	if _, err := file.WriteString("127.0.0.1 localhost\n"); err != nil {
 		return specs.Mount{}, exception.NewGenericError(err, exception.HostsError)
+	}
+	for _, link := range links {
+		splits := strings.SplitN(link, ":", 2)
+		linkedContainerId := splits[0]
+		alias := splits[1]
+		container, err := service.factory.Load(linkedContainerId)
+		if err != nil {
+			return specs.Mount{}, exception.NewGenericError(err, exception.HostsError)
+		}
+		stateStorage, err := container.State()
+		if err != nil {
+			return specs.Mount{}, exception.NewGenericError(err, exception.HostsError)
+		}
+		ip := stateStorage.Endpoint.IpAddress.String()
+		if _, err := file.WriteString(fmt.Sprintf("%s %s\n", ip, alias)); err != nil {
+			return specs.Mount{}, exception.NewGenericError(err, exception.HostsError)
+		}
 	}
 	return specs.Mount{
 		Destination: "/etc/hosts",
