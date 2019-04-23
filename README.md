@@ -226,7 +226,7 @@ RUN yum install -y gcc automake autoconf libtool make net-tools.x86_64 iptables-
 				"type": "mount"
 			}
 		]
-	},
+	}
 }
 ```
 
@@ -427,7 +427,7 @@ run = create + start + destroy(对于前台运行的容器来说)<br />可以在
 				"type": "mount"
 			}
 		]
-	},
+	}
 }
 ```
 
