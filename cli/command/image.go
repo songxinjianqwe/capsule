@@ -16,7 +16,7 @@ import (
 )
 
 var ImagesCommand = cli.Command{
-	Name:  "images",
+	Name:  "image",
 	Usage: "image management",
 	Subcommands: []cli.Command{
 		imageCreateCommand,
@@ -121,7 +121,7 @@ var imageGetCommand = cli.Command{
 // -d
 // -workdir $workdir
 // -hostname $hostname
-// -name $name
+// -id $name
 // -env a=b c=d
 // -cpushare
 // -memory
@@ -153,21 +153,21 @@ var imageRunContainerCommand = cli.Command{
 			Usage: "environment variables",
 		},
 		cli.StringFlag{
-			Name:  "hostname",
+			Name:  "hostname, h",
 			Usage: "hostname",
 		},
 		cli.Int64Flag{
-			Name:  "cpushare",
+			Name:  "cpushare, c",
 			Value: 1024,
 			Usage: "cpushare",
 		},
 		cli.Int64Flag{
-			Name:  "memory",
+			Name:  "memory, m",
 			Value: 0,
 			Usage: "memory limit",
 		},
 		cli.StringFlag{
-			Name:  "network",
+			Name:  "network, net",
 			Value: network.DefaultBridgeName,
 			Usage: "network name",
 		},
